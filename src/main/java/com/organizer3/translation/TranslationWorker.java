@@ -385,6 +385,14 @@ public class TranslationWorker implements Runnable {
             log.warn("TranslationWorker: Ollama error for strategy '{}': {}", strategy.name(), e.getMessage());
         }
 
+        // Structured name parsing: for label_name, the model outputs JSON {"given":…,"surname":…}.
+        // Parse and compose to a Western-order string BEFORE caching/suggestion/dispatch, so the
+        // composed string is what lands in translation_cache, stage_name_suggestion, and the fan-out.
+        // This gate MUST NOT apply to any other strategy (title translations must be untouched).
+        if (englishText != null && StrategySelector.LABEL_NAME.equals(strategy.name())) {
+            englishText = StageNameRomajiParser.parseAndCompose(englishText);
+        }
+
         long latencyMs = System.currentTimeMillis() - startMs;
         String now = ISO_UTC.format(Instant.now());
 

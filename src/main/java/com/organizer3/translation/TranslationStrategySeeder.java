@@ -35,6 +35,21 @@ public class TranslationStrategySeeder {
     static final String PROSE_QWEN          = "prose_v1_qwen";
 
     /**
+     * label_name: structured prompt for actress stage-name romanization. The model is asked to
+     * output compact JSON {@code {"given":"<given>","surname":"<surname>"}} so the worker can
+     * compose a reliable Western-order string via {@link StageNameRomajiParser}.
+     *
+     * <p>No tier-2 fallback is configured: stage-name inputs are short/benign and rarely
+     * escalate; a tier-2 qwen strategy would need the same parser wiring.
+     */
+    private static final String LABEL_NAME_TEMPLATE =
+            "You are romanizing a Japanese AV actress stage name. Japanese names are written surname-first. " +
+            "Romanize to Western romaji and identify the parts. " +
+            "Output ONLY compact JSON: {\"given\":\"<given name>\",\"surname\":\"<surname>\"}. " +
+            "If the name is a single mononym, put it in \"given\" and leave \"surname\" empty. " +
+            "No explanation. Name: {jp}";
+
+    /**
      * label_basic: minimal single-instruction prompt for short, non-explicit labels.
      * Avoids the hardened few-shot preamble to reduce refusal risk on safety-tuned models
      * when input content is benign.
@@ -94,18 +109,21 @@ public class TranslationStrategySeeder {
     private final TranslationStrategyRepository strategyRepo;
 
     /**
-     * Seed all six strategies (3 tier-1, 3 tier-2) if they do not yet exist, and wire
+     * Seed all seven strategies (4 tier-1, 3 tier-2) if they do not yet exist, and wire
      * tier-1 → tier-2 pairings. Idempotent — safe to call on every startup.
      *
      * <p>Phase 3: tier-2 strategies use the same prompt templates as tier-1 but with the
      * fallback model ({@code qwen2.5:14b}). After seeding, each tier-1 strategy's
      * {@code tier2_strategy_id} is set to point at its corresponding tier-2 strategy.
+     *
+     * <p>{@code label_name} has no tier-2 configured (benign input, rarely escalates).
      */
     public void seedIfEmpty() {
         // Tier-1 strategies (gemma4:e4b primary)
         seedStrategy(StrategySelector.LABEL_BASIC,    PRIMARY_MODEL,  LABEL_BASIC_TEMPLATE,    LABEL_OPTIONS_JSON);
         seedStrategy(StrategySelector.LABEL_EXPLICIT, PRIMARY_MODEL,  LABEL_EXPLICIT_TEMPLATE, LABEL_OPTIONS_JSON);
         seedStrategy(StrategySelector.PROSE,          PRIMARY_MODEL,  PROSE_TEMPLATE,           PROSE_OPTIONS_JSON);
+        seedStrategy(StrategySelector.LABEL_NAME,     PRIMARY_MODEL,  LABEL_NAME_TEMPLATE,     LABEL_OPTIONS_JSON);
 
         // Tier-2 strategies (qwen2.5:14b fallback) — same prompts, different model
         seedStrategy(LABEL_BASIC_QWEN,    FALLBACK_MODEL, LABEL_BASIC_TEMPLATE,    LABEL_OPTIONS_JSON);
