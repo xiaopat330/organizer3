@@ -1110,9 +1110,11 @@ public class Application {
         final String UNSORTED_VOLUME_ID = "unsorted";
         com.organizer3.repository.UnsortedEditorRepository unsortedRepo =
                 new com.organizer3.repository.jdbi.JdbiUnsortedEditorRepository(jdbi);
+        com.organizer3.web.TitleFolderRenamer titleFolderRenamer =
+                new com.organizer3.web.TitleFolderRenamer(smbConnectionFactory, jdbi, UNSORTED_VOLUME_ID);
         com.organizer3.web.UnsortedEditorService unsortedEditorService =
                 new com.organizer3.web.UnsortedEditorService(unsortedRepo, actressRepo, coverPath,
-                        smbConnectionFactory, UNSORTED_VOLUME_ID);
+                        smbConnectionFactory, UNSORTED_VOLUME_ID, titleFolderRenamer);
         com.organizer3.web.CoverWriteService coverWriteService =
                 new com.organizer3.web.CoverWriteService(smbConnectionFactory, coverPath, UNSORTED_VOLUME_ID);
         webServer.registerUnsortedEditor(new com.organizer3.web.routes.UnsortedEditorRoutes(

@@ -258,6 +258,19 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
     }
 
     @Override
+    public Optional<String> findStagingPath(long titleId, String volumeId) {
+        return jdbi.withHandle(h -> h.createQuery("""
+                SELECT path FROM title_locations
+                WHERE title_id = :titleId AND volume_id = :volumeId AND stale_since IS NULL
+                LIMIT 1
+                """)
+                .bind("titleId", titleId)
+                .bind("volumeId", volumeId)
+                .mapTo(String.class)
+                .findFirst());
+    }
+
+    @Override
     public Optional<String> findActressCanonicalName(long actressId) {
         return jdbi.withHandle(h -> h.createQuery(
                         "SELECT canonical_name FROM actresses WHERE id = :id")

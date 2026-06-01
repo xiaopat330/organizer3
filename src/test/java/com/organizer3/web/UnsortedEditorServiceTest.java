@@ -66,12 +66,14 @@ class UnsortedEditorServiceTest {
         org.mockito.Mockito.when(smbFactory.open(VOL)).thenReturn(handle);
         org.mockito.Mockito.when(handle.fileSystem()).thenReturn(fs);
         org.mockito.Mockito.when(fs.exists(org.mockito.ArgumentMatchers.any())).thenReturn(false);
+        TitleFolderRenamer renamer = new TitleFolderRenamer(smbFactory, jdbi, VOL);
         service = new UnsortedEditorService(
                 new JdbiUnsortedEditorRepository(jdbi),
                 actressRepo,
                 coverPath,
                 smbFactory,
-                VOL);
+                VOL,
+                renamer);
     }
 
     @AfterEach

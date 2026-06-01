@@ -97,6 +97,12 @@ public interface UnsortedEditorRepository {
      */
     void renameFolderInDb(long titleId, String volumeId, String oldFolderPath, String newFolderPath);
 
+    /**
+     * Return the live (non-stale) folder path for a title on the given volume,
+     * or empty if no such location exists.
+     */
+    Optional<String> findStagingPath(long titleId, String volumeId);
+
     /** Return the canonical name of an actress by id, or empty. */
     Optional<String> findActressCanonicalName(long actressId);
 
