@@ -42,11 +42,12 @@ function formatReleaseDate(dateStr) {
  * The tag panel reads directTags / labelImpliedTags / enrichmentImpliedTags
  * as Sets — we mirror the no-draft shape so renderTagPanel works unchanged.
  */
-function buildDraftTagState(detail) {
+function buildDraftTagState(detail, draft) {
+  const enrFromDraft = draft?.enrichment?.resolvedTags;
   return {
     directTags:            new Set(detail?.directTags || []),
     labelImpliedTags:      new Set(detail?.labelImpliedTags || []),
-    enrichmentImpliedTags: new Set(detail?.enrichmentImpliedTags || []),
+    enrichmentImpliedTags: new Set(enrFromDraft || detail?.enrichmentImpliedTags || []),
   };
 }
 
@@ -71,7 +72,9 @@ export function mountDraft(paneEl, state, {
   let _upstreamDismissed = false;
 
   // Tags shim for renderTagPanel (Set-bearing object).
-  const _tagState = buildDraftTagState(state.detail);
+  // Source enrichmentImpliedTags from the DRAFT's resolved tags (not the canonical
+  // detail), because canonical title_enrichment_tags are empty until promotion.
+  const _tagState = buildDraftTagState(state.detail, state.draft);
 
   // Telemetry: fire-and-forget editor-session-open.
   if (state.currentId != null) {

@@ -179,6 +179,6 @@ class StrategySelectorTest {
     void seeder_isIdempotent_secondCallDoesNotDuplicate() {
         // Running seeder twice should not create extra strategies
         new TranslationStrategySeeder(strategyRepo).seedIfEmpty();
-        assertEquals(6, strategyRepo.findAllActive().size(), "Should have exactly 6 strategies after 2 seeder runs");
+        assertEquals(7, strategyRepo.findAllActive().size(), "Should have exactly 7 strategies after 2 seeder runs");
     }
 }

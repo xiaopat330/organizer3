@@ -25,6 +25,8 @@ public final class StrategySelector {
     public static final String LABEL_BASIC    = "label_basic";
     public static final String LABEL_EXPLICIT = "label_explicit";
     public static final String PROSE          = "prose";
+    /** Structured name strategy: produces JSON {"given":…,"surname":…} for stage-name romanization. */
+    public static final String LABEL_NAME     = "label_name";
 
     /**
      * Explicit JP tokens that indicate adult / explicit content.

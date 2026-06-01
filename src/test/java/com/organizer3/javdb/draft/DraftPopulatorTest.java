@@ -13,6 +13,7 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.translation.ActressFuzzyMatcher;
 import com.organizer3.translation.TranslationService;
+import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.web.ImageFetcher;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
@@ -36,15 +37,16 @@ class DraftPopulatorTest {
     Path dataDir;
 
     // ── Mocked external dependencies ──────────────────────────────────────────
-    private TitleRepository         titleRepo;
-    private ActressRepository       actressRepo;
-    private JavdbSlugResolver       slugResolver;
-    private JavdbClient             javdbClient;
-    private JavdbExtractor          extractor;
-    private JavdbStagingRepository  stagingRepo;
-    private ImageFetcher            imageFetcher;
-    private TranslationService      translationService;
-    private ActressFuzzyMatcher     fuzzyMatcher;
+    private TitleRepository              titleRepo;
+    private ActressRepository            actressRepo;
+    private JavdbSlugResolver            slugResolver;
+    private JavdbClient                  javdbClient;
+    private JavdbExtractor               extractor;
+    private JavdbStagingRepository       stagingRepo;
+    private ImageFetcher                 imageFetcher;
+    private TranslationService           translationService;
+    private ActressFuzzyMatcher          fuzzyMatcher;
+    private StageNameSuggestionRepository stageNameSuggestionRepo; // FIX 3a
 
     // ── In-memory SQLite repos ─────────────────────────────────────────────────
     private Connection connection;
@@ -61,15 +63,16 @@ class DraftPopulatorTest {
     @BeforeEach
     void setUp() throws Exception {
         // Mocks
-        titleRepo          = mock(TitleRepository.class);
-        actressRepo        = mock(ActressRepository.class);
-        slugResolver       = mock(JavdbSlugResolver.class);
-        javdbClient        = mock(JavdbClient.class);
-        extractor          = mock(JavdbExtractor.class);
-        stagingRepo        = mock(JavdbStagingRepository.class);
-        imageFetcher       = mock(ImageFetcher.class);
-        translationService = mock(TranslationService.class);
-        fuzzyMatcher       = mock(ActressFuzzyMatcher.class);
+        titleRepo               = mock(TitleRepository.class);
+        actressRepo             = mock(ActressRepository.class);
+        slugResolver            = mock(JavdbSlugResolver.class);
+        javdbClient             = mock(JavdbClient.class);
+        extractor               = mock(JavdbExtractor.class);
+        stagingRepo             = mock(JavdbStagingRepository.class);
+        imageFetcher            = mock(ImageFetcher.class);
+        translationService      = mock(TranslationService.class);
+        fuzzyMatcher            = mock(ActressFuzzyMatcher.class);
+        stageNameSuggestionRepo = mock(StageNameSuggestionRepository.class); // FIX 3a
 
         // In-memory SQLite
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
@@ -90,7 +93,8 @@ class DraftPopulatorTest {
         populator = new DraftPopulator(
                 titleRepo, actressRepo, slugResolver, javdbClient, extractor, stagingRepo,
                 draftTitleRepo, draftActressRepo, draftCastRepo, draftEnrichRepo,
-                coverStore, imageFetcher, JSON, translationService, fuzzyMatcher);
+                coverStore, imageFetcher, JSON, translationService, fuzzyMatcher,
+                stageNameSuggestionRepo); // FIX 3a: wire suggestion repo for REVERSAL correction
     }
 
     @AfterEach
@@ -183,7 +187,7 @@ class DraftPopulatorTest {
         when(extractor.extractTitle("<html/>", "TST-1", "tst-1")).thenReturn(stubExtract("TST-1", "tst-1", cast));
         when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
         when(stagingRepo.findActressIdByJavdbSlug("a1")).thenReturn(Optional.empty());
-        when(translationService.resolveOrSuggestStageName(any())).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(any(), anyLong(), anyLong())).thenReturn(Optional.empty());
         when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{1, 2, 3}, "jpg"));
 
         var result = populator.populate(1L);
@@ -254,7 +258,7 @@ class DraftPopulatorTest {
         // Pass 1: resolveByName returns a non-rejected actress.
         Actress actress = Actress.builder().id(42L).canonicalName("Aika").build();
         when(actressRepo.resolveByName("aika")).thenReturn(Optional.of(actress));
-        when(translationService.resolveOrSuggestStageName(any())).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(any(), anyLong(), anyLong())).thenReturn(Optional.empty());
         when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{0}, "jpg"));
 
         var result = populator.populate(1L);
@@ -283,7 +287,7 @@ class DraftPopulatorTest {
         when(stagingRepo.findActressIdByJavdbSlug("known-slug")).thenReturn(Optional.of(7L));
         Actress actress = Actress.builder().id(7L).canonicalName("SomeName").build();
         when(actressRepo.findById(7L)).thenReturn(Optional.of(actress));
-        when(translationService.resolveOrSuggestStageName(any())).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(any(), anyLong(), anyLong())).thenReturn(Optional.empty());
         when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{0}, "jpg"));
 
         var result = populator.populate(1L);
@@ -305,7 +309,7 @@ class DraftPopulatorTest {
         Actress rejected = Actress.builder().id(99L).canonicalName("Rejected One").rejected(true).build();
         when(actressRepo.resolveByName(any())).thenReturn(Optional.of(rejected));
         when(stagingRepo.findActressIdByJavdbSlug("a1")).thenReturn(Optional.empty());
-        when(translationService.resolveOrSuggestStageName(any())).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(any(), anyLong(), anyLong())).thenReturn(Optional.empty());
         when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{0}, "jpg"));
 
         var result = populator.populate(1L);
@@ -338,7 +342,7 @@ class DraftPopulatorTest {
         // An entry with null name should not crash and should fall through to pass 3.
         var entry = new TitleExtract.CastEntry("slug-x", null, "F");
         when(stagingRepo.findActressIdByJavdbSlug("slug-x")).thenReturn(Optional.empty());
-        when(translationService.resolveOrSuggestStageName(null)).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(isNull(), anyLong(), anyLong())).thenReturn(Optional.empty());
         DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
         assertNull(result.actressId());
         assertNull(result.englishFirst());
@@ -353,7 +357,7 @@ class DraftPopulatorTest {
         var entry = new TitleExtract.CastEntry("slug-p4", "浅見ゆま", "F");
         when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
         when(stagingRepo.findActressIdByJavdbSlug("slug-p4")).thenReturn(Optional.empty());
-        when(translationService.resolveOrSuggestStageName("浅見ゆま")).thenReturn(Optional.of("Yuma Asami"));
+        when(translationService.resolveStageNameBlocking(eq("浅見ゆま"), anyLong(), anyLong())).thenReturn(Optional.of("Yuma Asami"));
         Actress matched = Actress.builder().id(77L).canonicalName("Yuma Asami").build();
         when(fuzzyMatcher.match("Yuma Asami"))
                 .thenReturn(Optional.of(new ActressFuzzyMatcher.MatchResult(77L, ActressFuzzyMatcher.Rule.EXACT)));
@@ -371,7 +375,7 @@ class DraftPopulatorTest {
         var entry = new TitleExtract.CastEntry("slug-rej", "渡辺まや", "F");
         when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
         when(stagingRepo.findActressIdByJavdbSlug("slug-rej")).thenReturn(Optional.empty());
-        when(translationService.resolveOrSuggestStageName("渡辺まや")).thenReturn(Optional.of("Maya Watanabe"));
+        when(translationService.resolveStageNameBlocking(eq("渡辺まや"), anyLong(), anyLong())).thenReturn(Optional.of("Maya Watanabe"));
         Actress rejected = Actress.builder().id(55L).canonicalName("Maya Watanabe").rejected(true).build();
         when(fuzzyMatcher.match("Maya Watanabe"))
                 .thenReturn(Optional.of(new ActressFuzzyMatcher.MatchResult(55L, ActressFuzzyMatcher.Rule.EXACT)));
@@ -389,7 +393,7 @@ class DraftPopulatorTest {
         var entry = new TitleExtract.CastEntry("slug-5a", "田中みく", "F");
         when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
         when(stagingRepo.findActressIdByJavdbSlug("slug-5a")).thenReturn(Optional.empty());
-        when(translationService.resolveOrSuggestStageName("田中みく")).thenReturn(Optional.of("Miku Tanaka"));
+        when(translationService.resolveStageNameBlocking(eq("田中みく"), anyLong(), anyLong())).thenReturn(Optional.of("Miku Tanaka"));
         when(fuzzyMatcher.match("Miku Tanaka")).thenReturn(Optional.empty());
 
         DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
@@ -418,7 +422,7 @@ class DraftPopulatorTest {
         assertNull(result.englishLast());
         // Pass 2.5 short-circuits before the slug / translation passes.
         verify(stagingRepo, never()).findActressIdByJavdbSlug(anyString());
-        verify(translationService, never()).resolveOrSuggestStageName(anyString());
+        verify(translationService, never()).resolveStageNameBlocking(anyString(), anyLong(), anyLong());
     }
 
     @Test
@@ -441,7 +445,7 @@ class DraftPopulatorTest {
         when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
         when(actressRepo.findByStageName("誰でもない")).thenReturn(Optional.empty());
         when(stagingRepo.findActressIdByJavdbSlug("slug-miss")).thenReturn(Optional.empty());
-        when(translationService.resolveOrSuggestStageName("誰でもない")).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(eq("誰でもない"), anyLong(), anyLong())).thenReturn(Optional.empty());
 
         DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
 
@@ -453,7 +457,7 @@ class DraftPopulatorTest {
         var entry = new TitleExtract.CastEntry("slug-5b", "木村花子", "F");
         when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
         when(stagingRepo.findActressIdByJavdbSlug("slug-5b")).thenReturn(Optional.empty());
-        when(translationService.resolveOrSuggestStageName("木村花子")).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(eq("木村花子"), anyLong(), anyLong())).thenReturn(Optional.empty());
 
         DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
 
@@ -482,7 +486,7 @@ class DraftPopulatorTest {
         // Only female-slug will be auto-linked; the males should never reach autoLinkActress.
         when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
         when(stagingRepo.findActressIdByJavdbSlug("female-slug")).thenReturn(Optional.empty());
-        when(translationService.resolveOrSuggestStageName(any())).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(any(), anyLong(), anyLong())).thenReturn(Optional.empty());
         when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{1}, "jpg"));
 
         var result = populator.populate(1L);
@@ -526,7 +530,7 @@ class DraftPopulatorTest {
         when(extractor.extractTitle(any(), any(), any())).thenReturn(stubExtract("TST-1", "tst-1", cast));
         when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
         when(stagingRepo.findActressIdByJavdbSlug("slug-nfkc")).thenReturn(Optional.empty());
-        when(translationService.resolveOrSuggestStageName(fullWidthName)).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(eq(fullWidthName), anyLong(), anyLong())).thenReturn(Optional.empty());
         when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{0}, "jpg"));
 
         var result = populator.populate(1L);
@@ -534,5 +538,167 @@ class DraftPopulatorTest {
 
         DraftActress da = draftActressRepo.findBySlug("slug-nfkc").orElseThrow();
         assertEquals("テスト1号", da.getStageName(), "full-width digit should be NFKC-normalized to half-width");
+    }
+
+    // ── FIX 2: resolveStageNameBlocking is used in Pass 4 ────────────────────
+
+    /**
+     * FIX 2 race-reproducing test: the blocking call is mocked to return the romaji
+     * (simulating the async LLM worker succeeding within the wait window). The existing
+     * actress "Airi Nagisa" has NO kanji stage_name and NO slug — the old single-call
+     * path would have missed because the suggestion wasn't present yet.
+     *
+     * <p>The reversal rule fires: LLM returned "Nagisa Airi" (surname-first); the
+     * fuzzy matcher reverses to "Airi Nagisa" and hits. This test asserts the slot
+     * resolution flips to {@code pick} via the normal match path.
+     */
+    @Test
+    void autoLinkActress_fix2_blockingCallReturnsRomaji_reversalMatchSetsPickResolution() {
+        seedActress(4023L, "Airi Nagisa"); // no stage_name, no slug
+
+        var entry = new TitleExtract.CastEntry("Mm5v4", "渚あいり", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(actressRepo.findByStageName("渚あいり")).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("Mm5v4")).thenReturn(Optional.empty());
+
+        // FIX 2: blocking call mocked to return surname-first romaji (as LLM would produce).
+        // This simulates the race: the LLM finished within the blocking window.
+        when(translationService.resolveStageNameBlocking(eq("渚あいり"), anyLong(), anyLong()))
+                .thenReturn(Optional.of("Nagisa Airi"));
+
+        // Fuzzy matcher: REVERSAL rule fires ("Nagisa Airi" → reversed → "Airi Nagisa")
+        Actress matched = Actress.builder().id(4023L).canonicalName("Airi Nagisa").build();
+        when(fuzzyMatcher.match("Nagisa Airi"))
+                .thenReturn(Optional.of(new ActressFuzzyMatcher.MatchResult(4023L, ActressFuzzyMatcher.Rule.REVERSAL)));
+        when(actressRepo.findById(4023L)).thenReturn(Optional.of(matched));
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        // (a) Slot resolution becomes 'pick' linked to actress 4023 — via the normal match path.
+        assertEquals(4023L, result.actressId(), "REVERSAL match must return the actress id (pick resolution)");
+        assertNull(result.englishFirst());
+        assertNull(result.englishLast());
+    }
+
+    /**
+     * FIX 2 full-path test through {@code populate()}: confirms the slot resolution
+     * written to {@code draft_title_actresses.resolution} equals {@code "pick"} when
+     * the blocking call returns a romaji that matches via the REVERSAL rule.
+     *
+     * <p>This verifies point (a): the per-draft slot resolution flips to {@code pick}
+     * through {@link DraftPopulator#writeCastSlots}, not just {@code link_to_existing_id}.
+     */
+    @Test
+    void populate_fix2_blockingCallMatchViaReversal_slotResolutionIsPick() throws Exception {
+        seedActress(4023L, "Airi Nagisa");
+
+        when(titleRepo.findById(1L)).thenReturn(Optional.of(stubTitle(1L, "TST-1")));
+        stubSlugSuccess("TST-1", "tst-1");
+        when(javdbClient.fetchTitlePage("tst-1")).thenReturn("<html/>");
+        var cast = List.of(new TitleExtract.CastEntry("Mm5v4", "渚あいり", "F"));
+        when(extractor.extractTitle(any(), any(), any())).thenReturn(stubExtract("TST-1", "tst-1", cast));
+
+        // Passes 1/2/3: all miss.
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(actressRepo.findByStageName("渚あいり")).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("Mm5v4")).thenReturn(Optional.empty());
+
+        // FIX 2: blocking call resolves the romaji within the wait window.
+        when(translationService.resolveStageNameBlocking(eq("渚あいり"), anyLong(), anyLong()))
+                .thenReturn(Optional.of("Nagisa Airi"));
+
+        // Fuzzy REVERSAL match → actress 4023.
+        Actress matched = Actress.builder().id(4023L).canonicalName("Airi Nagisa").build();
+        when(fuzzyMatcher.match("Nagisa Airi"))
+                .thenReturn(Optional.of(new ActressFuzzyMatcher.MatchResult(4023L, ActressFuzzyMatcher.Rule.REVERSAL)));
+        when(actressRepo.findById(4023L)).thenReturn(Optional.of(matched));
+        when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{0}, "jpg"));
+
+        var result = populator.populate(1L);
+        assertEquals(DraftPopulator.Status.CREATED, result.status());
+
+        // (a) draft_title_actresses.resolution must be "pick" — set by writeCastSlots line 294.
+        var slots = draftCastRepo.findByDraftTitleId(result.draftTitleId());
+        assertEquals(1, slots.size());
+        assertEquals(DraftPopulator.RESOLUTION_PICK, slots.get(0).getResolution(),
+                "FIX 2: slot resolution must be 'pick' when blocking call resolves via REVERSAL");
+
+        // link_to_existing_id must point to actress 4023.
+        var da = draftActressRepo.findBySlug("Mm5v4").orElseThrow();
+        assertEquals(4023L, da.getLinkToExistingId());
+    }
+
+    /**
+     * FIX 2 timeout test: the blocking call returns empty (LLM not done / down).
+     * The slot must stay {@code unresolved} — no regression from the old behaviour.
+     */
+    @Test
+    void autoLinkActress_fix2_blockingCallTimesOut_slotStaysUnresolved() {
+        var entry = new TitleExtract.CastEntry("slug-timeout", "渚あいり", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(actressRepo.findByStageName("渚あいり")).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-timeout")).thenReturn(Optional.empty());
+
+        // Blocking call times out → returns empty.
+        when(translationService.resolveStageNameBlocking(eq("渚あいり"), anyLong(), anyLong()))
+                .thenReturn(Optional.empty());
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertSame(DraftPopulator.AutoLinkResult.EMPTY, result, "timeout must return EMPTY (unresolved)");
+    }
+
+    // ── FIX 3a: REVERSAL match triggers recordFinalRomaji ────────────────────
+
+    /**
+     * FIX 3a: When the REVERSAL rule fires, {@code recordFinalRomaji} is called with
+     * the canonical (given-first) order from the matched actress.
+     */
+    @Test
+    void autoLinkActress_fix3a_reversalRule_recordsFinalRomajiWithCanonicalOrder() {
+        seedActress(4023L, "Airi Nagisa");
+
+        var entry = new TitleExtract.CastEntry("Mm5v4", "渚あいり", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(actressRepo.findByStageName("渚あいり")).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("Mm5v4")).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(eq("渚あいり"), anyLong(), anyLong()))
+                .thenReturn(Optional.of("Nagisa Airi")); // surname-first from LLM
+
+        Actress matched = Actress.builder().id(4023L).canonicalName("Airi Nagisa").build();
+        when(fuzzyMatcher.match("Nagisa Airi"))
+                .thenReturn(Optional.of(new ActressFuzzyMatcher.MatchResult(4023L, ActressFuzzyMatcher.Rule.REVERSAL)));
+        when(actressRepo.findById(4023L)).thenReturn(Optional.of(matched));
+
+        populator.autoLinkActress(entry);
+
+        // FIX 3a: the corrected canonical order must be persisted into final_romaji.
+        verify(stageNameSuggestionRepo).recordFinalRomaji(
+                com.organizer3.translation.TranslationNormalization.normalize("渚あいり"),
+                "Airi Nagisa");
+    }
+
+    /**
+     * FIX 3a: An EXACT-rule match must NOT trigger recordFinalRomaji (only REVERSAL is wrong-order).
+     */
+    @Test
+    void autoLinkActress_fix3a_exactRule_doesNotRecordFinalRomaji() {
+        seedActress(77L, "Yuma Asami");
+
+        var entry = new TitleExtract.CastEntry("slug-exact", "浅見ゆま", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(actressRepo.findByStageName("浅見ゆま")).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-exact")).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(eq("浅見ゆま"), anyLong(), anyLong()))
+                .thenReturn(Optional.of("Yuma Asami"));
+
+        Actress matched = Actress.builder().id(77L).canonicalName("Yuma Asami").build();
+        when(fuzzyMatcher.match("Yuma Asami"))
+                .thenReturn(Optional.of(new ActressFuzzyMatcher.MatchResult(77L, ActressFuzzyMatcher.Rule.EXACT)));
+        when(actressRepo.findById(77L)).thenReturn(Optional.of(matched));
+
+        populator.autoLinkActress(entry);
+
+        verify(stageNameSuggestionRepo, never()).recordFinalRomaji(any(), any());
     }
 }

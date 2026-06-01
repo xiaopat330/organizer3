@@ -301,9 +301,9 @@ public class TranslationServiceImpl implements TranslationService {
             return suggestion;
         }
 
-        Optional<TranslationStrategy> strategy = strategyRepo.findByName("label_basic");
+        Optional<TranslationStrategy> strategy = strategyRepo.findByName(StrategySelector.LABEL_NAME);
         if (strategy.isEmpty()) {
-            log.warn("resolveOrSuggestStageName: label_basic strategy not found, cannot enqueue for '{}'", normalized);
+            log.warn("resolveOrSuggestStageName: label_name strategy not found, cannot enqueue for '{}'", normalized);
             return Optional.empty();
         }
         String now = ISO_UTC.format(Instant.now());
@@ -311,6 +311,34 @@ public class TranslationServiceImpl implements TranslationService {
         boolean inserted = queueRepo.enqueueIfAbsent(normalized, strategy.get().id(), now,
                 TranslationQueueRow.STATUS_PENDING, null, null, 10);
         log.debug("resolveOrSuggestStageName: MISS for '{}', enqueueIfAbsent={}", normalized, inserted);
+        return Optional.empty();
+    }
+
+    // FIX 2: Bounded blocking wait for stage-name resolution.
+    @Override
+    public Optional<String> resolveStageNameBlocking(String kanjiName, long timeoutMs, long pollIntervalMs) {
+        if (kanjiName == null || kanjiName.isBlank()) return Optional.empty();
+
+        // Enqueue the work (no-op if already present) and attempt an immediate hit.
+        Optional<String> immediate = resolveOrSuggestStageName(kanjiName);
+        if (immediate.isPresent()) return immediate;
+
+        // Poll until a suggestion appears or the timeout elapses.
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                Thread.sleep(pollIntervalMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            Optional<String> poll = resolveOrSuggestStageName(kanjiName);
+            if (poll.isPresent()) {
+                log.debug("resolveStageNameBlocking: resolved '{}' after polling", kanjiName);
+                return poll;
+            }
+        }
+        log.debug("resolveStageNameBlocking: timed out after {}ms for '{}'", timeoutMs, kanjiName);
         return Optional.empty();
     }
 
@@ -472,9 +500,9 @@ public class TranslationServiceImpl implements TranslationService {
         }
 
         // 3. Synchronous Ollama call
-        TranslationStrategy strategy = strategyRepo.findByName("label_basic").orElse(null);
+        TranslationStrategy strategy = strategyRepo.findByName(StrategySelector.LABEL_NAME).orElse(null);
         if (strategy == null) {
-            log.warn("translateStageNameNow: label_basic strategy not found for '{}'", normalized);
+            log.warn("translateStageNameNow: label_name strategy not found for '{}'", normalized);
             return Optional.empty();
         }
 
@@ -520,6 +548,12 @@ public class TranslationServiceImpl implements TranslationService {
         } catch (OllamaException e) {
             failureReason = "adapter_error";
             log.warn("translateStageNameNow: Ollama error for '{}': {}", normalized, e.getMessage());
+        }
+
+        // Structured name parsing: label_name outputs JSON; parse and compose to Western-order
+        // BEFORE caching/suggestion/dispatch, matching the same gate in TranslationWorker.
+        if (englishText != null && StrategySelector.LABEL_NAME.equals(strategy.name())) {
+            englishText = StageNameRomajiParser.parseAndCompose(englishText);
         }
 
         long latencyMs = System.currentTimeMillis() - startMs;

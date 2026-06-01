@@ -163,4 +163,25 @@ public class JdbiStageNameSuggestionRepository implements StageNameSuggestionRep
                         .findFirst()
         );
     }
+
+    // FIX 3a: Persist the corrected (given-first) romaji into final_romaji of the most
+    // recent suggestion row, so future pre-fills and the review UI use the correct order.
+    @Override
+    public void recordFinalRomaji(String normalizedKanji, String correctedRomaji) {
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        UPDATE stage_name_suggestion
+                        SET final_romaji = :correctedRomaji
+                        WHERE id = (
+                            SELECT id FROM stage_name_suggestion
+                            WHERE kanji_form = :kanji
+                            ORDER BY id DESC
+                            LIMIT 1
+                        )
+                        """)
+                        .bind("kanji",         normalizedKanji)
+                        .bind("correctedRomaji", correctedRomaji)
+                        .execute()
+        );
+    }
 }

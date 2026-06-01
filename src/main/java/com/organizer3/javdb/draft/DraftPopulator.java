@@ -15,6 +15,7 @@ import com.organizer3.repository.TitleRepository;
 import com.organizer3.translation.ActressFuzzyMatcher;
 import com.organizer3.translation.TranslationNormalization;
 import com.organizer3.translation.TranslationService;
+import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.web.ImageFetcher;
 import org.jdbi.v3.core.statement.UnableToExecuteStatementException;
 import org.slf4j.Logger;
@@ -56,6 +57,12 @@ public class DraftPopulator {
     /** Cast slot that could not be auto-linked; user must resolve in editor. */
     static final String RESOLUTION_UNRESOLVED = "unresolved";
 
+    // FIX 2: Default timeout/poll constants for the blocking stage-name resolution.
+    // ~2500ms gives the LLM worker enough time to process a freshly-enqueued row;
+    // 250ms poll is fine-grained enough without burning CPU.
+    static final long STAGE_NAME_BLOCKING_TIMEOUT_MS      = 2500L;
+    static final long STAGE_NAME_BLOCKING_POLL_INTERVAL_MS = 250L;
+
     private final TitleRepository          titleRepo;
     private final ActressRepository        actressRepo;
     private final JavdbSlugResolver        slugResolver;
@@ -69,9 +76,13 @@ public class DraftPopulator {
     private final DraftCoverScratchStore   coverStore;
     private final ImageFetcher             imageFetcher;
     private final ObjectMapper             json;
-    private final TranslationService       translationService;
-    private final ActressFuzzyMatcher      fuzzyMatcher;
+    private final TranslationService            translationService;
+    private final ActressFuzzyMatcher           fuzzyMatcher;
+    // FIX 3a: needed to persist corrected order when a REVERSAL-rule match occurs.
+    // May be null if not wired (backward-compat); FIX 3a is skipped when null.
+    private final StageNameSuggestionRepository stageNameSuggestionRepo;
 
+    /** Backward-compatible constructor (no stageNameSuggestionRepo — FIX 3a skipped). */
     @SuppressWarnings("checkstyle:ParameterNumber")
     public DraftPopulator(
             TitleRepository          titleRepo,
@@ -89,21 +100,46 @@ public class DraftPopulator {
             ObjectMapper             json,
             TranslationService       translationService,
             ActressFuzzyMatcher      fuzzyMatcher) {
-        this.titleRepo         = titleRepo;
-        this.actressRepo       = actressRepo;
-        this.slugResolver      = slugResolver;
-        this.javdbClient       = javdbClient;
-        this.extractor         = extractor;
-        this.stagingRepo       = stagingRepo;
-        this.draftTitleRepo    = draftTitleRepo;
-        this.draftActressRepo  = draftActressRepo;
-        this.draftCastRepo     = draftCastRepo;
-        this.draftEnrichRepo   = draftEnrichRepo;
-        this.coverStore        = coverStore;
-        this.imageFetcher      = imageFetcher;
-        this.json              = json;
-        this.translationService = translationService;
-        this.fuzzyMatcher      = fuzzyMatcher;
+        this(titleRepo, actressRepo, slugResolver, javdbClient, extractor, stagingRepo,
+                draftTitleRepo, draftActressRepo, draftCastRepo, draftEnrichRepo,
+                coverStore, imageFetcher, json, translationService, fuzzyMatcher, null);
+    }
+
+    /** Full constructor including FIX 3a stageNameSuggestionRepo. */
+    @SuppressWarnings("checkstyle:ParameterNumber")
+    public DraftPopulator(
+            TitleRepository               titleRepo,
+            ActressRepository             actressRepo,
+            JavdbSlugResolver             slugResolver,
+            JavdbClient                   javdbClient,
+            JavdbExtractor                extractor,
+            JavdbStagingRepository        stagingRepo,
+            DraftTitleRepository          draftTitleRepo,
+            DraftActressRepository        draftActressRepo,
+            DraftTitleActressesRepository draftCastRepo,
+            DraftTitleEnrichmentRepository draftEnrichRepo,
+            DraftCoverScratchStore        coverStore,
+            ImageFetcher                  imageFetcher,
+            ObjectMapper                  json,
+            TranslationService            translationService,
+            ActressFuzzyMatcher           fuzzyMatcher,
+            StageNameSuggestionRepository stageNameSuggestionRepo) {
+        this.titleRepo               = titleRepo;
+        this.actressRepo             = actressRepo;
+        this.slugResolver            = slugResolver;
+        this.javdbClient             = javdbClient;
+        this.extractor               = extractor;
+        this.stagingRepo             = stagingRepo;
+        this.draftTitleRepo          = draftTitleRepo;
+        this.draftActressRepo        = draftActressRepo;
+        this.draftCastRepo           = draftCastRepo;
+        this.draftEnrichRepo         = draftEnrichRepo;
+        this.coverStore              = coverStore;
+        this.imageFetcher            = imageFetcher;
+        this.json                    = json;
+        this.translationService      = translationService;
+        this.fuzzyMatcher            = fuzzyMatcher;
+        this.stageNameSuggestionRepo = stageNameSuggestionRepo;
     }
 
     // -------------------------------------------------------------------------
@@ -338,13 +374,31 @@ public class DraftPopulator {
             }
         }
 
-        // Pass 4: curated stage-name lookup + fuzzy match
-        Optional<String> romaji = translationService.resolveOrSuggestStageName(entry.name());
+        // Pass 4: curated stage-name lookup + fuzzy match.
+        // FIX 2: Use the bounded blocking variant so the LLM can produce a result in the
+        // ~2500ms window before we give up. On timeout the call returns empty and we fall
+        // through to Pass 5b exactly as before (no regression).
+        Optional<String> romaji = translationService.resolveStageNameBlocking(
+                entry.name(),
+                STAGE_NAME_BLOCKING_TIMEOUT_MS,
+                STAGE_NAME_BLOCKING_POLL_INTERVAL_MS);
         if (romaji.isPresent()) {
             Optional<ActressFuzzyMatcher.MatchResult> fuzzy = fuzzyMatcher.match(romaji.get());
             if (fuzzy.isPresent()) {
                 Optional<Actress> matched = actressRepo.findById(fuzzy.get().actressId());
                 if (matched.isPresent() && !matched.get().isRejected()) {
+                    // FIX 3a: If the match was via REVERSAL, the suggestion store has the romaji
+                    // in surname-first order. Persist the canonical (given-first) order from the
+                    // matched actress's canonical_name so the review UI pre-fills correctly.
+                    if (fuzzy.get().rule() == ActressFuzzyMatcher.Rule.REVERSAL
+                            && stageNameSuggestionRepo != null
+                            && entry.name() != null && !entry.name().isBlank()) {
+                        String correctedRomaji = matched.get().getCanonicalName();
+                        stageNameSuggestionRepo.recordFinalRomaji(
+                                TranslationNormalization.normalize(entry.name()), correctedRomaji);
+                        log.debug("autoLink: REVERSAL match — corrected romaji='{}' written for kanji='{}'",
+                                correctedRomaji, entry.name());
+                    }
                     return new AutoLinkResult(matched.get().getId(), null, null);
                 }
             }
@@ -353,7 +407,7 @@ public class DraftPopulator {
             return new AutoLinkResult(null, parts[0], parts[1]);
         }
 
-        // Pass 5b: resolveOrSuggestStageName returned empty → enqueued, no romaji yet
+        // Pass 5b: resolveStageNameBlocking returned empty → timed out or LLM unavailable
         return AutoLinkResult.EMPTY;
     }
 
