@@ -138,4 +138,67 @@ class JdbiStageNameSuggestionRepositoryTest {
         assertTrue(result.isPresent());
         assertEquals("Sora Aoi (old)", result.get());
     }
+
+    // ── FIX 3a: recordFinalRomaji ─────────────────────────────────────────────
+
+    /**
+     * FIX 3a: recordFinalRomaji updates final_romaji on the most recent suggestion row
+     * for the given kanji form. Subsequent findLatestUsableSuggestion should return the
+     * corrected (given-first) value.
+     */
+    @Test
+    void recordFinalRomaji_updatesLatestSuggestionFinalRomaji() {
+        String kanji = "渚あいり";
+        String normalizedKanji = com.organizer3.translation.TranslationNormalization.normalize(kanji);
+        String ts = "2026-06-01T00:00:00.000Z";
+
+        // Insert a suggestion with LLM-produced surname-first order.
+        repo.recordSuggestion(normalizedKanji, "Nagisa Airi", ts);
+
+        // FIX 3a: record the canonical (given-first) correction.
+        repo.recordFinalRomaji(normalizedKanji, "Airi Nagisa");
+
+        // findLatestUsableSuggestion should now return the corrected value
+        // (COALESCE(final_romaji, suggested_romaji) picks final_romaji first).
+        Optional<String> result = repo.findLatestUsableSuggestion(normalizedKanji);
+        assertTrue(result.isPresent(), "suggestion must still be found after recordFinalRomaji");
+        assertEquals("Airi Nagisa", result.get(), "FIX 3a: corrected order must win via final_romaji");
+    }
+
+    /**
+     * FIX 3a: recordFinalRomaji is a no-op when no suggestion row exists for the kanji form.
+     * Must not throw.
+     */
+    @Test
+    void recordFinalRomaji_noRow_noOp() {
+        assertDoesNotThrow(() ->
+                repo.recordFinalRomaji("存在しない", "Should Not Throw"));
+    }
+
+    /**
+     * FIX 3a: When multiple suggestion rows exist, recordFinalRomaji updates the most
+     * recent one (highest id) and leaves the older rows untouched.
+     */
+    @Test
+    void recordFinalRomaji_multipleRows_updatesLatestOnly() {
+        String kanji = "田中みく";
+        String normalized = com.organizer3.translation.TranslationNormalization.normalize(kanji);
+        repo.recordSuggestion(normalized, "Tanaka Miku (old)", "2026-01-01T00:00:00.000Z");
+        repo.recordSuggestion(normalized, "Miku Tanaka (new)", "2026-01-02T00:00:00.000Z");
+
+        repo.recordFinalRomaji(normalized, "Miku Tanaka (corrected)");
+
+        // The most recent row should have the corrected value.
+        Optional<String> result = repo.findLatestUsableSuggestion(normalized);
+        assertTrue(result.isPresent());
+        assertEquals("Miku Tanaka (corrected)", result.get(),
+                "FIX 3a: only the latest row's final_romaji should be updated");
+
+        // Directly check that the older row is unchanged (via findByKanji order).
+        var rows = repo.findByKanji(normalized);
+        assertEquals(2, rows.size());
+        // findByKanji orders by suggested_at DESC, so rows.get(0) is the newer row.
+        assertNotNull(rows.get(0).finalRomaji(), "newer row must have final_romaji set");
+        assertNull(rows.get(1).finalRomaji(), "older row must still have null final_romaji");
+    }
 }

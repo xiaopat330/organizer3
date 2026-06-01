@@ -76,4 +76,20 @@ public interface StageNameSuggestionRepository {
      * @param normalizedKanji NFKC-normalised kanji stage name
      */
     Optional<String> findLatestUsableSuggestion(String normalizedKanji);
+
+    /**
+     * FIX 3a: Persists a corrected given-first romaji order for a kanji form.
+     *
+     * <p>When a REVERSAL-rule fuzzy match fires, the LLM produced the romaji in
+     * surname-first order, but the canonical actress name is given-first. This method
+     * writes {@code correctedRomaji} into the {@code final_romaji} column of the most
+     * recent suggestion row for {@code normalizedKanji}, so that future pre-fills and
+     * the review UI show the correct order.
+     *
+     * <p>No-op if no suggestion row exists for the given kanji form.
+     *
+     * @param normalizedKanji NFKC-normalised kanji stage name
+     * @param correctedRomaji the canonical given-first romaji (from the matched actress)
+     */
+    void recordFinalRomaji(String normalizedKanji, String correctedRomaji);
 }

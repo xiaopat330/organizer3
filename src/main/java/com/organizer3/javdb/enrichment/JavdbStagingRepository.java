@@ -125,24 +125,13 @@ public class JavdbStagingRepository {
      * Creates or updates the actress staging row with just a slug (slug_only status).
      * If a row already exists with status='fetched', the slug and source_title_code
      * are updated but status remains 'fetched'.
-     */
-    /**
-     * Returns false if the slug is already claimed by a different actress (slug collision —
+     *
+     * <p>Returns false if the slug is already claimed by a different actress (slug collision —
      * two DB actresses mapping to the same JavDB page). Caller should log and skip.
      */
     public boolean upsertActressSlugOnly(long actressId, String javdbSlug, String sourceTitleCode) {
         try {
-            jdbi.useHandle(h -> h.createUpdate("""
-                    INSERT INTO javdb_actress_staging (actress_id, javdb_slug, source_title_code, status)
-                    VALUES (:actressId, :slug, :sourceTitleCode, 'slug_only')
-                    ON CONFLICT(actress_id) DO UPDATE SET
-                        javdb_slug        = excluded.javdb_slug,
-                        source_title_code = excluded.source_title_code
-                    """)
-                    .bind("actressId",      actressId)
-                    .bind("slug",           javdbSlug)
-                    .bind("sourceTitleCode", sourceTitleCode)
-                    .execute());
+            jdbi.useHandle(h -> doUpsertActressSlugOnly(h, actressId, javdbSlug, sourceTitleCode));
             return true;
         } catch (org.jdbi.v3.core.statement.UnableToExecuteStatementException ex) {
             if (ex.getMessage() != null && ex.getMessage().contains("SQLITE_CONSTRAINT_UNIQUE")
@@ -153,6 +142,58 @@ public class JavdbStagingRepository {
             }
             throw ex;
         }
+    }
+
+    // FIX 1: Handle-accepting overload for use inside an existing transaction
+    // (e.g. DraftPromotionService). Shares the same SQL as the no-Handle variant.
+    // Returns false on slug-collision; caller must catch and skip — do NOT rethrow.
+    /**
+     * Handle-accepting overload of {@link #upsertActressSlugOnly} for use inside an existing
+     * open transaction. The slug UNIQUE constraint violation is caught and returns {@code false}
+     * (slug already owned by a different actress); any other exception is rethrown.
+     *
+     * <p>Callers within a transaction must wrap this in a SAVEPOINT if they need to continue
+     * using the same handle after a potential violation; in practice SQLite only aborts the
+     * failing statement (not the whole transaction), so a simple catch-and-continue is safe.
+     *
+     * @return true on success; false on slug-collision (caller should log and skip)
+     */
+    public boolean upsertActressSlugOnly(
+            org.jdbi.v3.core.Handle h,
+            long actressId,
+            String javdbSlug,
+            String sourceTitleCode) {
+        try {
+            doUpsertActressSlugOnly(h, actressId, javdbSlug, sourceTitleCode);
+            return true;
+        } catch (org.jdbi.v3.core.statement.UnableToExecuteStatementException ex) {
+            if (ex.getMessage() != null && ex.getMessage().contains("SQLITE_CONSTRAINT_UNIQUE")
+                    && ex.getMessage().contains("javdb_actress_staging.javdb_slug")) {
+                log.warn("javdb: slug {} already claimed by another actress — skipping actress {} ({}) [in-txn]",
+                        javdbSlug, actressId, sourceTitleCode);
+                return false;
+            }
+            throw ex;
+        }
+    }
+
+    /** Shared SQL body for both upsertActressSlugOnly variants. */
+    private void doUpsertActressSlugOnly(
+            org.jdbi.v3.core.Handle h,
+            long actressId,
+            String javdbSlug,
+            String sourceTitleCode) {
+        h.createUpdate("""
+                INSERT INTO javdb_actress_staging (actress_id, javdb_slug, source_title_code, status)
+                VALUES (:actressId, :slug, :sourceTitleCode, 'slug_only')
+                ON CONFLICT(actress_id) DO UPDATE SET
+                    javdb_slug        = excluded.javdb_slug,
+                    source_title_code = excluded.source_title_code
+                """)
+                .bind("actressId",       actressId)
+                .bind("slug",            javdbSlug)
+                .bind("sourceTitleCode", sourceTitleCode)
+                .execute();
     }
 
     /** Upserts a fully fetched actress staging row. */

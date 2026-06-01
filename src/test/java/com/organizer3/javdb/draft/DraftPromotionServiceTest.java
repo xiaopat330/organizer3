@@ -6,8 +6,11 @@ import com.organizer3.covers.CoverPath;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
+import com.organizer3.javdb.enrichment.JavdbStagingRepository;
 import com.organizer3.model.Title;
+import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
 import com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionRepository;
@@ -51,6 +54,9 @@ class DraftPromotionServiceTest {
     private DraftTitleEnrichmentRepository draftEnrichRepo;
     private DraftCoverScratchStore         coverStore;
     private JdbiStageNameSuggestionRepository suggestionRepo;
+    // FIX 1 test repos
+    private JavdbStagingRepository         javdbStagingRepo;
+    private ActressRepository              actressRepo;
 
     // ── Service ───────────────────────────────────────────────────────────────
     private DraftPromotionService service;
@@ -81,14 +87,17 @@ class DraftPromotionServiceTest {
             h.execute("INSERT OR IGNORE INTO enrichment_tag_definitions(name, title_count) VALUES ('solo', 0)");
         });
 
-        draftTitleRepo  = new DraftTitleRepository(jdbi);
+        draftTitleRepo   = new DraftTitleRepository(jdbi);
         draftActressRepo = new DraftActressRepository(jdbi);
-        draftCastRepo   = new DraftTitleActressesRepository(jdbi);
-        draftEnrichRepo = new DraftTitleEnrichmentRepository(jdbi);
-        coverStore      = new DraftCoverScratchStore(dataDir);
-        coverPath       = new CoverPath(dataDir);
-        titleRepo       = new JdbiTitleRepository(jdbi, new JdbiTitleLocationRepository(jdbi));
-        suggestionRepo  = new JdbiStageNameSuggestionRepository(jdbi);
+        draftCastRepo    = new DraftTitleActressesRepository(jdbi);
+        draftEnrichRepo  = new DraftTitleEnrichmentRepository(jdbi);
+        coverStore       = new DraftCoverScratchStore(dataDir);
+        coverPath        = new CoverPath(dataDir);
+        titleRepo        = new JdbiTitleRepository(jdbi, new JdbiTitleLocationRepository(jdbi));
+        suggestionRepo   = new JdbiStageNameSuggestionRepository(jdbi);
+        // FIX 1 repos — real in-memory implementations
+        javdbStagingRepo = new JavdbStagingRepository(jdbi, JSON, dataDir);
+        actressRepo      = new JdbiActressRepository(jdbi);
 
         EnrichmentHistoryRepository historyRepo = new EnrichmentHistoryRepository(jdbi, JSON);
         TitleEffectiveTagsService effectiveTags = new TitleEffectiveTagsService(jdbi);
@@ -97,7 +106,8 @@ class DraftPromotionServiceTest {
         service = new DraftPromotionService(
                 jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
                 draftEnrichRepo, coverStore, coverPath, castValidator,
-                titleRepo, historyRepo, effectiveTags, JSON, suggestionRepo);
+                titleRepo, historyRepo, effectiveTags, JSON, suggestionRepo,
+                javdbStagingRepo, actressRepo); // FIX 1
     }
 
     @AfterEach
@@ -914,5 +924,128 @@ class DraftPromotionServiceTest {
                 h.createQuery("SELECT COUNT(*) FROM actress_aliases WHERE actress_id=:id")
                         .bind("id", actressId).mapTo(Integer.class).one());
         assertEquals(2, aliasCount, "idempotent re-insert must not create duplicate alias rows");
+    }
+
+    // ── FIX 1: slug registration + stage_name backfill at promotion ──────────
+
+    /**
+     * FIX 1: After promoting a draft with a 'pick' slot, the javdb_actress_staging
+     * table must contain the slug→actress mapping AND the actress's stage_name must be
+     * backfilled with the kanji from the draft_actress row (if it was previously empty).
+     */
+    @Test
+    void fix1_promotion_registersSlugAndBackfillsStageName() throws Exception {
+        // Actress 10 ("Mana Sakura") exists with NO stage_name, NO slug in staging.
+        jdbi.useHandle(h -> h.execute("UPDATE actresses SET stage_name=NULL WHERE id=10"));
+
+        // Build draft: the draft_actress for slug "slug-airi" carries kanji stage name.
+        long draftId = seedDraftFull(1L, castJson("Mana Sakura"), "pick", "slug-airi", 10L,
+                null, null, "[]", "2024-06-01T00:00:00Z");
+        // Overwrite the stage_name to a kanji value (simulates what DraftPopulator sets).
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE draft_actresses SET stage_name='愛里なぎさ' WHERE javdb_slug='slug-airi'"));
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        // FIX 1a: javdb_actress_staging must have a slug→actress row.
+        int stagingCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM javdb_actress_staging WHERE actress_id=10 AND javdb_slug='slug-airi'")
+                        .mapTo(Integer.class).one());
+        assertEquals(1, stagingCount, "FIX 1a: slug→actress mapping must be registered in javdb_actress_staging");
+
+        // FIX 1b: actresses.stage_name must be backfilled to the kanji value.
+        String stageName = jdbi.withHandle(h ->
+                h.createQuery("SELECT stage_name FROM actresses WHERE id=10")
+                        .mapTo(String.class).one());
+        assertEquals("愛里なぎさ", stageName, "FIX 1b: actress.stage_name must be backfilled from draft kanji");
+    }
+
+    /**
+     * FIX 1: If the actress already has a stage_name, the backfill must NOT overwrite it.
+     */
+    @Test
+    void fix1_promotion_doesNotOverwriteExistingStageName() throws Exception {
+        // Set a pre-existing stage_name on actress 10.
+        jdbi.useHandle(h -> h.execute("UPDATE actresses SET stage_name='既存名前' WHERE id=10"));
+
+        long draftId = seedDraftFull(1L, castJson("Mana Sakura"), "pick", "slug-airi2", 10L,
+                null, null, "[]", "2024-06-01T00:00:00Z");
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE draft_actresses SET stage_name='別の名前' WHERE javdb_slug='slug-airi2'"));
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        String stageName = jdbi.withHandle(h ->
+                h.createQuery("SELECT stage_name FROM actresses WHERE id=10")
+                        .mapTo(String.class).one());
+        assertEquals("既存名前", stageName, "FIX 1b: must NOT overwrite an existing stage_name");
+    }
+
+    /**
+     * FIX 1: Slug collision (the same javdb slug is already claimed by a different actress)
+     * must NOT fail the promotion. The mapping is skipped with a warning; the rest of the
+     * promotion completes normally.
+     */
+    @Test
+    void fix1_promotion_slugCollision_doesNotFailPromotion() throws Exception {
+        // actress 10 has no slug. actress 99 (sentinel) already owns "slug-collision".
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO javdb_actress_staging(actress_id, javdb_slug, source_title_code, status) " +
+                "VALUES(99, 'slug-collision', 'DIFF-001', 'slug_only')"));
+
+        // Draft: actress 10 picked but using the same slug.
+        long draftId = seedDraftFull(1L, castJson("Mana Sakura"), "pick", "slug-collision", 10L,
+                null, null, "[]", "2024-06-01T00:00:00Z");
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE draft_actresses SET stage_name='渚あいり' WHERE javdb_slug='slug-collision'"));
+
+        // Must not throw — promotion succeeds even on slug collision.
+        assertDoesNotThrow(() -> service.promote(draftId, "2024-06-01T00:00:00Z"),
+                "FIX 1: slug collision must NOT fail promotion");
+
+        // The existing mapping (99 → slug-collision) must be unchanged.
+        long ownerActressId = jdbi.withHandle(h ->
+                h.createQuery("SELECT actress_id FROM javdb_actress_staging WHERE javdb_slug='slug-collision'")
+                        .mapTo(Long.class).one());
+        assertEquals(99L, ownerActressId, "original slug owner must remain unchanged after collision skip");
+
+        // title_actresses must still contain actress 10 (promotion succeeded).
+        int linkCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_actresses WHERE title_id=1 AND actress_id=10")
+                        .mapTo(Integer.class).one());
+        assertEquals(1, linkCount, "title_actresses link must exist even after slug-collision skip");
+    }
+
+    /**
+     * FIX 1: create_new promotion also registers the slug in javdb_actress_staging
+     * and sets stage_name on the newly-created actress.
+     */
+    @Test
+    void fix1_createNew_registersSlugAndSetsStageName() throws Exception {
+        long draftId = seedDraftFull(1L, castJson("New Actress"), "create_new", "slug-new-fix1",
+                null, "Airi", "Nagisa", "[]", "2024-06-01T00:00:00Z");
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE draft_actresses SET stage_name='渚あいり' WHERE javdb_slug='slug-new-fix1'"));
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        Long newActressId = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM actresses WHERE canonical_name='Airi Nagisa'")
+                        .mapTo(Long.class).one());
+        assertNotNull(newActressId);
+
+        // FIX 1a: slug registered.
+        int stagingCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM javdb_actress_staging WHERE actress_id=:id AND javdb_slug='slug-new-fix1'")
+                        .bind("id", newActressId)
+                        .mapTo(Integer.class).one());
+        assertEquals(1, stagingCount, "FIX 1a: slug must be registered for newly-created actress");
+
+        // FIX 1b: stage_name set (newly created actress had no stage_name before promotion).
+        String stageName = jdbi.withHandle(h ->
+                h.createQuery("SELECT stage_name FROM actresses WHERE id=:id")
+                        .bind("id", newActressId)
+                        .mapTo(String.class).one());
+        assertEquals("渚あいり", stageName, "FIX 1b: stage_name must be set on newly-created actress");
     }
 }

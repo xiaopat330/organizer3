@@ -259,4 +259,59 @@ class TranslationServiceImplTest {
         verify(cacheRepo).insert(any()); // failure is still written to cache
         verify(stageNameSuggestionRepo, never()).recordSuggestionAndGetId(any(), any(), any());
     }
+
+    // ── FIX 2: resolveStageNameBlocking ─────────────────────────────────────
+
+    /**
+     * FIX 2: When the suggestion appears after the first poll, the blocking variant
+     * returns it. Simulates the async race: first call returns empty (enqueues),
+     * second call (poll) returns the romaji — as if the LLM worker processed it
+     * in between.
+     */
+    @Test
+    void resolveStageNameBlocking_suggestionAppearsAfterFirstPoll_returnsRomaji() {
+        // First resolveOrSuggestStageName call (immediate): empty (enqueued).
+        // Second call (first poll): romaji present.
+        when(stageNameLookupRepo.findRomanizedFor(NORMALIZED))
+                .thenReturn(Optional.empty());
+        when(stageNameSuggestionRepo.findLatestUsableSuggestion(NORMALIZED))
+                .thenReturn(Optional.empty())   // first call (enqueue path)
+                .thenReturn(Optional.of(ROMAJI)); // second call (poll hit)
+        when(strategyRepo.findByName("label_basic")).thenReturn(Optional.of(labelBasicStrategy));
+        when(queueRepo.enqueueIfAbsent(anyString(), anyLong(), anyString(),
+                anyString(), isNull(), isNull(), anyInt())).thenReturn(true);
+
+        Optional<String> result = service.resolveStageNameBlocking(KANJI, 500L, 10L);
+
+        assertTrue(result.isPresent(), "should return romaji once suggestion appears");
+        assertEquals(ROMAJI, result.get());
+    }
+
+    /**
+     * FIX 2: When the suggestion never appears within the timeout, the blocking
+     * variant returns empty. No regression — same behaviour as the old single call.
+     */
+    @Test
+    void resolveStageNameBlocking_timeout_returnsEmpty() {
+        when(stageNameLookupRepo.findRomanizedFor(NORMALIZED))
+                .thenReturn(Optional.empty());
+        when(stageNameSuggestionRepo.findLatestUsableSuggestion(NORMALIZED))
+                .thenReturn(Optional.empty()); // always miss
+        when(strategyRepo.findByName("label_basic")).thenReturn(Optional.of(labelBasicStrategy));
+        when(queueRepo.enqueueIfAbsent(anyString(), anyLong(), anyString(),
+                anyString(), isNull(), isNull(), anyInt())).thenReturn(false);
+
+        // 50ms timeout, 10ms poll → at most 5 polls, all miss
+        Optional<String> result = service.resolveStageNameBlocking(KANJI, 50L, 10L);
+
+        assertTrue(result.isEmpty(), "should return empty on timeout");
+    }
+
+    /** FIX 2: Blank input returns empty immediately, no blocking. */
+    @Test
+    void resolveStageNameBlocking_blankInput_returnsEmpty() {
+        Optional<String> result = service.resolveStageNameBlocking("", 500L, 10L);
+        assertTrue(result.isEmpty());
+        verifyNoInteractions(stageNameLookupRepo, stageNameSuggestionRepo, queueRepo);
+    }
 }

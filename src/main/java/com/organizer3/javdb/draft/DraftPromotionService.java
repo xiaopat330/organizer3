@@ -6,7 +6,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.db.TitleEffectiveTagsService;
 import com.organizer3.javdb.enrichment.EnrichmentHistoryRepository;
+import com.organizer3.javdb.enrichment.JavdbStagingRepository;
 import com.organizer3.model.Title;
+import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.translation.NameComposer;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
@@ -67,6 +69,10 @@ public class DraftPromotionService {
     private final TitleEffectiveTagsService     effectiveTags;
     private final ObjectMapper                  json;
     private final StageNameSuggestionRepository suggestionRepo;
+    // FIX 1: javdb_actress_staging repo — used to learn slug→actress mappings at promotion.
+    private final JavdbStagingRepository        javdbStagingRepo;
+    // FIX 1: actress repo — used to read/backfill stage_name on promoted actresses.
+    private final ActressRepository             actressRepo;
 
     /** Seam for cover-copy — injectable in tests to simulate COMMIT-failure. */
     private CoverCopier coverCopier;
@@ -88,20 +94,45 @@ public class DraftPromotionService {
             TitleEffectiveTagsService     effectiveTags,
             ObjectMapper                  json,
             StageNameSuggestionRepository suggestionRepo) {
-        this.jdbi            = jdbi;
-        this.draftTitleRepo  = draftTitleRepo;
+        this(jdbi, draftTitleRepo, draftActressRepo, draftCastRepo, draftEnrichRepo,
+                coverStore, coverPath, castValidator, titleRepo, historyRepo, effectiveTags,
+                json, suggestionRepo, null, null);
+    }
+
+    /** Full constructor including FIX 1 dependencies (javdbStagingRepo, actressRepo). */
+    @SuppressWarnings("checkstyle:ParameterNumber")
+    public DraftPromotionService(
+            Jdbi                          jdbi,
+            DraftTitleRepository          draftTitleRepo,
+            DraftActressRepository        draftActressRepo,
+            DraftTitleActressesRepository draftCastRepo,
+            DraftTitleEnrichmentRepository draftEnrichRepo,
+            DraftCoverScratchStore        coverStore,
+            CoverPath                     coverPath,
+            CastValidator                 castValidator,
+            TitleRepository               titleRepo,
+            EnrichmentHistoryRepository   historyRepo,
+            TitleEffectiveTagsService     effectiveTags,
+            ObjectMapper                  json,
+            StageNameSuggestionRepository suggestionRepo,
+            JavdbStagingRepository        javdbStagingRepo,
+            ActressRepository             actressRepo) {
+        this.jdbi             = jdbi;
+        this.draftTitleRepo   = draftTitleRepo;
         this.draftActressRepo = draftActressRepo;
-        this.draftCastRepo   = draftCastRepo;
-        this.draftEnrichRepo = draftEnrichRepo;
-        this.coverStore      = coverStore;
-        this.coverPath       = coverPath;
-        this.castValidator   = castValidator;
-        this.titleRepo       = titleRepo;
-        this.historyRepo     = historyRepo;
-        this.effectiveTags   = effectiveTags;
-        this.json            = json;
-        this.suggestionRepo  = suggestionRepo;
-        this.coverCopier     = this::defaultCoverCopy;
+        this.draftCastRepo    = draftCastRepo;
+        this.draftEnrichRepo  = draftEnrichRepo;
+        this.coverStore       = coverStore;
+        this.coverPath        = coverPath;
+        this.castValidator    = castValidator;
+        this.titleRepo        = titleRepo;
+        this.historyRepo      = historyRepo;
+        this.effectiveTags    = effectiveTags;
+        this.json             = json;
+        this.suggestionRepo   = suggestionRepo;
+        this.javdbStagingRepo = javdbStagingRepo;
+        this.actressRepo      = actressRepo;
+        this.coverCopier      = this::defaultCoverCopy;
     }
 
     /** Override the cover-copy implementation; used in tests to inject failure. */
@@ -362,7 +393,7 @@ public class DraftPromotionService {
         h.createUpdate("DELETE FROM title_actresses WHERE title_id = :id")
                 .bind("id", canonicalTitleId)
                 .execute();
-        insertTitleActresses(h, canonicalTitleId, slots, newActressIds);
+        insertTitleActresses(h, canonicalTitleId, slots, newActressIds, draft.getCode());
 
         // ── Step 5: INSERT OR REPLACE title_javdb_enrichment ─────────────────────
         writeCanonicalEnrichment(h, canonicalTitleId, enrichment, nowIso);
@@ -731,10 +762,24 @@ public class DraftPromotionService {
         return da.getStageName();
     }
 
-    /** Inserts title_actresses rows for non-skipped, non-sentinel-only resolutions. */
+    /**
+     * Inserts title_actresses rows for non-skipped, non-sentinel-only resolutions.
+     *
+     * <p>FIX 1: For every slot that resolves to an actress (pick or create_new), within this
+     * same promotion transaction:
+     * <ul>
+     *   <li>Registers the javdb slug→actress mapping in {@code javdb_actress_staging} via
+     *       {@link JavdbStagingRepository#upsertActressSlugOnly}. On slug-collision (slug already
+     *       owned by a different actress) the upsert is skipped — promotion still succeeds.</li>
+     *   <li>Backfills {@code actresses.stage_name} from the draft_actress row's kanji
+     *       stage_name, but ONLY when the actress currently has no stage_name set (never
+     *       overwrites an existing value).</li>
+     * </ul>
+     */
     private void insertTitleActresses(Handle h, long titleId,
                                       List<DraftTitleActress> slots,
-                                      Map<String, Long> newActressIds) {
+                                      Map<String, Long> newActressIds,
+                                      String titleCode) {
         for (DraftTitleActress slot : slots) {
             String res = slot.getResolution();
             Long actressId = resolveActressId(slot, res, newActressIds);
@@ -747,6 +792,46 @@ public class DraftPromotionService {
                     .bind("titleId",   titleId)
                     .bind("actressId", actressId)
                     .execute();
+
+            // FIX 1a: Register slug→actress mapping in javdb_actress_staging.
+            // Slug is not available for sentinel: resolutions (no draft_actress row backing them).
+            String javdbSlug = slot.getJavdbSlug();
+            if (javdbStagingRepo != null && javdbSlug != null && !javdbSlug.isBlank()
+                    && !res.startsWith("sentinel:")) {
+                javdbStagingRepo.upsertActressSlugOnly(h, actressId, javdbSlug, titleCode);
+                // (returns false on slug-collision → already logged by the repo; we just continue)
+            }
+
+            // FIX 1b: Backfill actresses.stage_name from the draft kanji name, only when empty.
+            // draft_actresses.stage_name holds the NFKC-normalised kanji from javdb.
+            if (actressRepo != null && javdbSlug != null && !javdbSlug.isBlank()
+                    && !res.startsWith("sentinel:")) {
+                DraftActress da = h.createQuery(
+                        "SELECT * FROM draft_actresses WHERE javdb_slug = :slug")
+                        .bind("slug", javdbSlug)
+                        .map(DraftActressRepository.ROW_MAPPER)
+                        .findOne()
+                        .orElse(null);
+                if (da != null) {
+                    String kanjiStageName = da.getStageName();
+                    if (kanjiStageName != null && !kanjiStageName.isBlank()) {
+                        // Only write when the actress currently has no stage_name.
+                        int updated = h.createUpdate("""
+                                UPDATE actresses
+                                SET stage_name = :stageName
+                                WHERE id = :id
+                                  AND (stage_name IS NULL OR stage_name = '')
+                                """)
+                                .bind("stageName", kanjiStageName)
+                                .bind("id",        actressId)
+                                .execute();
+                        if (updated > 0) {
+                            log.info("promote: backfilled stage_name='{}' for actress id={}",
+                                    kanjiStageName, actressId);
+                        }
+                    }
+                }
+            }
         }
     }
 

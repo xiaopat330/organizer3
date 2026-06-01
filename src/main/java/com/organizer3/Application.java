@@ -916,7 +916,8 @@ public class Application {
                         new com.organizer3.javdb.enrichment.JavdbExtractor(),
                         javdbStagingRepo, draftTitleRepo, draftActressRepo, draftCastRepo,
                         draftEnrichRepo, draftCoverStore, imageFetcher, jsonMapper,
-                        translationService, actressFuzzyMatcher);
+                        translationService, actressFuzzyMatcher,
+                        stageNameSuggestionRepo); // FIX 3a: REVERSAL-rule final_romaji correction
         com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask bulkEnrichToDraftTask =
                 new com.organizer3.utilities.task.javdb.BulkEnrichToDraftTask(jdbi, draftPopulator);
 
@@ -1139,7 +1140,9 @@ public class Application {
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
                         draftEnrichRepo, draftCoverStore, coverPath, castValidator,
                         titleRepo, enrichmentHistoryRepo, titleEffectiveTagsService, jsonMapper,
-                        stageNameSuggestionRepo);
+                        stageNameSuggestionRepo,
+                        javdbStagingRepo, // FIX 1: learn slug→actress at promotion
+                        actressRepo);     // FIX 1: backfill actress.stage_name at promotion
         com.organizer3.javdb.draft.DraftPatchService draftPatchService =
                 new com.organizer3.javdb.draft.DraftPatchService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo);

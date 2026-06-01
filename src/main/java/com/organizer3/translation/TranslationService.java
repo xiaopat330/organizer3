@@ -73,6 +73,29 @@ public interface TranslationService {
      */
     Optional<String> resolveOrSuggestStageName(String kanjiName);
 
+    /**
+     * FIX 2: Bounded blocking variant of {@link #resolveOrSuggestStageName}.
+     *
+     * <p>Enqueues the kanji name for LLM translation (via {@link #resolveOrSuggestStageName})
+     * then polls the suggestion store every {@code pollIntervalMs} milliseconds until
+     * a romaji result appears or {@code timeoutMs} elapses. The poll relies on the
+     * translation worker draining the queue concurrently.
+     *
+     * <p>On timeout the method returns {@link Optional#empty()}, preserving today's
+     * fallback behaviour (unresolved slot). This means there is NO regression when
+     * the LLM worker is down or slow.
+     *
+     * <p>Do NOT call from a request-handling thread or any thread where blocking is
+     * prohibited. Intended only for the draft-populate path which already runs on a
+     * background worker thread.
+     *
+     * @param kanjiName      raw (possibly un-normalised) kanji stage name
+     * @param timeoutMs      maximum wait in milliseconds before giving up
+     * @param pollIntervalMs interval between suggestion-table polls in milliseconds
+     * @return romaji if resolved within the timeout; empty otherwise
+     */
+    Optional<String> resolveStageNameBlocking(String kanjiName, long timeoutMs, long pollIntervalMs);
+
     /** Basic operational statistics (cache sizes, success/failure counts). */
     TranslationServiceStats stats();
 

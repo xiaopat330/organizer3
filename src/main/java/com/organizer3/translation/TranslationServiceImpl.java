@@ -314,6 +314,34 @@ public class TranslationServiceImpl implements TranslationService {
         return Optional.empty();
     }
 
+    // FIX 2: Bounded blocking wait for stage-name resolution.
+    @Override
+    public Optional<String> resolveStageNameBlocking(String kanjiName, long timeoutMs, long pollIntervalMs) {
+        if (kanjiName == null || kanjiName.isBlank()) return Optional.empty();
+
+        // Enqueue the work (no-op if already present) and attempt an immediate hit.
+        Optional<String> immediate = resolveOrSuggestStageName(kanjiName);
+        if (immediate.isPresent()) return immediate;
+
+        // Poll until a suggestion appears or the timeout elapses.
+        long deadline = System.currentTimeMillis() + timeoutMs;
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                Thread.sleep(pollIntervalMs);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+            Optional<String> poll = resolveOrSuggestStageName(kanjiName);
+            if (poll.isPresent()) {
+                log.debug("resolveStageNameBlocking: resolved '{}' after polling", kanjiName);
+                return poll;
+            }
+        }
+        log.debug("resolveStageNameBlocking: timed out after {}ms for '{}'", timeoutMs, kanjiName);
+        return Optional.empty();
+    }
+
     @Override
     public TranslationServiceStats stats() {
         long stageNameLookupSize = stageNameLookupRepo != null ? stageNameLookupRepo.countAll() : 0L;
