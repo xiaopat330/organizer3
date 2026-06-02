@@ -1146,7 +1146,8 @@ public class Application {
                         javdbStagingRepo,    // FIX 1: learn slug→actress at promotion
                         actressRepo,         // FIX 1: backfill actress.stage_name at promotion
                         UNSORTED_VOLUME_ID,  // Phase 2: staging volume id for post-commit rename
-                        titleFolderRenamer); // Phase 2: shared rename helper
+                        titleFolderRenamer,  // Phase 2: shared rename helper
+                        coverWriteService);  // best-effort NAS cover write at promotion
         com.organizer3.javdb.draft.DraftPatchService draftPatchService =
                 new com.organizer3.javdb.draft.DraftPatchService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo);

@@ -12,6 +12,7 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.translation.NameComposer;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
+import com.organizer3.web.CoverWriteService;
 import com.organizer3.web.TitleFolderRenamer;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Handle;
@@ -86,6 +87,9 @@ public class DraftPromotionService {
     // Phase 2: staging volume id + folder renamer for post-commit best-effort rename.
     private final String                        unsortedVolumeId;
     private final TitleFolderRenamer            renamer;
+    // Best-effort NAS cover write at promotion so the cover rides the folder rename and
+    // survives cross-volume redistribution. Nullable — short ctor leaves it null (skips the write).
+    private final CoverWriteService             coverWriteService;
 
     /** Seam for cover-copy — injectable in tests to simulate COMMIT-failure. */
     private CoverCopier coverCopier;
@@ -109,7 +113,7 @@ public class DraftPromotionService {
             StageNameSuggestionRepository suggestionRepo) {
         this(jdbi, draftTitleRepo, draftActressRepo, draftCastRepo, draftEnrichRepo,
                 coverStore, coverPath, castValidator, titleRepo, historyRepo, effectiveTags,
-                json, suggestionRepo, null, null, null, null);
+                json, suggestionRepo, null, null, null, null, null);
     }
 
     /** Full constructor including FIX 1 dependencies (javdbStagingRepo, actressRepo)
@@ -132,7 +136,8 @@ public class DraftPromotionService {
             JavdbStagingRepository        javdbStagingRepo,
             ActressRepository             actressRepo,
             String                        unsortedVolumeId,
-            TitleFolderRenamer            renamer) {
+            TitleFolderRenamer            renamer,
+            CoverWriteService             coverWriteService) {
         this.jdbi             = jdbi;
         this.draftTitleRepo   = draftTitleRepo;
         this.draftActressRepo = draftActressRepo;
@@ -150,6 +155,7 @@ public class DraftPromotionService {
         this.actressRepo      = actressRepo;
         this.unsortedVolumeId = unsortedVolumeId;
         this.renamer          = renamer;
+        this.coverWriteService = coverWriteService;
         this.coverCopier      = this::defaultCoverCopy;
     }
 
@@ -332,11 +338,26 @@ public class DraftPromotionService {
             log.warn("promote: effective-tags recompute failed for title {} (non-fatal)", titleId, e);
         }
 
-        // Post-commit: delete scratch cover — best-effort; GC sweep catches leaks
-        try {
-            coverStore.delete(draftTitleId);
-        } catch (IOException e) {
-            log.warn("promote: failed to delete scratch cover for draft {} (non-fatal)", draftTitleId, e);
+        // Post-commit: write the cover into the NAS staging folder (best-effort) so it
+        // rides the folder rename below and survives cross-volume redistribution. Gated
+        // on destCoverHolder so NAS + local cache stay in lockstep (Step 8 wrote the cache
+        // iff destCoverHolder is non-null). Pre-rename path is intentional — the folder
+        // rename moves the cover along.
+        if (destCoverHolder[0] != null && coverWriteService != null) {
+            try {
+                java.util.Optional<byte[]> coverBytes = coverStore.read(draftTitleId);
+                String stagingPath = jdbi.withHandle(h -> h.createQuery(
+                        "SELECT path FROM title_locations WHERE title_id = :tid " +
+                        "AND volume_id = :vol AND stale_since IS NULL")
+                        .bind("tid", titleId).bind("vol", unsortedVolumeId)
+                        .mapTo(String.class).findFirst().orElse(null));
+                Title t = titleRepo.findById(titleId).orElse(null);
+                if (coverBytes.isPresent() && stagingPath != null && t != null) {
+                    coverWriteService.saveToNasBestEffort(stagingPath, t.getBaseCode(), coverBytes.get());
+                }
+            } catch (Exception e) {
+                log.warn("promote: NAS cover write failed post-commit (titleId={}): {}", titleId, e.getMessage());
+            }
         }
 
         // Post-commit Step 10: best-effort folder rename (Phase 2).
@@ -361,6 +382,15 @@ public class DraftPromotionService {
                 log.warn("promote: folder rename failed post-commit (titleId={}, code={}): {}",
                         titleId, draftCheck.getCode(), e.getMessage(), e);
             }
+        }
+
+        // Post-commit: delete scratch cover — best-effort; GC sweep catches leaks.
+        // Moved AFTER the NAS write + folder rename so the scratch bytes remain readable
+        // for the NAS write above.
+        try {
+            coverStore.delete(draftTitleId);
+        } catch (IOException e) {
+            log.warn("promote: failed to delete scratch cover for draft {} (non-fatal)", draftTitleId, e);
         }
 
         log.info("draft promoted: draftId={} → titleId={} folderRenamed={}", draftTitleId, titleId, folderRenamed);
@@ -718,12 +748,12 @@ public class DraftPromotionService {
                     (canonical_name, stage_name, tier, first_seen_at,
                      created_via, created_at)
                 VALUES
-                    (:canonicalName, :stageName, 'STANDARD', :firstSeenAt,
+                    (:canonicalName, :stageName, 'LIBRARY', :firstSeenAt,
                      'draft_promotion', :createdAt)
                 """)
                 .bind("canonicalName", canonicalName)
                 .bind("stageName",     da.getStageName())
-                .bind("firstSeenAt",   nowIso)
+                .bind("firstSeenAt",   nowIso.substring(0, 10))   // date-only: actresses.first_seen_at maps to LocalDate
                 .bind("createdAt",     nowIso)
                 .executeAndReturnGeneratedKeys("id")
                 .mapTo(Long.class)

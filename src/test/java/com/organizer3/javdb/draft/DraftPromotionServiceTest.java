@@ -14,6 +14,7 @@ import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
 import com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionRepository;
+import com.organizer3.web.CoverWriteService;
 import com.organizer3.web.TitleFolderRenamer;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
@@ -68,6 +69,8 @@ class DraftPromotionServiceTest {
     private CoverPath             coverPath;
     // Phase 2 mock renamer (keeps tests unit-level; real SMB+dual-rewrite tested by TitleFolderRenamerTest)
     private TitleFolderRenamer    renamer;
+    // Best-effort NAS cover write mock (verifies the post-commit NAS write seam).
+    private CoverWriteService     coverWriteService;
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -115,12 +118,16 @@ class DraftPromotionServiceTest {
         when(renamer.renamePreservingDescriptor(anyLong(), any(), any()))
                 .thenReturn(new TitleFolderRenamer.RenameOutcome(null, false));
 
+        // Mock NAS cover writer — verified in the NAS-write tests; no-op elsewhere.
+        coverWriteService = Mockito.mock(CoverWriteService.class);
+
         service = new DraftPromotionService(
                 jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
                 draftEnrichRepo, coverStore, coverPath, castValidator,
                 titleRepo, historyRepo, effectiveTags, JSON, suggestionRepo,
                 javdbStagingRepo, actressRepo,   // FIX 1
-                "unsorted", renamer);            // Phase 2
+                "unsorted", renamer,             // Phase 2
+                coverWriteService);              // best-effort NAS cover write
     }
 
     @AfterEach
@@ -252,14 +259,25 @@ class DraftPromotionServiceTest {
         assertEquals("draft_promotion", createdVia);
 
         // title_actresses linked
-        int linkCount = jdbi.withHandle(h -> {
-            Long newId = h.createQuery("SELECT id FROM actresses WHERE canonical_name='Jane Doe'")
-                    .mapTo(Long.class).one();
-            return h.createQuery("SELECT COUNT(*) FROM title_actresses WHERE title_id=1 AND actress_id=:id")
-                    .bind("id", newId)
-                    .mapTo(Integer.class).one();
-        });
+        Long newId = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM actresses WHERE canonical_name='Jane Doe'")
+                        .mapTo(Long.class).one());
+        int linkCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_actresses WHERE title_id=1 AND actress_id=:id")
+                        .bind("id", newId)
+                        .mapTo(Integer.class).one());
         assertEquals(1, linkCount);
+
+        // Regression guard (STANDARD-tier bug): the newly-created actress must be
+        // loadable via the real JdbiActressRepository WITHOUT throwing. With the bug,
+        // the INSERT stored tier='STANDARD', and ACTRESS_MAPPER's Tier.valueOf("STANDARD")
+        // threw IllegalArgumentException — breaking findById and the post-commit folder rename.
+        Optional<com.organizer3.model.Actress> loaded =
+                assertDoesNotThrow(() -> actressRepo.findById(newId),
+                        "findById on a promotion-created actress must not throw (tier must be a valid enum constant)");
+        assertTrue(loaded.isPresent(), "newly-created actress must be loadable by id");
+        assertEquals(com.organizer3.model.Actress.Tier.LIBRARY, loaded.get().getTier(),
+                "promotion-created actress must default to LIBRARY tier");
     }
 
     @Test
@@ -561,6 +579,39 @@ class DraftPromotionServiceTest {
         // No cover created
         Title t = titleRepo.findById(1L).orElseThrow();
         assertFalse(coverPath.exists(t), "No cover should exist when scratch was absent");
+    }
+
+    // ── Post-commit NAS cover write ──────────────────────────────────────────
+
+    /**
+     * When a scratch cover is present (so Step 8 copies it to the cache and
+     * destCoverHolder is set), the post-commit NAS write must fire with the staging
+     * folder path and the canonical base_code ('TST-00001', NOT the draft code 'TST-1').
+     */
+    @Test
+    void nasCoverWrite_scratchPresent_writesToStagingFolder() throws Exception {
+        seedStagingLocation(1L);
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+        coverStore.write(draftId, new byte[]{42, 43, 44});
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        verify(coverWriteService).saveToNasBestEffort(
+                eq("/unsorted/TST-1"), eq("TST-00001"), any(byte[].class));
+    }
+
+    /**
+     * With no scratch cover, destCoverHolder stays null → the NAS write is skipped.
+     */
+    @Test
+    void nasCoverWrite_scratchAbsent_neverWrites() throws Exception {
+        seedStagingLocation(1L);
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+        // No scratch cover written.
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        verify(coverWriteService, never()).saveToNasBestEffort(any(), any(), any());
     }
 
     // ── Draft deleted after promotion ────────────────────────────────────────
