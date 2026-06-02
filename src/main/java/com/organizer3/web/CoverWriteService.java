@@ -51,6 +51,22 @@ public class CoverWriteService {
         writeLocalCacheBestEffort(title, bytes, extension);
     }
 
+    /**
+     * Best-effort: write {@code bytes} as the cover at {@code <folderPath>/<baseCode>.jpg}
+     * on the unsorted volume. Unlike {@link #save}, never throws and does NOT touch the
+     * local cache (the caller already populated it). Logs + swallows on failure.
+     */
+    public void saveToNasBestEffort(String folderPath, String baseCode, byte[] bytes) {
+        try (SmbShareHandle handle = smbFactory.open(unsortedVolumeId)) {
+            VolumeFileSystem fs = handle.fileSystem();
+            Path target = Path.of(folderPath, baseCode + ".jpg");
+            fs.writeFile(target, bytes);
+            log.info("Saved cover to NAS (best-effort): {} ({} bytes)", target, bytes.length);
+        } catch (Exception e) {
+            log.warn("Best-effort NAS cover write failed for {}/{}.jpg: {}", folderPath, baseCode, e.getMessage());
+        }
+    }
+
     private void writeToNas(Title title, String folderPath, byte[] bytes, String extension) throws IOException {
         try (SmbShareHandle handle = smbFactory.open(unsortedVolumeId)) {
             VolumeFileSystem fs = handle.fileSystem();
