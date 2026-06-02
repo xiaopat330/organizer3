@@ -238,6 +238,77 @@ class UnsortedEditorServiceTest {
         assertEquals("Ai Uehara", hit.canonicalName());
     }
 
+    // ── Phase 3: processed / curated_at tests ────────────────────────────
+
+    @Test
+    void replaceActresses_stampsCuratedAtOnStagingLocation() {
+        long titleId = seedTitle("ONED-020", "NoDraft (ONED-020)");
+        Actress actress = saveActress("Actress NoDraft");
+
+        var entries = List.of(new UnsortedEditorService.ActressEntry(actress.getId(), null));
+        var primary = entries.get(0);
+        service.replaceActresses(titleId, entries, primary);
+
+        String curatedAt = jdbi.withHandle(h ->
+                h.createQuery("SELECT curated_at FROM title_locations"
+                        + " WHERE title_id = :id AND volume_id = :vol AND stale_since IS NULL")
+                        .bind("id", titleId).bind("vol", VOL)
+                        .mapTo(String.class).one());
+        assertNotNull(curatedAt, "curated_at must be set after no-draft replaceActresses");
+    }
+
+    @Test
+    void listEligible_processedTrueAfterNoDraftSave() {
+        long titleId = seedTitle("ONED-021", "NoDraftP (ONED-021)");
+        Actress actress = saveActress("Actress NoDraftP");
+
+        var entries = List.of(new UnsortedEditorService.ActressEntry(actress.getId(), null));
+        service.replaceActresses(titleId, entries, entries.get(0));
+
+        var row = service.listEligible().stream()
+                .filter(r -> r.titleId() == titleId).findFirst().orElseThrow();
+        assertTrue(row.processed(), "processed must be true after no-draft replaceActresses");
+    }
+
+    @Test
+    void findEligibleById_processedTrueAfterNoDraftSave() {
+        long titleId = seedTitle("ONED-022", "NoDraftD (ONED-022)");
+        Actress actress = saveActress("Actress NoDraftD");
+
+        var entries = List.of(new UnsortedEditorService.ActressEntry(actress.getId(), null));
+        service.replaceActresses(titleId, entries, entries.get(0));
+
+        var view = service.findEligibleById(titleId).orElseThrow();
+        assertTrue(view.processed(), "processed must be true after no-draft replaceActresses");
+    }
+
+    @Test
+    void listEligible_processedAndCompleteAreDistinctFields() {
+        // A title can be complete (hasCover + actressCount>0) without being processed.
+        // And can be processed without being complete.
+        long titleIdComplete = seedTitle("ONED-023", "Complete (ONED-023)");
+        long titleIdProcessed = seedTitle("ONED-024", "Processed (ONED-024)");
+        Actress actress = saveActress("Distinct Fields Actress");
+
+        // Make complete: actress + cover
+        titleActressRepo.link(titleIdComplete, actress.getId());
+        try { writeDummyCover("ONED", "ONED-023"); } catch (Exception e) { throw new RuntimeException(e); }
+
+        // Make processed: actress save (no cover)
+        var entries = List.of(new UnsortedEditorService.ActressEntry(actress.getId(), null));
+        service.replaceActresses(titleIdProcessed, entries, entries.get(0));
+
+        var rows = service.listEligible();
+        var completeRow  = rows.stream().filter(r -> r.titleId() == titleIdComplete).findFirst().orElseThrow();
+        var processedRow = rows.stream().filter(r -> r.titleId() == titleIdProcessed).findFirst().orElseThrow();
+
+        assertTrue(completeRow.complete(), "titleIdComplete should be complete");
+        assertFalse(completeRow.processed(), "titleIdComplete should not be processed (no save called)");
+
+        assertTrue(processedRow.processed(), "titleIdProcessed should be processed");
+        assertFalse(processedRow.complete(), "titleIdProcessed should not be complete (no cover)");
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private long seedTitle(String code, String folderName) {

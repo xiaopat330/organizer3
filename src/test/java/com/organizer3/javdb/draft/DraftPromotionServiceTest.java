@@ -1244,4 +1244,64 @@ class DraftPromotionServiceTest {
 
         assertTrue(result.folderRenamed(), "folderRenamed must be true when renamer returns renamed=true");
     }
+
+    // ── Phase 3: curated_at stamping ─────────────────────────────────────────
+
+    /** Seeds a live staging-volume location for the given titleId. */
+    private void seedStagingLocation(long titleId) {
+        jdbi.useHandle(h -> {
+            // Ensure volume exists (idempotent).
+            h.execute("INSERT OR IGNORE INTO volumes(id, structure_type) VALUES ('unsorted','queue')");
+            h.execute("INSERT OR IGNORE INTO title_locations"
+                    + "(title_id, volume_id, partition_id, path, last_seen_at)"
+                    + " VALUES (" + titleId + ",'unsorted','q','/unsorted/TST-" + titleId + "','2024-01-01')");
+        });
+    }
+
+    @Test
+    void phase3_promote_stampsCuratedAtOnStagingLocation() throws Exception {
+        seedStagingLocation(1L);
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        String curatedAt = jdbi.withHandle(h ->
+                h.createQuery("SELECT curated_at FROM title_locations"
+                        + " WHERE title_id = 1 AND volume_id = 'unsorted' AND stale_since IS NULL")
+                        .mapTo(String.class).one());
+        assertNotNull(curatedAt, "curated_at must be stamped on the staging location after promote");
+    }
+
+    @Test
+    void phase3_promote_noStagingLocation_isNoOp() throws Exception {
+        // No title_locations row — promote must not throw and metadata commits normally.
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+
+        var result = service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        assertEquals(1L, result.titleId());
+        // No exception, enrichment row is committed.
+        int enrichCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_javdb_enrichment WHERE title_id=1")
+                        .mapTo(Integer.class).one());
+        assertEquals(1, enrichCount, "enrichment must commit even when no staging location exists");
+    }
+
+    @Test
+    void phase3_promote_curatedAtRolledBackIfCommitFails() throws Exception {
+        seedStagingLocation(1L);
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+
+        // Inject a pre-commit hook that throws to simulate COMMIT failure.
+        service.setPreCommitHook(() -> { throw new RuntimeException("simulated COMMIT failure"); });
+
+        assertThrows(RuntimeException.class, () -> service.promote(draftId, "2024-06-01T00:00:00Z"));
+
+        // curated_at must be null — the whole transaction was rolled back.
+        String curatedAt = jdbi.withHandle(h ->
+                h.createQuery("SELECT curated_at FROM title_locations"
+                        + " WHERE title_id = 1 AND volume_id = 'unsorted'")
+                        .mapTo(String.class).findFirst().orElse(null));
+        assertNull(curatedAt, "curated_at must be null when COMMIT is rolled back");
+    }
 }

@@ -19,7 +19,7 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
     public List<EligibleTitle> listEligible(String volumeId) {
         String sql = """
                 SELECT t.id AS title_id, t.code AS code, t.label AS label, t.base_code AS base_code,
-                       tl.path AS folder_path,
+                       tl.path AS folder_path, tl.curated_at AS curated_at,
                        (SELECT COUNT(*) FROM title_actresses ta WHERE ta.title_id = t.id) AS actress_count
                 FROM titles t
                 JOIN title_locations tl ON tl.title_id = t.id
@@ -52,7 +52,8 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                             rs.getString("label"),
                             rs.getString("base_code"),
                             rs.getInt("actress_count"),
-                            path
+                            path,
+                            rs.getString("curated_at")
                     );
                 })
                 .list());
@@ -63,7 +64,8 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
         return jdbi.withHandle(h -> {
             var detailOpt = h.createQuery("""
                     SELECT t.id AS title_id, t.code AS code, t.label AS label, t.base_code AS base_code,
-                           t.actress_id AS primary_actress_id, tl.path AS folder_path
+                           t.actress_id AS primary_actress_id, tl.path AS folder_path,
+                           tl.curated_at AS curated_at
                     FROM titles t
                     JOIN title_locations tl ON tl.title_id = t.id
                     WHERE t.id = :titleId AND tl.volume_id = :volumeId
@@ -78,7 +80,8 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                             rs.getString("label"),
                             rs.getString("base_code"),
                             (Long) (rs.getObject("primary_actress_id") == null ? null : rs.getLong("primary_actress_id")),
-                            rs.getString("folder_path")
+                            rs.getString("folder_path"),
+                            rs.getString("curated_at")
                     })
                     .findFirst();
             if (detailOpt.isEmpty()) return Optional.<TitleDetail>empty();
@@ -108,7 +111,8 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                     (String) row[2],
                     (String) row[3],
                     (String) row[5],
-                    actresses
+                    actresses,
+                    (String) row[6]
             ));
         });
     }
@@ -277,6 +281,23 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                 .bind("id", actressId)
                 .mapTo(String.class)
                 .findFirst());
+    }
+
+    @Override
+    public void markCurated(long titleId, String volumeId, String nowIso) {
+        jdbi.useTransaction(h -> markCurated(h, titleId, volumeId, nowIso));
+    }
+
+    @Override
+    public void markCurated(Handle h, long titleId, String volumeId, String nowIso) {
+        h.createUpdate("""
+                UPDATE title_locations SET curated_at = :now
+                WHERE title_id = :titleId AND volume_id = :volumeId AND stale_since IS NULL
+                """)
+                .bind("now", nowIso)
+                .bind("titleId", titleId)
+                .bind("volumeId", volumeId)
+                .execute();
     }
 
     private static String basename(String path) {

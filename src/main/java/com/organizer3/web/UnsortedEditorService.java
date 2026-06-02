@@ -12,6 +12,7 @@ import com.organizer3.smb.SmbConnectionFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -62,7 +63,8 @@ public class UnsortedEditorService {
             String folderName,
             int actressCount,
             boolean hasCover,
-            boolean complete
+            boolean complete,
+            boolean processed
     ) {}
 
     public List<EligibleListRow> listEligible() {
@@ -71,9 +73,10 @@ public class UnsortedEditorService {
         for (EligibleTitle e : base) {
             boolean hasCover = coverExists(e.label(), e.baseCode());
             boolean complete = hasCover && e.actressCount() > 0;
+            boolean processed = e.curatedAt() != null;
             out.add(new EligibleListRow(
                     e.titleId(), e.code(), e.folderName(),
-                    e.actressCount(), hasCover, complete));
+                    e.actressCount(), hasCover, complete, processed));
         }
         return out;
     }
@@ -87,15 +90,17 @@ public class UnsortedEditorService {
                             repo.findOtherLocations(titleId, unsortedVolumeId, detail.folderPath());
                     List<String> directTags       = repo.findDirectTags(titleId);
                     List<String> labelImpliedTags = repo.findLabelTags(detail.label());
+                    boolean processed = detail.curatedAt() != null;
                     return new TitleDetailView(detail, coverFile != null, coverFile, descriptor,
-                            !others.isEmpty(), others, directTags, labelImpliedTags);
+                            !others.isEmpty(), others, directTags, labelImpliedTags, processed);
                 });
     }
 
     public record TitleDetailView(TitleDetail detail, boolean hasCover, String coverFilename,
                                   String descriptor, boolean duplicate,
                                   List<UnsortedEditorRepository.OtherLocation> otherLocations,
-                                  List<String> directTags, List<String> labelImpliedTags) {}
+                                  List<String> directTags, List<String> labelImpliedTags,
+                                  boolean processed) {}
 
     /**
      * Pull the folder-name descriptor (e.g. "Demosaiced") out of a basename like
@@ -339,6 +344,10 @@ public class UnsortedEditorService {
         });
         log.info("TitleEditor: replaceActresses committed — titleId={} actressIds={} primaryId={}",
                 titleId, committed.actressIds(), committed.primaryActressId());
+
+        // Mark the staging-volume location as curated. Runs in its own transaction immediately
+        // after the actress save commits so curated_at is durable even if the rename later fails.
+        repo.markCurated(titleId, unsortedVolumeId, Instant.now().toString());
 
         // Replace tags (own transaction + effective-tag rebuild). Safe to run after the
         // actress save since it's scoped to the title row and doesn't depend on SMB.

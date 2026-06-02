@@ -8,6 +8,8 @@ import com.organizer3.model.Video;
 import com.organizer3.repository.UnsortedEditorRepository.AssignedActress;
 import com.organizer3.repository.UnsortedEditorRepository.EligibleTitle;
 import com.organizer3.repository.UnsortedEditorRepository.TitleDetail;
+
+import java.time.Instant;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -162,6 +164,126 @@ class JdbiUnsortedEditorRepositoryTest {
         long titleId = seedEligibleTitle("ONED-600", "Six (ONED-600)", "video/a.mp4", LocalDate.now());
         assertTrue(repo.hasLocationInVolume(titleId, VOL));
         assertFalse(repo.hasLocationInVolume(titleId, "somewhere-else"));
+    }
+
+    // ── markCurated tests ─────────────────────────────────────────────────
+
+    @Test
+    void markCurated_standaloneVariant_stampsStagingRow() {
+        long titleId = seedEligibleTitle("ONED-700", "Seven (ONED-700)", "video/a.mp4", LocalDate.now());
+        String now = Instant.now().toString();
+
+        repo.markCurated(titleId, VOL, now);
+
+        String curatedAt = jdbi.withHandle(h ->
+                h.createQuery("SELECT curated_at FROM title_locations WHERE title_id = :id AND volume_id = :vol AND stale_since IS NULL")
+                        .bind("id", titleId).bind("vol", VOL)
+                        .mapTo(String.class).one());
+        assertEquals(now, curatedAt, "curated_at should match the supplied timestamp");
+    }
+
+    @Test
+    void markCurated_handleVariant_stampsStagingRow() {
+        long titleId = seedEligibleTitle("ONED-701", "SevenA (ONED-701)", "video/a.mp4", LocalDate.now());
+        String now = Instant.now().toString();
+
+        jdbi.useTransaction(h -> repo.markCurated(h, titleId, VOL, now));
+
+        String curatedAt = jdbi.withHandle(h ->
+                h.createQuery("SELECT curated_at FROM title_locations WHERE title_id = :id AND volume_id = :vol AND stale_since IS NULL")
+                        .bind("id", titleId).bind("vol", VOL)
+                        .mapTo(String.class).one());
+        assertEquals(now, curatedAt);
+    }
+
+    @Test
+    void markCurated_doesNotTouchLibraryVolumeLocation() {
+        // Seed the title on the staging volume AND a separate library volume.
+        String libVol = "library";
+        jdbi.useHandle(h -> h.execute("INSERT INTO volumes (id, structure_type) VALUES ('" + libVol + "', 'conventional')"));
+        long titleId = seedEligibleTitle("ONED-702", "SevenB (ONED-702)", "video/a.mp4", LocalDate.now());
+        // Add a second location on the library volume (stale_since IS NULL → live).
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_locations(title_id, volume_id, partition_id, path, last_seen_at) "
+                + "VALUES (" + titleId + ",'" + libVol + "','lib','/lib/ONED-702','2024-01-01')"));
+
+        String now = Instant.now().toString();
+        repo.markCurated(titleId, VOL, now);
+
+        // Staging row gets curated_at.
+        String stagingCuratedAt = jdbi.withHandle(h ->
+                h.createQuery("SELECT curated_at FROM title_locations WHERE title_id = :id AND volume_id = :vol AND stale_since IS NULL")
+                        .bind("id", titleId).bind("vol", VOL)
+                        .mapTo(String.class).one());
+        assertEquals(now, stagingCuratedAt);
+
+        // Library row remains NULL.
+        String libCuratedAt = jdbi.withHandle(h ->
+                h.createQuery("SELECT curated_at FROM title_locations WHERE title_id = :id AND volume_id = :vol AND stale_since IS NULL")
+                        .bind("id", titleId).bind("vol", libVol)
+                        .mapTo(String.class).one());
+        assertNull(libCuratedAt, "library-volume location must not be touched by markCurated");
+    }
+
+    @Test
+    void markCurated_staleRowIsNotTouched() {
+        // Seed a title, then mark its location stale (simulating what sync does after move).
+        long titleId = seedEligibleTitle("ONED-703", "SevenC (ONED-703)", "video/a.mp4", LocalDate.now());
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE title_locations SET stale_since = '2024-01-01' WHERE title_id = " + titleId));
+
+        repo.markCurated(titleId, VOL, Instant.now().toString());
+
+        // The stale row must still have NULL curated_at (the UPDATE skipped it).
+        String curatedAt = jdbi.withHandle(h ->
+                h.createQuery("SELECT curated_at FROM title_locations WHERE title_id = :id AND volume_id = :vol")
+                        .bind("id", titleId).bind("vol", VOL)
+                        .mapTo(String.class).findFirst().orElse(null));
+        assertNull(curatedAt, "stale location must not have curated_at set");
+    }
+
+    @Test
+    void listEligible_processedIsFalseWhenCuratedAtNull() {
+        long titleId = seedEligibleTitle("ONED-710", "Ten (ONED-710)", "video/a.mp4", LocalDate.now());
+
+        List<EligibleTitle> result = repo.listEligible(VOL);
+
+        EligibleTitle row = result.stream().filter(e -> e.titleId() == titleId).findFirst().orElseThrow();
+        assertNull(row.curatedAt(), "curatedAt should be null before markCurated");
+    }
+
+    @Test
+    void listEligible_processedIsTrueAfterMarkCurated() {
+        long titleId = seedEligibleTitle("ONED-711", "Eleven (ONED-711)", "video/a.mp4", LocalDate.now());
+        String now = Instant.now().toString();
+        repo.markCurated(titleId, VOL, now);
+
+        List<EligibleTitle> result = repo.listEligible(VOL);
+
+        EligibleTitle row = result.stream().filter(e -> e.titleId() == titleId).findFirst().orElseThrow();
+        assertNotNull(row.curatedAt(), "curatedAt should be non-null after markCurated");
+    }
+
+    @Test
+    void findEligibleById_processedIsTrueAfterMarkCurated() {
+        long titleId = seedEligibleTitle("ONED-712", "Twelve (ONED-712)", "video/a.mp4", LocalDate.now());
+        String now = Instant.now().toString();
+        repo.markCurated(titleId, VOL, now);
+
+        Optional<TitleDetail> detail = repo.findEligibleById(titleId, VOL);
+
+        assertTrue(detail.isPresent());
+        assertNotNull(detail.get().curatedAt(), "curatedAt should be non-null after markCurated");
+    }
+
+    @Test
+    void findEligibleById_processedIsFalseBeforeMarkCurated() {
+        long titleId = seedEligibleTitle("ONED-713", "Thirteen (ONED-713)", "video/a.mp4", LocalDate.now());
+
+        Optional<TitleDetail> detail = repo.findEligibleById(titleId, VOL);
+
+        assertTrue(detail.isPresent());
+        assertNull(detail.get().curatedAt(), "curatedAt should be null before markCurated");
     }
 
     // ── helpers ──────────────────────────────────────────────────────────

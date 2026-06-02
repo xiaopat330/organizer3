@@ -520,6 +520,23 @@ public class DraftPromotionService {
                 .bind("id", draftTitleId)
                 .execute();
 
+        // ── Step 9b: Stamp curated_at on the staging-volume location ─────────────
+        // Written inside the transaction so it is durable and atomic with the metadata writes.
+        // The scope guard (volume_id = :vol AND stale_since IS NULL) is a no-op when the
+        // title has no live staging-volume location (e.g. a library title — both paths no-op).
+        // Inlined here rather than injecting UnsortedEditorRepository into DraftPromotionService
+        // to avoid constructor churn; the repo defines markCurated as the canonical SQL.
+        if (unsortedVolumeId != null) {
+            h.createUpdate("""
+                    UPDATE title_locations SET curated_at = :now
+                    WHERE title_id = :titleId AND volume_id = :volumeId AND stale_since IS NULL
+                    """)
+                    .bind("now",      nowIso)
+                    .bind("titleId",  canonicalTitleId)
+                    .bind("volumeId", unsortedVolumeId)
+                    .execute();
+        }
+
         // ── Pre-commit hook (null in production; tests inject a throwing Runnable ─
         // here to simulate COMMIT-failure and verify compensation logic).
         if (preCommitHook != null) {
