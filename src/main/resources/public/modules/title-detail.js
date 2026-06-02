@@ -4,6 +4,7 @@ import { showView, updateBreadcrumb, mode } from './grid.js';
 import { makeTitleCard, updateCardIndicators } from './cards.js';
 import { getActressBrowseMode, actressBrowseLabel, selectActressBrowseMode, showActressLanding } from './actress-browse.js';
 import { getNote, putNote, deleteNote, attachCharCounter } from './notes/index.js';
+import { displayPath } from './path-utils.js';
 // ── Thumbnail size preference (discrete fractional ratios of the 240px source) ──
 // Slider value is an index into THUMB_RATIOS (1..N).
 const THUMB_SOURCE_WIDTH = 240;
@@ -669,7 +670,7 @@ function renderTitleDetail(t) {
   const paths = t.nasPaths || [];
   const nasHtml = paths.length > 0 ? `<div class="title-detail-row title-detail-nas-row">
     <span class="title-detail-label title-detail-location-label">Location</span>
-    <span class="title-detail-value title-detail-nas-paths">${paths.map(p => `<div class="title-detail-nas-path" data-path="${esc(p)}" title="Click to copy path">${esc(p)}</div>`).join('')}</span>
+    <span class="title-detail-value title-detail-nas-paths">${paths.map(p => `<div class="title-detail-nas-path" data-path="${esc(p)}" title="Click to copy path">${esc(displayPath(p))}</div>`).join('')}</span>
   </div>` : '';
 
   infoEl.innerHTML = `
@@ -989,11 +990,7 @@ function updateThumbTimestamps(videoId, durationSeconds) {
 // Normalizes //host/share/... to the platform-appropriate form.
 function copyNasPath(el) {
   const raw = el.dataset.path || el.textContent.trim();
-  const isWin = /Win/.test(navigator.platform || navigator.userAgent);
-  const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
-  let text = raw;
-  if (isWin)      text = raw.replace(/^\/\//, '\\\\').replace(/\//g, '\\');
-  else if (isMac) text = raw.startsWith('//') ? 'smb:' + raw : raw;
+  const text = displayPath(raw.startsWith('//') ? 'smb:' + raw : raw);
 
   const flashOk = () => {
     el.classList.add('title-detail-nas-path-copied');
