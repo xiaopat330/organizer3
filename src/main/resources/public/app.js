@@ -13,11 +13,13 @@ import { setRestoring, replaceNav } from './modules/nav.js';
 import { initSearch } from './modules/search.js';
 import { initTerminal } from './modules/terminal.js';
 import { installBgThumbnailChip } from './modules/bg-thumbnails.js';
+import { installDragGuard } from './modules/chrome/drag-guard.js';
 
 // ── Wire cross-module callbacks ───────────────────────────────────────────
 initCardCallbacks(openTitleDetail, openActressDetail);
 setHomeClickHandler(showTitlesView);
 initSearch();
+installDragGuard();
 initPortalSearch();
 initTerminal();
 installBgThumbnailChip();
