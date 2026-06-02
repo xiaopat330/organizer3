@@ -18,7 +18,9 @@ public interface UnsortedEditorRepository {
             String baseCode,
             int actressCount,
             /** Full path on the NAS to the title folder (SMB share-relative). */
-            String folderPath
+            String folderPath,
+            /** ISO-8601 timestamp when the staging copy was curated, or {@code null} if not yet curated. */
+            String curatedAt
     ) {}
 
     /** Actress row for the editor's actress panel. */
@@ -37,7 +39,9 @@ public interface UnsortedEditorRepository {
             String label,
             String baseCode,
             String folderPath,
-            List<AssignedActress> actresses
+            List<AssignedActress> actresses,
+            /** ISO-8601 timestamp when the staging copy was curated, or {@code null} if not yet curated. */
+            String curatedAt
     ) {}
 
     /**
@@ -97,8 +101,28 @@ public interface UnsortedEditorRepository {
      */
     void renameFolderInDb(long titleId, String volumeId, String oldFolderPath, String newFolderPath);
 
+    /**
+     * Return the live (non-stale) folder path for a title on the given volume,
+     * or empty if no such location exists.
+     */
+    Optional<String> findStagingPath(long titleId, String volumeId);
+
     /** Return the canonical name of an actress by id, or empty. */
     Optional<String> findActressCanonicalName(long actressId);
+
+    /**
+     * Stamp {@code curated_at} on the live staging-volume location for the title.
+     * The WHERE clause {@code volume_id = :volumeId AND stale_since IS NULL} is the
+     * scope guard — a non-staging or already-stale row is never touched (no-op).
+     * Runs in its own transaction.
+     */
+    void markCurated(long titleId, String volumeId, String nowIso);
+
+    /**
+     * Handle-accepting overload — runs the same UPDATE on the supplied handle so it
+     * can participate in an enclosing transaction (e.g. the draft-promote txn).
+     */
+    void markCurated(org.jdbi.v3.core.Handle h, long titleId, String volumeId, String nowIso);
 
     /** Tags currently directly attached to the title via {@code title_tags}. */
     List<String> findDirectTags(long titleId);

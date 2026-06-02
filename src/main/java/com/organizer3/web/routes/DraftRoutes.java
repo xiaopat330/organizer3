@@ -319,8 +319,8 @@ public final class DraftRoutes {
             long draftTitleId = draft.get().getId();
 
             try {
-                long promotedTitleId = promotionService.promote(draftTitleId, expectedUpdatedAt);
-                ctx.status(200).json(Map.of("titleId", promotedTitleId));
+                var result = promotionService.promote(draftTitleId, expectedUpdatedAt);
+                ctx.status(200).json(Map.of("titleId", result.titleId(), "folderRenamed", result.folderRenamed()));
             } catch (com.organizer3.javdb.draft.DraftNotFoundException e) {
                 ctx.status(404).json(Map.of("error", "draft not found"));
             } catch (OptimisticLockException e) {

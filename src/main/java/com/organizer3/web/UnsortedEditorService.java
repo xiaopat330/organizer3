@@ -12,7 +12,7 @@ import com.organizer3.smb.SmbConnectionFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.nio.file.Path;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -38,15 +38,17 @@ public class UnsortedEditorService {
     private final CoverPath coverPath;
     private final SmbConnectionFactory smbFactory;
     private final String unsortedVolumeId;
+    private final TitleFolderRenamer renamer;
 
     public UnsortedEditorService(UnsortedEditorRepository repo, ActressRepository actressRepo,
                                  CoverPath coverPath, SmbConnectionFactory smbFactory,
-                                 String unsortedVolumeId) {
+                                 String unsortedVolumeId, TitleFolderRenamer renamer) {
         this.repo = repo;
         this.actressRepo = actressRepo;
         this.coverPath = coverPath;
         this.smbFactory = smbFactory;
         this.unsortedVolumeId = unsortedVolumeId;
+        this.renamer = renamer;
     }
 
     public String volumeId() {
@@ -61,7 +63,8 @@ public class UnsortedEditorService {
             String folderName,
             int actressCount,
             boolean hasCover,
-            boolean complete
+            boolean complete,
+            boolean processed
     ) {}
 
     public List<EligibleListRow> listEligible() {
@@ -70,9 +73,10 @@ public class UnsortedEditorService {
         for (EligibleTitle e : base) {
             boolean hasCover = coverExists(e.label(), e.baseCode());
             boolean complete = hasCover && e.actressCount() > 0;
+            boolean processed = e.curatedAt() != null;
             out.add(new EligibleListRow(
                     e.titleId(), e.code(), e.folderName(),
-                    e.actressCount(), hasCover, complete));
+                    e.actressCount(), hasCover, complete, processed));
         }
         return out;
     }
@@ -86,30 +90,28 @@ public class UnsortedEditorService {
                             repo.findOtherLocations(titleId, unsortedVolumeId, detail.folderPath());
                     List<String> directTags       = repo.findDirectTags(titleId);
                     List<String> labelImpliedTags = repo.findLabelTags(detail.label());
+                    boolean processed = detail.curatedAt() != null;
                     return new TitleDetailView(detail, coverFile != null, coverFile, descriptor,
-                            !others.isEmpty(), others, directTags, labelImpliedTags);
+                            !others.isEmpty(), others, directTags, labelImpliedTags, processed);
                 });
     }
 
     public record TitleDetailView(TitleDetail detail, boolean hasCover, String coverFilename,
                                   String descriptor, boolean duplicate,
                                   List<UnsortedEditorRepository.OtherLocation> otherLocations,
-                                  List<String> directTags, List<String> labelImpliedTags) {}
+                                  List<String> directTags, List<String> labelImpliedTags,
+                                  boolean processed) {}
 
     /**
      * Pull the folder-name descriptor (e.g. "Demosaiced") out of a basename like
      * {@code "Nao Wakana - Demosaiced (ABP-527)"}. Returns empty string when there is no
      * {@code " - "} separator before the code. The prefix (actress / title stub) is discarded
      * — we only keep the text that would sit after the primary actress on a rewrite.
+     *
+     * <p>Delegates to {@link TitleFolderRenamer#extractDescriptor} — single source of truth.
      */
     static String extractDescriptor(String folderName, String code) {
-        if (folderName == null || code == null) return "";
-        String suffix = " (" + code + ")";
-        if (!folderName.endsWith(suffix)) return "";
-        String prefix = folderName.substring(0, folderName.length() - suffix.length());
-        int sep = prefix.indexOf(" - ");
-        if (sep < 0) return "";
-        return prefix.substring(sep + 3).trim();
+        return TitleFolderRenamer.extractDescriptor(folderName, code);
     }
 
     private boolean coverExists(String label, String baseCode) {
@@ -343,6 +345,10 @@ public class UnsortedEditorService {
         log.info("TitleEditor: replaceActresses committed — titleId={} actressIds={} primaryId={}",
                 titleId, committed.actressIds(), committed.primaryActressId());
 
+        // Mark the staging-volume location as curated. Runs in its own transaction immediately
+        // after the actress save commits so curated_at is durable even if the rename later fails.
+        repo.markCurated(titleId, unsortedVolumeId, Instant.now().toString());
+
         // Replace tags (own transaction + effective-tag rebuild). Safe to run after the
         // actress save since it's scoped to the title row and doesn't depend on SMB.
         if (tags != null) replaceTags(titleId, tags);
@@ -358,69 +364,31 @@ public class UnsortedEditorService {
      * rename and update DB paths. Target pattern is
      * {@code "{PrimaryCanonical} - {Descriptor} ({code})"} when {@code descriptor} is non-blank,
      * otherwise {@code "{PrimaryCanonical} ({code})"}. Returns an updated {@link SaveResult}.
+     *
+     * <p>Delegates to {@link TitleFolderRenamer#renameIfNeeded} which is the single source of
+     * truth for folder-name construction, sanitization, collision detection, and the load-bearing
+     * dual {@code title_locations.path} + {@code videos.path} rewrite.
      */
     private SaveResult renameFolderIfNeeded(long titleId, SaveResult committed, String descriptor) {
         var detail = repo.findEligibleById(titleId, unsortedVolumeId).orElse(null);
         if (detail == null) return committed;  // race — can't rename
-        String currentPath = detail.folderPath();
-        String currentName = basename(currentPath);
+
         String primaryName = repo.findActressCanonicalName(committed.primaryActressId()).orElse(null);
-        if (primaryName == null) return committed;
 
-        String desc = descriptor == null ? "" : descriptor.trim();
-        String base = desc.isEmpty()
-                ? primaryName + " (" + detail.code() + ")"
-                : primaryName + " - " + desc + " (" + detail.code() + ")";
-        String targetName = sanitizeFolderName(base);
-        if (targetName.equals(currentName)) {
-            return new SaveResult(committed.actressIds(), committed.primaryActressId(), currentPath, false);
-        }
-
-        String parent = parentPath(currentPath);
-        String newPath = parent.isEmpty() ? targetName : parent + "/" + targetName;
-
-        try (SmbConnectionFactory.SmbShareHandle handle = smbFactory.open(unsortedVolumeId)) {
-            VolumeFileSystem fs = handle.fileSystem();
-            if (fs.exists(Path.of(newPath)) && !newPath.equalsIgnoreCase(currentPath)) {
-                throw new IllegalStateException("Target folder already exists: " + newPath);
-            }
-            fs.rename(Path.of(currentPath), targetName);
-            log.info("FS mutation [TitleEditor.renameFolder]: volume={} titleId={} from={} to={}",
-                    unsortedVolumeId, titleId, currentPath, newPath);
-        } catch (IOException e) {
-            String rootCause = e.getCause() != null ? e.getCause().toString() : "(no cause)";
-            log.warn("Folder rename failed for title {} ({} -> {}): {} / root: {}",
-                    titleId, currentPath, newPath, e.getMessage(), rootCause);
-            throw new RuntimeException("Folder rename failed: " + e.getMessage() + " / " + rootCause, e);
-        }
-
-        repo.renameFolderInDb(titleId, unsortedVolumeId, currentPath, newPath);
-        return new SaveResult(committed.actressIds(), committed.primaryActressId(), newPath, true);
+        TitleFolderRenamer.RenameOutcome outcome =
+                renamer.renameIfNeeded(titleId, primaryName, descriptor, detail.code());
+        String effectivePath = outcome.newPath() != null ? outcome.newPath()
+                : detail.folderPath();
+        return new SaveResult(committed.actressIds(), committed.primaryActressId(),
+                effectivePath, outcome.renamed());
     }
 
-    /** Strip filesystem-unsafe characters. Keeps letters, digits, spaces, parens, hyphens, dots, ampersands, apostrophes. */
+    /**
+     * Strip filesystem-unsafe characters.
+     * Delegates to {@link TitleFolderRenamer#sanitizeFolderName} — single source of truth.
+     */
     static String sanitizeFolderName(String raw) {
-        StringBuilder sb = new StringBuilder(raw.length());
-        for (char c : raw.toCharArray()) {
-            if (c == '/' || c == '\\' || c == ':' || c == '*' || c == '?' || c == '"'
-                    || c == '<' || c == '>' || c == '|') {
-                sb.append(' ');
-            } else {
-                sb.append(c);
-            }
-        }
-        // Collapse runs of spaces and trim.
-        return sb.toString().replaceAll("\\s+", " ").trim();
-    }
-
-    private static String basename(String path) {
-        int i = path.lastIndexOf('/');
-        return i < 0 ? path : path.substring(i + 1);
-    }
-
-    private static String parentPath(String path) {
-        int i = path.lastIndexOf('/');
-        return i < 0 ? "" : path.substring(0, i);
+        return TitleFolderRenamer.sanitizeFolderName(raw);
     }
 
     private long createDraftOrReuse(org.jdbi.v3.core.Handle h, String name) {

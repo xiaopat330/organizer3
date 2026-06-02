@@ -1110,9 +1110,11 @@ public class Application {
         final String UNSORTED_VOLUME_ID = "unsorted";
         com.organizer3.repository.UnsortedEditorRepository unsortedRepo =
                 new com.organizer3.repository.jdbi.JdbiUnsortedEditorRepository(jdbi);
+        com.organizer3.web.TitleFolderRenamer titleFolderRenamer =
+                new com.organizer3.web.TitleFolderRenamer(smbConnectionFactory, jdbi, UNSORTED_VOLUME_ID);
         com.organizer3.web.UnsortedEditorService unsortedEditorService =
                 new com.organizer3.web.UnsortedEditorService(unsortedRepo, actressRepo, coverPath,
-                        smbConnectionFactory, UNSORTED_VOLUME_ID);
+                        smbConnectionFactory, UNSORTED_VOLUME_ID, titleFolderRenamer);
         com.organizer3.web.CoverWriteService coverWriteService =
                 new com.organizer3.web.CoverWriteService(smbConnectionFactory, coverPath, UNSORTED_VOLUME_ID);
         webServer.registerUnsortedEditor(new com.organizer3.web.routes.UnsortedEditorRoutes(
@@ -1141,8 +1143,10 @@ public class Application {
                         draftEnrichRepo, draftCoverStore, coverPath, castValidator,
                         titleRepo, enrichmentHistoryRepo, titleEffectiveTagsService, jsonMapper,
                         stageNameSuggestionRepo,
-                        javdbStagingRepo, // FIX 1: learn slug→actress at promotion
-                        actressRepo);     // FIX 1: backfill actress.stage_name at promotion
+                        javdbStagingRepo,    // FIX 1: learn slug→actress at promotion
+                        actressRepo,         // FIX 1: backfill actress.stage_name at promotion
+                        UNSORTED_VOLUME_ID,  // Phase 2: staging volume id for post-commit rename
+                        titleFolderRenamer); // Phase 2: shared rename helper
         com.organizer3.javdb.draft.DraftPatchService draftPatchService =
                 new com.organizer3.javdb.draft.DraftPatchService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo);

@@ -24,7 +24,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 64;
+    private static final int CURRENT_VERSION = 65;
 
     private final Jdbi jdbi;
 
@@ -346,6 +346,11 @@ public class SchemaUpgrader {
         if (version < 64) {
             applyV64();
             setVersion(64);
+        }
+
+        if (version < 65) {
+            applyV65();
+            setVersion(65);
         }
 
         log.info("Schema upgrade complete");
@@ -2210,6 +2215,22 @@ public class SchemaUpgrader {
             addColumnIfMissing(h, "enrichment_review_queue", "ai_phi4_slug",  "TEXT");
             addColumnIfMissing(h, "enrichment_review_queue", "ai_gemma_slug", "TEXT");
         });
+    }
+
+    /**
+     * v65: {@code curated_at} column on {@code title_locations}.
+     *
+     * <p>Nullable ISO-8601 timestamp set when a human explicitly curates a title via the
+     * draft-promote or no-draft-save path. {@code NULL} means "not yet curated" (the correct
+     * initial state for all existing rows). The scope guard
+     * {@code WHERE volume_id = :unsortedVolumeId AND stale_since IS NULL} ensures only the
+     * live staging-volume copy is ever stamped.
+     *
+     * <p>Idempotent via {@link #addColumnIfMissing}.
+     */
+    private void applyV65() {
+        log.info("Applying migration v65: curated_at on title_locations");
+        jdbi.useHandle(h -> addColumnIfMissing(h, "title_locations", "curated_at", "TEXT"));
     }
 
     private static String leafOf(String path) {

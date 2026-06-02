@@ -124,6 +124,9 @@ export function mountQueue(rootEl, { onSelect, onCountsChange }) {
       const draftPill = isDraft
         ? `<span class="un-draft-pill" title="Has active draft">DRAFT</span>`
         : '';
+      const processedPill = row.processed
+        ? `<span class="un-processed-pill" title="Already curated/processed">✓ processed</span>`
+        : '';
       const actressSummary = row.actressCount > 0
         ? `<span class="un-actress-count">${row.actressCount} actress${row.actressCount !== 1 ? 'es' : ''}</span>`
         : '';
@@ -137,7 +140,7 @@ export function mountQueue(rootEl, { onSelect, onCountsChange }) {
         <span class="un-status-marker ${esc(marker.cls)}" title="${esc(marker.title)}">${marker.glyph}</span>
         <span class="un-row-body">
           <span class="un-row-top">
-            <span class="un-code">${esc(row.code)}</span>${draftPill}${actressSummary}
+            <span class="un-code">${esc(row.code)}</span>${draftPill}${processedPill}${actressSummary}
           </span>
           <span class="un-folder-name" title="${esc(row.folderName)}">${esc(row.folderName)}</span>
         </span>

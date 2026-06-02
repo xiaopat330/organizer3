@@ -52,6 +52,7 @@ const coverLock     = document.getElementById('queue-cover-lock');
 const descriptorInput   = document.getElementById('queue-descriptor-input');
 const descriptorPreview = document.getElementById('queue-descriptor-preview');
 const duplicateBadge    = document.getElementById('queue-duplicate-badge');
+const processedBadge    = document.getElementById('queue-processed-badge');
 const duplicateBanner   = document.getElementById('queue-duplicate-banner');
 const duplicateLocations= document.getElementById('queue-duplicate-locations');
 const duplicateViewBtn  = document.getElementById('queue-duplicate-view-btn');
@@ -162,9 +163,11 @@ function renderSidebar() {
     const marker = statusMarker(r);
     const draftPill = draftedTitleIds.has(r.titleId)
         ? `<span class="queue-draft-pill" title="Has active draft">DRAFT</span>` : '';
+    const processedPill = r.processed
+        ? `<span class="queue-processed-pill" title="Already curated/processed">✓ processed</span>` : '';
     li.innerHTML = `
       <span class="queue-status-marker ${marker.cls}" title="${marker.title}">${marker.glyph}</span>
-      <span class="queue-code">${esc(r.code)}</span>${draftPill}
+      <span class="queue-code">${esc(r.code)}</span>${draftPill}${processedPill}
       <span class="queue-folder-excerpt">${esc(r.folderName)}</span>
     `;
     li.addEventListener('click', () => navigateTo(r.titleId));
@@ -250,6 +253,11 @@ async function loadDetail(titleId) {
 
     const hasDraft = draftRes.status === 200;
 
+    // Disable the global Skip button only for a processed title with no draft
+    // (terminal state). processed+has-draft means the user re-enriched, so Skip
+    // stays enabled. Set centrally here so the button can never get stuck disabled.
+    skipBtn.disabled = !!(currentDetail.processed) && !hasDraft;
+
     if (hasDraft) {
       // Draft pane.
       const draft = await draftRes.json();
@@ -304,6 +312,7 @@ function showEmpty() {
   currentDetail = null;
   editorState = null;
   currentDraftMode = false;
+  skipBtn.disabled = false;
   unmountDraftView();
   pane.style.display = 'none';
   emptyState.style.display = 'block';
@@ -348,6 +357,9 @@ function renderEditor() {
   descriptorInput.value = editorState.descriptor || '';
   updateDescriptorPreview();
   renderDuplicateState();
+  if (processedBadge) {
+    processedBadge.style.display = currentDetail.processed ? 'inline-flex' : 'none';
+  }
   renderTags();
 
   // Cover preview

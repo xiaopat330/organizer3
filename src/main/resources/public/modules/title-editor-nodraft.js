@@ -18,14 +18,18 @@ export function mountNoDraftView(detail, state, onEnrichSuccess, setStatus) {
   let enrichBtn = document.getElementById('queue-enrich-btn');
 
   const isDup = !!(detail && detail.duplicate);
+  // A processed title (curated via javdb) is terminal — leave the Enrich button
+  // visible but disabled, and skip wiring its click handler. The isDup hide takes
+  // precedence (duplicates hide the button entirely).
+  const isProcessed = !!(detail && detail.processed);
   if (enrichBtn) {
     enrichBtn.style.display = isDup ? 'none' : '';
-    enrichBtn.disabled = false;
+    enrichBtn.disabled = isProcessed;
     enrichBtn.textContent = 'Enrich (draft)';
     enrichBtn.classList.remove('enriching');
   }
 
-  if (enrichBtn && !isDup) {
+  if (enrichBtn && !isDup && !isProcessed) {
     // Remove previous listener by cloning, then re-query the replacement.
     const fresh = enrichBtn.cloneNode(true);
     enrichBtn.replaceWith(fresh);
