@@ -12,6 +12,7 @@
 import { openTitleTagEditor } from './title-tag-editor.js';
 import { renderTitleCard }   from './cards/title-card.js';
 import { getNote, putNote, deleteNote, attachCharCounter } from '/modules/notes/index.js';
+import { displayPath } from '../path-utils.js';
 
 const COVER_ROOT = '/covers';
 const THUMB_RATIOS = [
@@ -193,7 +194,7 @@ function renderMeta(t) {
   const nasHtml = paths.length === 0 ? '' : `
     <div class="td-sub-block">
       <div class="act-dash-section-title">Location</div>
-      ${paths.map(p => `<div class="td-path mono" data-path="${escapeHtml(p)}" title="Click to copy">${escapeHtml(p)}</div>`).join('')}
+      ${paths.map(p => `<div class="td-path mono" data-path="${escapeHtml(p)}" title="Click to copy">${escapeHtml(displayPath(p))}</div>`).join('')}
     </div>`;
 
   /* ── Tags sub-block ─── */
@@ -245,12 +246,7 @@ function showLightbox(url, code) {
 /* ── Path-copy helper (cross-platform formatting) ──────────────────── */
 function copyPath(el) {
   const raw = el.dataset.path || el.textContent.trim();
-  const ua = navigator.platform || navigator.userAgent;
-  const isWin = /Win/.test(ua);
-  const isMac = /Mac|iPhone|iPad/.test(ua);
-  let text = raw;
-  if (isWin)      text = raw.replace(/^\/\//, '\\\\').replace(/\//g, '\\');
-  else if (isMac) text = raw.startsWith('//') ? 'smb:' + raw : raw;
+  const text = displayPath(raw.startsWith('//') ? 'smb:' + raw : raw);
   navigator.clipboard.writeText(text).then(() => {
     const orig = el.style.color;
     const origText = el.textContent;
