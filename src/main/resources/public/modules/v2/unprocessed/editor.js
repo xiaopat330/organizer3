@@ -107,10 +107,11 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
 
   // ── No-draft render ──────────────────────────────────────────────────
   function _renderNoDraft() {
-    const detail = state.detail;
-    const es     = state.editorState;
-    const d      = detail?.detail;
-    const isDup  = !!(detail?.duplicate);
+    const detail      = state.detail;
+    const es          = state.editorState;
+    const d           = detail?.detail;
+    const isDup       = !!(detail?.duplicate);
+    const isProcessed = !!(detail?.processed);
 
     // Teardown existing sub-pane handles
     _actressHandle?.destroy();
@@ -140,6 +141,7 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
           <div class="un-editor-code-row">
             <span class="un-editor-code" id="un-ed-code" title="Click to copy">${esc(d?.code)}</span>
             ${isDup ? '<span class="un-dup-badge">DUPLICATE</span>' : ''}
+            ${isProcessed ? '<span class="un-processed-pill un-processed-pill-header" title="Already curated via javdb">Processed via javdb</span>' : ''}
           </div>
           <div class="un-editor-folder" id="un-ed-folder">${esc(d?.folderName)}</div>
         </div>
@@ -172,9 +174,9 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
           <div class="un-actions-row">
             <div class="un-actions-left">
               <button class="btn btn-primary" id="un-save-btn" type="button" disabled>Save</button>
-              <button class="btn btn-secondary" id="un-skip-btn" type="button">Skip</button>
+              <button class="btn btn-secondary" id="un-skip-btn" type="button" ${isProcessed ? 'disabled' : ''}>Skip</button>
               ${!isDup ? `
-                <button class="btn btn-secondary" id="un-enrich-btn" type="button">Enrich via JavDB</button>
+                <button class="btn btn-secondary" id="un-enrich-btn" type="button" ${isProcessed ? 'disabled' : ''}>Enrich via JavDB</button>
                 <span class="un-enrich-elapsed" id="un-enrich-elapsed" style="display:none"></span>
               ` : ''}
             </div>

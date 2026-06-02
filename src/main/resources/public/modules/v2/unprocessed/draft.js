@@ -416,6 +416,15 @@ export function mountDraft(paneEl, state, {
     if (state.currentId == null || !state.draft) return;
     const promoteBtn  = paneEl.querySelector('#un-draft-promote');
     const validateBtn = paneEl.querySelector('#un-draft-validate');
+    const discardBtn  = paneEl.querySelector('#un-draft-discard');
+    const skipBtn     = paneEl.querySelector('#un-draft-skip');
+
+    // Helper: re-enable the two action buttons after a recoverable failure.
+    function _reenableOnFailure() {
+      if (promoteBtn)  promoteBtn.disabled  = false;
+      if (validateBtn) validateBtn.disabled = false;
+    }
+
     if (promoteBtn)  promoteBtn.disabled  = true;
     if (validateBtn) validateBtn.disabled = true;
     _setStatus('Promoting…', '');
@@ -430,6 +439,7 @@ export function mountDraft(paneEl, state, {
       const vData = await vRes.json();
       if (!vData.ok) {
         _setStatus('Promotion blocked: ' + (vData.errors || []).join(', '), 'error');
+        _reenableOnFailure();
         return;
       }
 
@@ -441,29 +451,43 @@ export function mountDraft(paneEl, state, {
       });
       if (pRes.status === 409) {
         _setStatus('Conflict — draft was updated elsewhere. Reloading…', 'warn');
+        _reenableOnFailure();
         await _reloadDraft();
         return;
       }
       if (pRes.status === 422) {
         const d = await pRes.json().catch(() => ({}));
         _setStatus('Promotion failed (pre-flight): ' + (d.errors || []).join(', '), 'error');
+        _reenableOnFailure();
         return;
       }
       if (!pRes.ok) {
         const d = await pRes.json().catch(() => ({}));
         _setStatus('Promotion failed: ' + (d.error || d.detail || pRes.status), 'error');
+        _reenableOnFailure();
         return;
       }
 
-      _setStatus('Promoted.', 'success');
+      // Success — parse response to get folderRenamed advisory.
+      const pData = await pRes.json().catch(() => ({}));
+      const bannerMsg = pData.folderRenamed === true
+        ? 'Promoted — folder renamed'
+        : 'Promoted — folder rename pending';
+
+      // Terminal state: permanently disable all four action buttons.
+      if (promoteBtn)  promoteBtn.disabled  = true;
+      if (validateBtn) validateBtn.disabled = true;
+      if (discardBtn)  discardBtn.disabled  = true;
+      if (skipBtn)     skipBtn.disabled     = true;
+
+      _setStatus(bannerMsg, 'success');
       const promotedId = state.currentId;
       onPromoted?.(promotedId);
     } catch (err) {
       _setStatus('Promote error: ' + (err.message || err), 'error');
-    } finally {
-      if (promoteBtn)  promoteBtn.disabled  = false;
-      if (validateBtn) validateBtn.disabled = false;
+      _reenableOnFailure();
     }
+    // NOTE: no finally — buttons are only re-enabled on failure paths above.
   }
 
   // ── Discard ──────────────────────────────────────────────────────────
