@@ -1,6 +1,8 @@
 // modules/chrome/status-bar.js
 // Polls sync + translation + javdb + AI-assist APIs and rewrites .app-status on every v2 page.
 
+import { installDragGuard } from './drag-guard.js';
+
 const SYNC_INTERVAL_MS        = 10_000;
 const TRANSLATION_INTERVAL_MS = 15_000;
 const JAVDB_INTERVAL_MS       = 15_000;
@@ -11,6 +13,8 @@ const SYNC_ICON = '<svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8
 const SYNC_TASK_IDS   = new Set(['volume.sync', 'volume.sync_coherent', 'volume.clean_stale_locations']);
 
 export function mountStatusBar() {
+  installDragGuard(); // window-level guard so off-target cover drops are no-ops, not navigations
+
   const footer = document.querySelector('.app-status');
   if (!footer) return;
 
