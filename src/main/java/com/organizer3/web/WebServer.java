@@ -54,15 +54,43 @@ public class WebServer {
                      VideoProbe videoProbe, WatchHistoryRepository watchHistoryRepo,
                      TitleRepository titleRepo, SearchService searchService) {
         this.port = port;
-        this.app = Javalin.create(config ->
-                config.staticFiles.add(staticFiles -> {
-                    staticFiles.directory = "/public";
-                    staticFiles.location = Location.CLASSPATH;
-                    // Force Safari (and other UAs) to revalidate every request so a stale
-                    // cached JS module never gets paired with a freshly-deployed sibling.
-                    // 304s on unchanged files are cheap; the win is no silent breakage.
-                    staticFiles.headers = Map.of("Cache-Control", "no-cache");
-                }));
+        // Javalin's after() handler does not fire for static-file responses in
+        // Javalin 6.4.0 (the static-file Jetty handler short-circuits before Javalin
+        // after-handlers run). Instead we register two static-file configs that differ
+        // only in their Cache-Control header and use skipFileFunction to split traffic:
+        //
+        //   HTML documents  → Cache-Control: no-store
+        //     Prevents bfcache from restoring a stale page snapshot after a deploy
+        //     (e.g. a reordered sidebar nav). Chrome will not bfcache a document
+        //     served with no-store, so navigating back always fetches fresh HTML.
+        //
+        //   JS / CSS / images → Cache-Control: no-cache
+        //     Unchanged from before: browsers revalidate every request but still
+        //     benefit from 304 Not Modified on unchanged assets (cheap revalidation).
+        this.app = Javalin.create(config -> {
+            // HTML documents: no-store to block bfcache restoration of stale snapshots
+            config.staticFiles.add(staticFiles -> {
+                staticFiles.directory = "/public";
+                staticFiles.location = Location.CLASSPATH;
+                staticFiles.headers = Map.of("Cache-Control", "no-store");
+                // Skip (pass through to the next handler) if the request is NOT for HTML
+                staticFiles.skipFileFunction = req -> {
+                    String uri = req.getRequestURI();
+                    return !uri.endsWith(".html") && !uri.equals("/") && !uri.isEmpty();
+                };
+            });
+            // Non-HTML assets: no-cache for cheap 304 revalidation on unchanged files
+            config.staticFiles.add(staticFiles -> {
+                staticFiles.directory = "/public";
+                staticFiles.location = Location.CLASSPATH;
+                staticFiles.headers = Map.of("Cache-Control", "no-cache");
+                // Skip if the request IS for HTML (handled by the first config above)
+                staticFiles.skipFileFunction = req -> {
+                    String uri = req.getRequestURI();
+                    return uri.endsWith(".html") || uri.equals("/") || uri.isEmpty();
+                };
+            });
+        });
         registerRoutes(browseService, actressBrowseService, coversRoot,
                 videoStreamService, thumbnailService, videoProbe, watchHistoryRepo, titleRepo,
                 searchService);

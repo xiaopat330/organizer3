@@ -96,6 +96,61 @@ class WebServerTest {
                 "Root should serve the HTML home page");
     }
 
+    // ── Cache-Control headers ────────────────────────────────────────────
+
+    @Test
+    void htmlDocumentResponseHasNoCacheControlNoStore() throws IOException, InterruptedException {
+        server = new WebServer(0);
+        server.start();
+
+        HttpResponse<String> response = get("/v2.html");
+
+        assertEquals(200, response.statusCode());
+        // HTML documents must use no-store so browsers never restore a stale
+        // bfcache snapshot after a deploy (e.g. a reordered sidebar nav).
+        String cc = response.headers().firstValue("Cache-Control").orElse("");
+        assertEquals("no-store", cc, "HTML pages must be served with Cache-Control: no-store");
+    }
+
+    @Test
+    void rootHtmlResponseHasNoCacheControlNoStore() throws IOException, InterruptedException {
+        server = new WebServer(0);
+        server.start();
+
+        HttpResponse<String> response = get("/");
+
+        assertEquals(200, response.statusCode());
+        String cc = response.headers().firstValue("Cache-Control").orElse("");
+        assertEquals("no-store", cc, "Root path (/) must be served with Cache-Control: no-store");
+    }
+
+    @Test
+    void staticJsAssetRetainsNoCacheHeader() throws IOException, InterruptedException {
+        server = new WebServer(0);
+        server.start();
+
+        // JS assets should keep no-cache (not no-store) so browsers can still
+        // do cheap 304 revalidation instead of downloading the file on every request.
+        HttpResponse<String> response = get("/modules/chrome/palette.js");
+
+        assertEquals(200, response.statusCode());
+        String cc = response.headers().firstValue("Cache-Control").orElse("");
+        assertEquals("no-cache", cc, "JS assets must keep Cache-Control: no-cache for 304 revalidation");
+    }
+
+    @Test
+    void staticCssAssetRetainsNoCacheHeader() throws IOException, InterruptedException {
+        server = new WebServer(0);
+        server.start();
+
+        // CSS assets should keep no-cache for the same reason as JS.
+        HttpResponse<String> response = get("/css/logs.css");
+
+        assertEquals(200, response.statusCode());
+        String cc = response.headers().firstValue("Cache-Control").orElse("");
+        assertEquals("no-cache", cc, "CSS assets must keep Cache-Control: no-cache for 304 revalidation");
+    }
+
     @Test
     void stopShutsDownCleanly() {
         server = new WebServer(0);
