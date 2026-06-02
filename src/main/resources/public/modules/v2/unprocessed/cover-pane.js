@@ -173,11 +173,11 @@ export function mountCoverPane(containerEl, editorState, isDuplicate, titleId, d
  */
 export function mountDraftCoverPane(containerEl, state, { onStatus }) {
   containerEl.innerHTML = `
-    <div class="un-cover-pane un-cover-draft" id="un-dcp-panel">
+    <div class="un-cover-pane un-cover-draft" id="un-dcp-panel" tabindex="0">
       <img class="un-cover-img" id="un-dcp-img" style="display:none" alt="Scratch cover">
       <div class="un-cover-placeholder" id="un-dcp-placeholder" style="display:none">
         <span class="un-cover-drop-hint">No scratch cover yet<br>
-          <span class="un-cover-drop-hint-sub">use Refetch to pull from javdb</span>
+          <span class="un-cover-drop-hint-sub">drop / paste an image, or use Refetch</span>
         </span>
       </div>
     </div>
@@ -187,6 +187,7 @@ export function mountDraftCoverPane(containerEl, state, { onStatus }) {
     </div>
   `;
 
+  const panelEl       = containerEl.querySelector('#un-dcp-panel');
   const imgEl         = containerEl.querySelector('#un-dcp-img');
   const placeholderEl = containerEl.querySelector('#un-dcp-placeholder');
   const refetchBtn    = containerEl.querySelector('#un-dcp-refetch');
@@ -254,6 +255,98 @@ export function mountDraftCoverPane(containerEl, state, { onStatus }) {
       clearBtn.disabled = false;
     }
   });
+
+  // ── Drag-drop / paste staging (POSTs to the draft cover endpoint) ──────
+  function confirmReplace() {
+    if (state.draft?.coverScratchPresent) {
+      return confirm('Replace existing scratch cover?');
+    }
+    return true;
+  }
+
+  async function uploadFile(file) {
+    const titleId = state.currentId;
+    if (titleId == null || !file) return;
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/drafts/${titleId}/cover`, { method: 'POST', body: fd });
+      if (res.ok) {
+        if (state.draft) state.draft.coverScratchPresent = true;
+        renderCover(Date.now());
+        onStatus?.('Cover updated.', 'success');
+      } else {
+        onStatus?.('Upload failed: ' + (await res.text().catch(() => res.status)), 'error');
+      }
+    } catch (err) {
+      onStatus?.('Upload error: ' + (err.message || err), 'error');
+    }
+  }
+
+  async function uploadUrl(url) {
+    const titleId = state.currentId;
+    if (titleId == null || !url) return;
+    try {
+      const res = await fetch(`/api/drafts/${titleId}/cover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      if (res.ok) {
+        if (state.draft) state.draft.coverScratchPresent = true;
+        renderCover(Date.now());
+        onStatus?.('Cover updated.', 'success');
+      } else {
+        onStatus?.('Upload failed: ' + (await res.text().catch(() => res.status)), 'error');
+      }
+    } catch (err) {
+      onStatus?.('Upload error: ' + (err.message || err), 'error');
+    }
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    panelEl.classList.add('un-cover-dragover');
+  }
+  function onDragLeave() {
+    panelEl.classList.remove('un-cover-dragover');
+  }
+  function onDrop(e) {
+    e.preventDefault();
+    panelEl.classList.remove('un-cover-dragover');
+    if (!confirmReplace()) return;
+    const dt = e.dataTransfer;
+    if (dt?.files && dt.files.length > 0) {
+      uploadFile(dt.files[0]);
+    } else if (dt) {
+      const url = (dt.getData('text/uri-list') || dt.getData('text/plain') || '')
+        .split('\n')[0].trim();
+      if (url) uploadUrl(url);
+    }
+  }
+  function onPaste(e) {
+    if (!confirmReplace()) { e.preventDefault(); return; }
+    const items = e.clipboardData?.items || [];
+    for (const it of items) {
+      if (it.type && it.type.startsWith('image/')) {
+        const file = it.getAsFile();
+        if (file) { uploadFile(file); e.preventDefault(); return; }
+      }
+    }
+    const text = e.clipboardData?.getData('text/plain');
+    if (text) {
+      const trimmed = text.trim();
+      if (/^https?:\/\//i.test(trimmed)) {
+        uploadUrl(trimmed);
+        e.preventDefault();
+      }
+    }
+  }
+
+  panelEl.addEventListener('dragover',  onDragOver);
+  panelEl.addEventListener('dragleave', onDragLeave);
+  panelEl.addEventListener('drop',      onDrop);
+  panelEl.addEventListener('paste',     onPaste);
 
   function destroy() {
     // Listeners are bound to elements that go away with innerHTML rewrite; nothing to clear.

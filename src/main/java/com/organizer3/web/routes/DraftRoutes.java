@@ -22,6 +22,7 @@ import com.organizer3.javdb.draft.PreFlightResult;
 import com.organizer3.javdb.draft.PromotionException;
 import com.organizer3.web.ImageFetcher;
 import io.javalin.Javalin;
+import io.javalin.http.UploadedFile;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
@@ -46,6 +47,7 @@ import java.util.Optional;
  * PATCH  /api/drafts/:titleId               → apply cast resolution / name edits
  * DELETE /api/drafts/:titleId               → discard draft
  * GET    /api/drafts/:titleId/cover         → fetch the scratch cover image
+ * POST   /api/drafts/:titleId/cover         → set the scratch cover from an uploaded file or URL
  * POST   /api/drafts/:titleId/cover/refetch → re-fetch cover from javdb
  * DELETE /api/drafts/:titleId/cover         → delete the scratch cover
  * POST   /api/drafts/:titleId/validate      → run pre-flight; returns {ok, errors}
@@ -224,6 +226,72 @@ public final class DraftRoutes {
             }
         });
 
+        // ── POST /api/drafts/:titleId/cover ───────────────────────────────────
+        // Set the scratch cover from a user-supplied image: either a multipart
+        // file upload (drag from OS / clipboard paste) or a JSON {url} body
+        // (image dragged from a website). Mirrors the title-editor cover handler
+        // but writes to the draft scratch store the same way refetch does.
+
+        app.post("/api/drafts/{titleId}/cover", ctx -> {
+            long titleId;
+            try {
+                titleId = Long.parseLong(ctx.pathParam("titleId"));
+            } catch (NumberFormatException e) {
+                ctx.status(400).json(Map.of("error", "titleId must be a long integer"));
+                return;
+            }
+
+            var draft = draftTitleRepo.findByTitleId(titleId);
+            if (draft.isEmpty()) {
+                ctx.status(404).json(Map.of("error", "no active draft for this title"));
+                return;
+            }
+            long draftId = draft.get().getId();
+
+            byte[] bytes;
+            String source;
+            String contentType = ctx.contentType();
+            if (contentType != null && contentType.startsWith("multipart/")) {
+                UploadedFile uf = ctx.uploadedFile("file");
+                if (uf == null) { ctx.status(400).result("Missing file part"); return; }
+                if (guessExtensionFromUpload(uf.contentType(), uf.filename()) == null) {
+                    ctx.status(400).result("Unsupported image type"); return;
+                }
+                try {
+                    bytes = uf.content().readAllBytes();
+                } catch (Exception e) {
+                    ctx.status(400).result("Could not read upload"); return;
+                }
+                if (bytes.length > ImageFetcher.MAX_BYTES) {
+                    ctx.status(413).result("File too large"); return;
+                }
+                source = "upload";
+            } else {
+                CoverUrlBody body;
+                try { body = ctx.bodyAsClass(CoverUrlBody.class); }
+                catch (Exception e) { ctx.status(400).result("Invalid body"); return; }
+                if (body == null || body.url == null || body.url.isBlank()) {
+                    ctx.status(400).result("Missing url"); return;
+                }
+                try {
+                    bytes = imageFetcher.fetch(body.url).bytes();
+                } catch (ImageFetcher.ImageFetchException e) {
+                    ctx.status(400).result(e.getMessage()); return;
+                }
+                source = "url";
+            }
+
+            try {
+                coverStore.write(draftId, bytes);
+                LOG.info("Draft scratch cover set: titleId={} draftId={} bytes={} source={}",
+                        titleId, draftId, bytes.length, source);
+                ctx.status(200).json(Map.of("ok", true, "bytes", bytes.length));
+            } catch (Exception e) {
+                LOG.warn("cover upload failed for draft id={} source={}", draftId, source, e);
+                ctx.status(500).json(Map.of("error", "cover write failed: " + e.getMessage()));
+            }
+        });
+
         // ── DELETE /api/drafts/:titleId/cover ─────────────────────────────────
 
         app.delete("/api/drafts/{titleId}/cover", ctx -> {
@@ -335,6 +403,35 @@ public final class DraftRoutes {
                 ctx.status(500).json(Map.of("error", "internal error during promotion"));
             }
         });
+    }
+
+    /**
+     * Recognizes a supported image from its upload content-type / filename.
+     * Returns a canonical extension (jpg/png/webp/gif) or null if unsupported.
+     * Copied from {@code UnsortedEditorRoutes} so the draft cover handler can
+     * validate dropped/pasted images without depending on that class.
+     */
+    private static String guessExtensionFromUpload(String contentType, String filename) {
+        if (contentType != null) {
+            String ct = contentType.toLowerCase();
+            if (ct.contains("jpeg") || ct.contains("jpg")) return "jpg";
+            if (ct.contains("png"))  return "png";
+            if (ct.contains("webp")) return "webp";
+            if (ct.contains("gif"))  return "gif";
+        }
+        if (filename != null) {
+            String f = filename.toLowerCase();
+            if (f.endsWith(".jpg") || f.endsWith(".jpeg")) return "jpg";
+            if (f.endsWith(".png"))  return "png";
+            if (f.endsWith(".webp")) return "webp";
+            if (f.endsWith(".gif"))  return "gif";
+        }
+        return null;
+    }
+
+    /** JSON body for the URL-based scratch cover upload: {@code { "url": "…" }}. */
+    public static class CoverUrlBody {
+        public String url;
     }
 
     /** Parses titleId from the path; writes 400 and returns -1 on failure. */
