@@ -7,7 +7,6 @@ import com.organizer3.javdb.draft.DraftActress;
 import com.organizer3.javdb.draft.DraftActressRepository;
 import com.organizer3.javdb.draft.DraftCoverScratchStore;
 import com.organizer3.javdb.draft.DraftEnrichment;
-import com.organizer3.javdb.draft.DraftNotFoundException;
 import com.organizer3.javdb.draft.DraftPatchService;
 import com.organizer3.javdb.draft.DraftPopulator;
 import com.organizer3.javdb.draft.DraftPromotionService;
@@ -35,7 +34,6 @@ import java.net.http.HttpResponse;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -297,6 +295,51 @@ class DraftRoutesTest {
 
         var resp = post("/api/drafts/1/cover/refetch");
         assertEquals(502, resp.statusCode());
+    }
+
+    // ── POST /api/drafts/:titleId/cover (user-supplied image) ─────────────────
+
+    @Test
+    void uploadCover_urlBody_200AndStored() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        byte[] imgBytes = {10, 20, 30, 40};
+        when(imageFetcher.fetch(anyString()))
+                .thenReturn(new ImageFetcher.Fetched(imgBytes, "jpg"));
+
+        var resp = postJson("/api/drafts/1/cover", "{\"url\":\"http://x/c.jpg\"}");
+        assertEquals(200, resp.statusCode());
+        assertTrue(coverStore.exists(draftId));
+        assertArrayEquals(imgBytes, coverStore.read(draftId).orElseThrow());
+    }
+
+    @Test
+    void uploadCover_multipartFile_200AndStored() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+        byte[] imgBytes = {7, 7, 7, 7, 7};
+
+        String boundary = "----org3boundary" + System.nanoTime();
+        String preamble = "--" + boundary + "\r\n"
+                + "Content-Disposition: form-data; name=\"file\"; filename=\"c.jpg\"\r\n"
+                + "Content-Type: image/jpeg\r\n\r\n";
+        String epilogue = "\r\n--" + boundary + "--\r\n";
+
+        var baos = new java.io.ByteArrayOutputStream();
+        baos.write(preamble.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        baos.write(imgBytes);
+        baos.write(epilogue.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        byte[] body = baos.toByteArray();
+
+        var resp = postBytes("/api/drafts/1/cover", body,
+                "multipart/form-data; boundary=" + boundary);
+        assertEquals(200, resp.statusCode());
+        assertTrue(coverStore.exists(draftId));
+        assertArrayEquals(imgBytes, coverStore.read(draftId).orElseThrow());
+    }
+
+    @Test
+    void uploadCover_404WhenNoDraft() throws Exception {
+        var resp = postJson("/api/drafts/999/cover", "{\"url\":\"http://x/c.jpg\"}");
+        assertEquals(404, resp.statusCode());
     }
 
     // ── DELETE /api/drafts/:titleId/cover ─────────────────────────────────────
@@ -645,6 +688,15 @@ class DraftRoutesTest {
                 .uri(URI.create(base() + path))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> postBytes(String path, byte[] body, String contentType) throws Exception {
+        return http.send(HttpRequest.newBuilder()
+                .uri(URI.create(base() + path))
+                .header("Content-Type", contentType)
+                .POST(HttpRequest.BodyPublishers.ofByteArray(body))
                 .build(),
                 HttpResponse.BodyHandlers.ofString());
     }
