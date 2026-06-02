@@ -252,14 +252,25 @@ class DraftPromotionServiceTest {
         assertEquals("draft_promotion", createdVia);
 
         // title_actresses linked
-        int linkCount = jdbi.withHandle(h -> {
-            Long newId = h.createQuery("SELECT id FROM actresses WHERE canonical_name='Jane Doe'")
-                    .mapTo(Long.class).one();
-            return h.createQuery("SELECT COUNT(*) FROM title_actresses WHERE title_id=1 AND actress_id=:id")
-                    .bind("id", newId)
-                    .mapTo(Integer.class).one();
-        });
+        Long newId = jdbi.withHandle(h ->
+                h.createQuery("SELECT id FROM actresses WHERE canonical_name='Jane Doe'")
+                        .mapTo(Long.class).one());
+        int linkCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_actresses WHERE title_id=1 AND actress_id=:id")
+                        .bind("id", newId)
+                        .mapTo(Integer.class).one());
         assertEquals(1, linkCount);
+
+        // Regression guard (STANDARD-tier bug): the newly-created actress must be
+        // loadable via the real JdbiActressRepository WITHOUT throwing. With the bug,
+        // the INSERT stored tier='STANDARD', and ACTRESS_MAPPER's Tier.valueOf("STANDARD")
+        // threw IllegalArgumentException — breaking findById and the post-commit folder rename.
+        Optional<com.organizer3.model.Actress> loaded =
+                assertDoesNotThrow(() -> actressRepo.findById(newId),
+                        "findById on a promotion-created actress must not throw (tier must be a valid enum constant)");
+        assertTrue(loaded.isPresent(), "newly-created actress must be loadable by id");
+        assertEquals(com.organizer3.model.Actress.Tier.LIBRARY, loaded.get().getTier(),
+                "promotion-created actress must default to LIBRARY tier");
     }
 
     @Test

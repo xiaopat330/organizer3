@@ -718,12 +718,12 @@ public class DraftPromotionService {
                     (canonical_name, stage_name, tier, first_seen_at,
                      created_via, created_at)
                 VALUES
-                    (:canonicalName, :stageName, 'STANDARD', :firstSeenAt,
+                    (:canonicalName, :stageName, 'LIBRARY', :firstSeenAt,
                      'draft_promotion', :createdAt)
                 """)
                 .bind("canonicalName", canonicalName)
                 .bind("stageName",     da.getStageName())
-                .bind("firstSeenAt",   nowIso)
+                .bind("firstSeenAt",   nowIso.substring(0, 10))   // date-only: actresses.first_seen_at maps to LocalDate
                 .bind("createdAt",     nowIso)
                 .executeAndReturnGeneratedKeys("id")
                 .mapTo(Long.class)
