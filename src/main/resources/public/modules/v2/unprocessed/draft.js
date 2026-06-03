@@ -21,6 +21,7 @@
 import { mountDraftCoverPane } from './cover-pane.js';
 import { mountCastPane }       from './cast-pane.js';
 import { renderTagPanel }      from './tags-pane.js';
+import { displayPath }         from '../../path-utils.js';
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -90,10 +91,11 @@ export function mountDraft(paneEl, state, {
 
   // ── Shell render (HTML scaffolding only) ─────────────────────────────
   function _renderShell() {
-    const draft  = state.draft  || {};
-    const detail = state.detail?.detail || {};
-    const code   = draft.code   || detail.code   || '';
-    const folder = detail.folderName || '';
+    const draft        = state.draft  || {};
+    const detail       = state.detail?.detail || {};
+    const code         = draft.code   || detail.code   || '';
+    const folder       = detail.folderName || '';
+    const folderNasPath = state.detail?.folderNasPath || '';
 
     paneEl.innerHTML = `
       <div class="un-editor-shell un-draft-shell">
@@ -103,7 +105,12 @@ export function mountDraft(paneEl, state, {
             <span class="un-editor-code" id="un-ed-code" title="Click to copy">${esc(code)}</span>
             <span class="un-draft-pill">DRAFT</span>
           </div>
-          <div class="un-editor-folder">${esc(folder)}</div>
+          <div class="un-editor-folder">
+            <span class="un-editor-folder-key">Folder</span>
+            ${folderNasPath
+              ? `<span class="un-editor-folder-path un-editor-folder-copy" id="un-ed-folder-path" data-path="${esc(folderNasPath)}" title="Click to copy full path"><span class="un-editor-folder-text">${esc(displayPath(folderNasPath))}</span><svg class="un-editor-folder-copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>`
+              : `<span class="un-editor-folder-path">${esc(folder)}</span>`}
+          </div>
         </div>
 
         <div class="un-upstream-banner" id="un-upstream-banner" style="display:none">
@@ -119,6 +126,17 @@ export function mountDraft(paneEl, state, {
         </div>
 
         <div class="un-editor-body">
+
+          <div class="un-actions-row">
+            <div class="un-actions-left">
+              <button class="btn btn-secondary"  id="un-draft-validate" type="button">Validate</button>
+              <button class="btn btn-primary"    id="un-draft-promote"  type="button">Promote</button>
+              <button class="btn btn-danger"     id="un-draft-discard"  type="button">Discard</button>
+              <button class="btn btn-secondary"  id="un-draft-skip"     type="button">Skip</button>
+            </div>
+          </div>
+
+          <div class="un-status-bar" id="un-status-bar"></div>
 
           <div class="un-meta-section">
             <div class="un-section-label">Title metadata</div>
@@ -153,17 +171,6 @@ export function mountDraft(paneEl, state, {
             <div class="un-tags-panel" id="un-tags-panel"></div>
           </div>
 
-          <div class="un-actions-row">
-            <div class="un-actions-left">
-              <button class="btn btn-secondary"  id="un-draft-validate" type="button">Validate</button>
-              <button class="btn btn-primary"    id="un-draft-promote"  type="button">Promote</button>
-              <button class="btn btn-danger"     id="un-draft-discard"  type="button">Discard</button>
-              <button class="btn btn-secondary"  id="un-draft-skip"     type="button">Skip</button>
-            </div>
-          </div>
-
-          <div class="un-status-bar" id="un-status-bar"></div>
-
         </div>
       </div>
     `;
@@ -176,6 +183,18 @@ export function mountDraft(paneEl, state, {
       navigator.clipboard?.writeText(c).then(() => {
         codeEl.classList.add('un-code-copied');
         setTimeout(() => codeEl.classList.remove('un-code-copied'), 900);
+      }).catch(() => {});
+    });
+
+    // ── Folder path copy ───────────────────────────────────────────────
+    const folderPathEl = paneEl.querySelector('#un-ed-folder-path');
+    folderPathEl?.addEventListener('click', () => {
+      const raw = folderPathEl.dataset.path || '';
+      if (!raw) return;
+      const text = displayPath(raw.startsWith('//') ? 'smb:' + raw : raw);
+      navigator.clipboard?.writeText(text).then(() => {
+        folderPathEl.classList.add('un-editor-folder-copied');
+        setTimeout(() => folderPathEl.classList.remove('un-editor-folder-copied'), 1100);
       }).catch(() => {});
     });
 

@@ -15,6 +15,7 @@ import { mountActressPane }  from './actress-pane.js';
 import { mountCoverPane }    from './cover-pane.js';
 import { renderTagPanel }    from './tags-pane.js';
 import { mountDraft }        from './draft.js';
+import { displayPath }       from '../../path-utils.js';
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -107,11 +108,12 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
 
   // ── No-draft render ──────────────────────────────────────────────────
   function _renderNoDraft() {
-    const detail      = state.detail;
-    const es          = state.editorState;
-    const d           = detail?.detail;
-    const isDup       = !!(detail?.duplicate);
-    const isProcessed = !!(detail?.processed);
+    const detail        = state.detail;
+    const es            = state.editorState;
+    const d             = detail?.detail;
+    const isDup         = !!(detail?.duplicate);
+    const isProcessed   = !!(detail?.processed);
+    const folderNasPath = detail?.folderNasPath || '';
 
     // Teardown existing sub-pane handles
     _actressHandle?.destroy();
@@ -143,10 +145,34 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
             ${isDup ? '<span class="un-dup-badge">DUPLICATE</span>' : ''}
             ${isProcessed ? '<span class="un-processed-pill un-processed-pill-header" title="Already curated via javdb">Processed via javdb</span>' : ''}
           </div>
-          <div class="un-editor-folder" id="un-ed-folder">${esc(d?.folderName)}</div>
+          <div class="un-editor-folder" id="un-ed-folder">
+            <span class="un-editor-folder-key">Folder</span>
+            ${folderNasPath
+              ? `<span class="un-editor-folder-path un-editor-folder-copy" id="un-ed-folder-path" data-path="${esc(folderNasPath)}" title="Click to copy full path"><span class="un-editor-folder-text">${esc(displayPath(folderNasPath))}</span><svg class="un-editor-folder-copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>`
+              : `<span class="un-editor-folder-path">${esc(d?.folderName)}</span>`}
+          </div>
         </div>
 
         <div class="un-editor-body">
+
+          <div class="un-actions-row">
+            <div class="un-actions-left">
+              <button class="btn btn-primary" id="un-save-btn" type="button" disabled>Save</button>
+              <button class="btn btn-secondary" id="un-skip-btn" type="button" ${isProcessed ? 'disabled' : ''}>Skip</button>
+              ${!isDup ? `
+                <button class="btn btn-secondary" id="un-enrich-btn" type="button" ${isProcessed ? 'disabled' : ''}>Enrich via JavDB</button>
+                <span class="un-enrich-elapsed" id="un-enrich-elapsed" style="display:none"></span>
+              ` : ''}
+            </div>
+            <div class="un-actions-right">
+              <label class="un-advance-label">
+                <input type="checkbox" id="un-advance-cb" ${advanceChecked ? 'checked' : ''}>
+                Advance after save
+              </label>
+            </div>
+          </div>
+
+          <div class="un-status-bar" id="un-status-bar"></div>
 
           <div class="un-cover-section">
             <div class="un-section-label">Cover</div>
@@ -170,25 +196,6 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
             <div class="un-section-label">Tags</div>
             <div class="un-tags-panel" id="un-tags-panel"></div>
           </div>
-
-          <div class="un-actions-row">
-            <div class="un-actions-left">
-              <button class="btn btn-primary" id="un-save-btn" type="button" disabled>Save</button>
-              <button class="btn btn-secondary" id="un-skip-btn" type="button" ${isProcessed ? 'disabled' : ''}>Skip</button>
-              ${!isDup ? `
-                <button class="btn btn-secondary" id="un-enrich-btn" type="button" ${isProcessed ? 'disabled' : ''}>Enrich via JavDB</button>
-                <span class="un-enrich-elapsed" id="un-enrich-elapsed" style="display:none"></span>
-              ` : ''}
-            </div>
-            <div class="un-actions-right">
-              <label class="un-advance-label">
-                <input type="checkbox" id="un-advance-cb" ${advanceChecked ? 'checked' : ''}>
-                Advance after save
-              </label>
-            </div>
-          </div>
-
-          <div class="un-status-bar" id="un-status-bar"></div>
 
         </div>
       </div>
@@ -221,6 +228,18 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
       navigator.clipboard?.writeText(code).then(() => {
         codeEl.classList.add('un-code-copied');
         setTimeout(() => codeEl.classList.remove('un-code-copied'), 900);
+      }).catch(() => {});
+    });
+
+    // ── Folder path copy ─────────────────────────────────────────────
+    const folderPathEl = paneEl.querySelector('#un-ed-folder-path');
+    folderPathEl?.addEventListener('click', () => {
+      const raw = folderPathEl.dataset.path || '';
+      if (!raw) return;
+      const text = displayPath(raw.startsWith('//') ? 'smb:' + raw : raw);
+      navigator.clipboard?.writeText(text).then(() => {
+        folderPathEl.classList.add('un-editor-folder-copied');
+        setTimeout(() => folderPathEl.classList.remove('un-editor-folder-copied'), 1100);
       }).catch(() => {});
     });
 

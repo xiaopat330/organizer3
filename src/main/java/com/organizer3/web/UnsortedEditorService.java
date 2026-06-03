@@ -38,16 +38,19 @@ public class UnsortedEditorService {
     private final CoverPath coverPath;
     private final SmbConnectionFactory smbFactory;
     private final String unsortedVolumeId;
+    private final String unsortedSmbBasePath;
     private final TitleFolderRenamer renamer;
 
     public UnsortedEditorService(UnsortedEditorRepository repo, ActressRepository actressRepo,
                                  CoverPath coverPath, SmbConnectionFactory smbFactory,
-                                 String unsortedVolumeId, TitleFolderRenamer renamer) {
+                                 String unsortedVolumeId, String unsortedSmbBasePath,
+                                 TitleFolderRenamer renamer) {
         this.repo = repo;
         this.actressRepo = actressRepo;
         this.coverPath = coverPath;
         this.smbFactory = smbFactory;
         this.unsortedVolumeId = unsortedVolumeId;
+        this.unsortedSmbBasePath = unsortedSmbBasePath;
         this.renamer = renamer;
     }
 
@@ -91,8 +94,12 @@ public class UnsortedEditorService {
                     List<String> directTags       = repo.findDirectTags(titleId);
                     List<String> labelImpliedTags = repo.findLabelTags(detail.label());
                     boolean processed = detail.curatedAt() != null;
+                    String folderNasPath = unsortedSmbBasePath != null
+                            ? unsortedSmbBasePath + detail.folderPath()
+                            : null;
                     return new TitleDetailView(detail, coverFile != null, coverFile, descriptor,
-                            !others.isEmpty(), others, directTags, labelImpliedTags, processed);
+                            !others.isEmpty(), others, directTags, labelImpliedTags, processed,
+                            folderNasPath);
                 });
     }
 
@@ -100,7 +107,7 @@ public class UnsortedEditorService {
                                   String descriptor, boolean duplicate,
                                   List<UnsortedEditorRepository.OtherLocation> otherLocations,
                                   List<String> directTags, List<String> labelImpliedTags,
-                                  boolean processed) {}
+                                  boolean processed, String folderNasPath) {}
 
     /**
      * Pull the folder-name descriptor (e.g. "Demosaiced") out of a basename like

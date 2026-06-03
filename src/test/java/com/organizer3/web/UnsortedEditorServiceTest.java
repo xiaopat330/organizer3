@@ -73,6 +73,7 @@ class UnsortedEditorServiceTest {
                 coverPath,
                 smbFactory,
                 VOL,
+                "//host.local/unsorted",
                 renamer);
     }
 
@@ -307,6 +308,36 @@ class UnsortedEditorServiceTest {
 
         assertTrue(processedRow.processed(), "titleIdProcessed should be processed");
         assertFalse(processedRow.complete(), "titleIdProcessed should not be complete (no cover)");
+    }
+
+    // ── folderNasPath tests ──────────────────────────────────────────────
+
+    @Test
+    void findEligibleById_folderNasPathIsFullConcatenation() {
+        long titleId = seedTitle("ONED-030", "Foo (ONED-030)");
+        UnsortedEditorService.TitleDetailView view = service.findEligibleById(titleId).orElseThrow();
+        // seedTitle stores path as /root/Foo (ONED-030); smbBase = //host.local/unsorted
+        assertEquals("//host.local/unsorted/root/Foo (ONED-030)", view.folderNasPath(),
+                "folderNasPath must be exact concatenation of smbBase + folderPath with no extra separator");
+    }
+
+    @Test
+    void findEligibleById_folderNasPathIsNullWhenBaseIsNull() {
+        // Construct a service with null SMB base (simulates volume not in config)
+        TitleFolderRenamer renamer2 = new TitleFolderRenamer(
+                org.mockito.Mockito.mock(SmbConnectionFactory.class), jdbi, VOL);
+        UnsortedEditorService nullBaseService = new UnsortedEditorService(
+                new JdbiUnsortedEditorRepository(jdbi),
+                actressRepo,
+                coverPath,
+                org.mockito.Mockito.mock(SmbConnectionFactory.class),
+                VOL,
+                null,
+                renamer2);
+        long titleId = seedTitle("ONED-031", "Bar (ONED-031)");
+        UnsortedEditorService.TitleDetailView view = nullBaseService.findEligibleById(titleId).orElseThrow();
+        assertNull(view.folderNasPath(),
+                "folderNasPath must be null when smbBase is null (null guard prevents literal \"null/...\" string)");
     }
 
     // ── helpers ──────────────────────────────────────────────────────────

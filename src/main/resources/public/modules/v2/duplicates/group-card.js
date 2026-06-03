@@ -107,7 +107,7 @@ function makeDecisionBtn(decision, active) {
 
 // ── Location cell ─────────────────────────────────────────────────────
 
-function buildLocCell(state, title, locs, i, videos, suggestedIndex, onDecisionChange) {
+function buildLocCell(state, title, locs, i, videos, suggestedIndex, refreshCard) {
   const loc     = locs[i];
   const dec     = state.decisions.get(title.code);
   const current = dec?.get(i) || null;
@@ -186,7 +186,7 @@ function buildLocCell(state, title, locs, i, videos, suggestedIndex, onDecisionC
   const keepBtn = makeDecisionBtn('KEEP', current === 'KEEP');
   keepBtn.addEventListener('click', () => {
     applyDecision(state, title, locs, i, current === 'KEEP' ? null : 'KEEP');
-    onDecisionChange();
+    refreshCard();
   });
   actions.appendChild(keepBtn);
 
@@ -196,14 +196,14 @@ function buildLocCell(state, title, locs, i, videos, suggestedIndex, onDecisionC
   if (trashBtn.disabled) trashBtn.title = 'Cannot trash the last copy';
   trashBtn.addEventListener('click', () => {
     applyDecision(state, title, locs, i, current === 'TRASH' ? null : 'TRASH');
-    onDecisionChange();
+    refreshCard();
   });
   actions.appendChild(trashBtn);
 
   const variantBtn = makeDecisionBtn('VARIANT', current === 'VARIANT');
   variantBtn.addEventListener('click', () => {
     applyDecision(state, title, locs, i, current === 'VARIANT' ? null : 'VARIANT');
-    onDecisionChange();
+    refreshCard();
   });
   actions.appendChild(variantBtn);
 
@@ -211,12 +211,25 @@ function buildLocCell(state, title, locs, i, videos, suggestedIndex, onDecisionC
   return cell;
 }
 
-// ── Title card ────────────────────────────────────────────────────────
+// ── Title card (sync inner builder) ───────────────────────────────────
+// buildTitleCard (exported, async) fills the video cache then delegates here.
+// buildCardNode (sync) does all DOM work and closes over refreshCard so
+// decision buttons can rebuild this card in-place without a network call.
 
-export async function buildTitleCard(state, title, onDecisionChange) {
-  const locs = title.locationEntries || [];
+function buildCardNode(state, title, onDecisionChange) {
+  const locs      = title.locationEntries || [];
+  const locVideos = state.videosByCode.get(title.code) || [];
+
   const card = document.createElement('div');
   card.className = 'dup-card';
+
+  // refreshCard: rebuild only this card and swap it in the DOM, then notify
+  // the outer panel of the state change (headline / sidebar / closure badge).
+  function refreshCard() {
+    const fresh = buildCardNode(state, title, onDecisionChange);
+    card.replaceWith(fresh);
+    onDecisionChange();
+  }
 
   // Title header with cover
   const header = document.createElement('div');
@@ -266,9 +279,6 @@ export async function buildTitleCard(state, title, onDecisionChange) {
 
   card.appendChild(header);
 
-  // Fetch videos per location
-  const locVideos = await fetchLocVideos(title.code, locs);
-
   // Rank locations
   const locData = locs.map((loc, i) => ({ ...loc, videos: locVideos[i] || [] }));
   const rank    = rankLocations(locData);
@@ -280,15 +290,50 @@ export async function buildTitleCard(state, title, onDecisionChange) {
     card.appendChild(rat);
   }
 
-  // Location grid
+  // Location grid — pass refreshCard so buttons rebuild only this card
   const grid = document.createElement('div');
   grid.className = 'dup-cell-grid';
   for (let i = 0; i < locs.length; i++) {
-    grid.appendChild(buildLocCell(state, title, locs, i, locVideos[i] || [], rank.suggestedIndex, onDecisionChange));
+    grid.appendChild(buildLocCell(state, title, locs, i, locVideos[i] || [], rank.suggestedIndex, refreshCard));
   }
   card.appendChild(grid);
 
   return card;
+}
+
+export async function buildTitleCard(state, title, onDecisionChange) {
+  // Populate video cache on first build; reuse on subsequent rebuilds.
+  if (!state.videosByCode.has(title.code)) {
+    const locs = title.locationEntries || [];
+    state.videosByCode.set(title.code, await fetchLocVideos(title.code, locs));
+  }
+  return buildCardNode(state, title, onDecisionChange);
+}
+
+// ── Closure-badge sync helper ─────────────────────────────────────────
+// Updates the group "all resolved" badge in-place without rebuilding cards.
+// Called by onDecisionChange in index.js after a per-card decision toggle.
+
+export function syncClosureBadge(state, groupsEl) {
+  const group    = state.currentActressKey && state.actressGroups.get(state.currentActressKey);
+  const existing = groupsEl.querySelector('.dup-closure');
+  if (group) {
+    const allResolved = group.titles.every(t => {
+      const dec  = state.decisions.get(t.code);
+      const locs = t.locationEntries || [];
+      return dec && locs.every((_, i) => dec.has(i));
+    });
+    if (allResolved && !existing) {
+      const done = document.createElement('div');
+      done.className = 'dup-closure';
+      done.textContent = `✓ ${group.name} — all duplicates resolved`;
+      groupsEl.prepend(done);
+    } else if (!allResolved && existing) {
+      existing.remove();
+    }
+  } else if (existing) {
+    existing.remove();
+  }
 }
 
 // ── Group panel (all titles for selected actress) ─────────────────────
