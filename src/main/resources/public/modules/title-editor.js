@@ -102,8 +102,48 @@ let suggestHighlight = -1;
 let searchSeq = 0;
 let tagsCatalog = null; // [{category, label, tags: [{name, description}]}]
 
+// ── Sentinel (placeholder) state ──────────────────────────────────────────
+let _sentinels   = [];        // Array of sentinel actress objects
+let _sentinelIds = new Set(); // Set of sentinel actress ids (numbers)
+
 /** Map<titleId, true> for rows that have an active draft (loaded from /api/drafts). */
 let draftedTitleIds = new Set();
+
+// ── Sentinel placeholder init ─────────────────────────────────────────────
+// Fetch sentinels once at module load; build one static row inside
+// .queue-actress-add (which already carries the .disabled CSS cascade for
+// duplicate mode, so no separate dup-toggle logic is needed here).
+fetch('/api/actresses?sentinel=true&limit=20')
+  .then(r => r.ok ? r.json() : [])
+  .then(data => {
+    const arr = Array.isArray(data) ? data : (data.items || []);
+    _sentinels   = arr.filter(a => a.isSentinel || a.is_sentinel);
+    _sentinelIds = new Set(_sentinels.map(s => s.id));
+    _renderSentinelRow();
+  })
+  .catch(err => console.warn('[title-editor] fetchSentinels failed', err));
+
+function _renderSentinelRow() {
+  const addArea = document.querySelector('.queue-actress-add');
+  if (!addArea || !_sentinels.length) return;
+  // Remove any pre-existing row (re-entrant safety, though this runs once).
+  addArea.querySelector('.queue-actress-sentinel-row')?.remove();
+  const row = document.createElement('div');
+  row.className = 'queue-actress-sentinel-row';
+  const label = document.createElement('span');
+  label.className = 'queue-actress-sentinel-label';
+  label.textContent = 'Placeholders:';
+  row.appendChild(label);
+  _sentinels.forEach(s => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'queue-btn queue-btn-secondary queue-btn-sm';
+    btn.textContent = s.canonicalName;
+    btn.addEventListener('click', () => _applySentinel(s));
+    row.appendChild(btn);
+  });
+  addArea.appendChild(row);
+}
 
 // ── Public API ────────────────────────────────────────────────────────────
 export function showTitleEditor() {
@@ -646,7 +686,42 @@ function hideSuggest() {
   suggestHighlight = -1;
 }
 
+// ── Sentinel helpers ──────────────────────────────────────────────────────
+
+/** True iff the current actress list consists solely of sentinels. */
+function _listIsSolelySentinel() {
+  return editorState.actresses.length > 0
+      && editorState.actresses.every(a => _sentinelIds.has(a.id));
+}
+
+/** Replace the entire actress list with a single sentinel entry (sole-occupancy). */
+function _applySentinel(sentinel) {
+  editorState.actresses = [{
+    id:            sentinel.id,
+    canonicalName: sentinel.canonicalName,
+    stageName:     sentinel.stageName || null,
+    primary:       true,
+    isNew:         false,
+  }];
+  actressInput.value = '';
+  hideSuggest();
+  renderActresses();
+  updateDescriptorPreview();
+  updateSaveEnabled();
+}
+
 function addExisting(h) {
+  // If the picked actress is itself a sentinel, treat like a placeholder button.
+  if (_sentinelIds.has(h.id)) {
+    const sentinel = _sentinels.find(s => s.id === h.id) || h;
+    _applySentinel(sentinel);
+    return;
+  }
+  // If the list currently consists solely of sentinels, clear first
+  // (real actress replaces placeholder).
+  if (_listIsSolelySentinel()) {
+    editorState.actresses = [];
+  }
   const hadPrimary = editorState.actresses.some(a => a.primary);
   editorState.actresses.push({
     id: h.id, canonicalName: h.canonicalName, stageName: h.stageName,
@@ -661,6 +736,10 @@ function addExisting(h) {
 function addDraft(name) {
   const trimmed = name.trim();
   if (!trimmed) return;
+  // If the list currently consists solely of sentinels, clear first.
+  if (_listIsSolelySentinel()) {
+    editorState.actresses = [];
+  }
   const hadPrimary = editorState.actresses.some(a => a.primary);
   editorState.actresses.push({
     id: null, newName: trimmed, canonicalName: trimmed,

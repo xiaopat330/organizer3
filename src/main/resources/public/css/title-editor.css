@@ -293,6 +293,19 @@
   pointer-events: none;
 }
 
+.queue-actress-sentinel-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.queue-actress-sentinel-label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
 /* ── Tag panel ────────────────────────────────────────────────── */
 .queue-section-divider {
   border: none;
