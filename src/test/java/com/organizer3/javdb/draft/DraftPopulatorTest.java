@@ -403,6 +403,28 @@ class DraftPopulatorTest {
         assertEquals("Tanaka", result.englishLast());
     }
 
+    @Test
+    void autoLinkActress_kanjiRomaji_treatedAsMiss_noFuzzyNoPrefill() {
+        // The model echoed the kanji input back instead of romanizing, so resolveStageNameBlocking
+        // returns a still-CJK "romaji" (e.g. "華 倉木"). The Pass 4/5a guard must treat this as a
+        // miss: no fuzzy match, no english-name prefill → falls through to Pass 5b EMPTY.
+        var entry = new TitleExtract.CastEntry("slug-kanji", "倉木華", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(actressRepo.findByStageName("倉木華")).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-kanji")).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(eq("倉木華"), anyLong(), anyLong()))
+                .thenReturn(Optional.of("華 倉木"));
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertSame(DraftPopulator.AutoLinkResult.EMPTY, result, "kanji romaji must yield EMPTY (unresolved)");
+        assertNull(result.actressId());
+        assertNull(result.englishFirst(), "kanji must NOT be split into english_first_name");
+        assertNull(result.englishLast(), "kanji must NOT be split into english_last_name");
+        // The kanji "romaji" must never be fuzzy-matched.
+        verify(fuzzyMatcher, never()).match("華 倉木");
+    }
+
     // ── pass 2.5 (kanji stage_name) unit tests ───────────────────────────────
 
     @Test

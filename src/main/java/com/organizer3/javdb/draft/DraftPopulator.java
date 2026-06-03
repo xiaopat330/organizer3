@@ -382,7 +382,9 @@ public class DraftPopulator {
                 entry.name(),
                 STAGE_NAME_BLOCKING_TIMEOUT_MS,
                 STAGE_NAME_BLOCKING_POLL_INTERVAL_MS);
-        if (romaji.isPresent()) {
+        // Guard: a non-romaji (kanji) "romaji" is unusable — never fuzzy-match it and never
+        // split it into english name fields. Treat as a miss → falls through to Pass 5b EMPTY.
+        if (romaji.isPresent() && !TranslationNormalization.containsCjk(romaji.get())) {
             Optional<ActressFuzzyMatcher.MatchResult> fuzzy = fuzzyMatcher.match(romaji.get());
             if (fuzzy.isPresent()) {
                 Optional<Actress> matched = actressRepo.findById(fuzzy.get().actressId());

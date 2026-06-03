@@ -83,4 +83,49 @@ class TranslationNormalizationTest {
         assertEquals(64, hash.length());
         assertTrue(hash.matches("[0-9a-f]+"), "Hash should be lowercase hex");
     }
+
+    @Test
+    void containsCjk_trueForKanji() {
+        assertTrue(TranslationNormalization.containsCjk("倉木華"));
+    }
+
+    @Test
+    void containsCjk_trueForComposedKanjiWithSpace() {
+        assertTrue(TranslationNormalization.containsCjk("華 倉木"));
+    }
+
+    @Test
+    void containsCjk_trueForHiragana() {
+        assertTrue(TranslationNormalization.containsCjk("あい"));
+    }
+
+    @Test
+    void containsCjk_trueForKatakana() {
+        assertTrue(TranslationNormalization.containsCjk("アイ"));
+    }
+
+    @Test
+    void containsCjk_falseForRomajiName() {
+        assertFalse(TranslationNormalization.containsCjk("Hana Kuraki"));
+    }
+
+    @Test
+    void containsCjk_falseForAllCapsRomaji() {
+        assertFalse(TranslationNormalization.containsCjk("JULIA"));
+    }
+
+    @Test
+    void containsCjk_falseForNull() {
+        assertFalse(TranslationNormalization.containsCjk(null));
+    }
+
+    @Test
+    void containsCjk_falseForEmpty() {
+        assertFalse(TranslationNormalization.containsCjk(""));
+    }
+
+    @Test
+    void containsCjk_falseForAsciiWithDigitsAndPunctuation() {
+        assertFalse(TranslationNormalization.containsCjk("Hana-Kuraki 42!"));
+    }
 }

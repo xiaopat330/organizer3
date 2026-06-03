@@ -391,6 +391,17 @@ public class TranslationWorker implements Runnable {
         // This gate MUST NOT apply to any other strategy (title translations must be untouched).
         if (englishText != null && StrategySelector.LABEL_NAME.equals(strategy.name())) {
             englishText = StageNameRomajiParser.parseAndCompose(englishText);
+            // The raw JSON's ASCII keys mask kanji values from the earlier sanitization check,
+            // so re-check the COMPOSED romaji. A still-CJK result is not a romanization —
+            // escalate to tier-2 (mirrors the sanitized path) rather than caching/suggesting garbage.
+            if (englishText != null && TranslationNormalization.containsCjk(englishText)) {
+                log.info("TranslationWorker: row={} strategy={} produced non-romaji label_name '{}' — escalating to tier-2",
+                        row.id(), strategy.name(), englishText);
+                escalateToTier2 = true;
+                tier2Reason = "non_romaji";
+                failureReason = "non_romaji";
+                englishText = null;
+            }
         }
 
         long latencyMs = System.currentTimeMillis() - startMs;
