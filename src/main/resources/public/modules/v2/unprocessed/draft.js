@@ -103,7 +103,7 @@ export function mountDraft(paneEl, state, {
             <span class="un-editor-code" id="un-ed-code" title="Click to copy">${esc(code)}</span>
             <span class="un-draft-pill">DRAFT</span>
           </div>
-          <div class="un-editor-folder">${esc(folder)}</div>
+          <div class="un-editor-folder"><span class="un-editor-folder-key">Folder</span><span class="un-editor-folder-path">${esc(folder)}</span></div>
         </div>
 
         <div class="un-upstream-banner" id="un-upstream-banner" style="display:none">
@@ -119,6 +119,17 @@ export function mountDraft(paneEl, state, {
         </div>
 
         <div class="un-editor-body">
+
+          <div class="un-actions-row">
+            <div class="un-actions-left">
+              <button class="btn btn-secondary"  id="un-draft-validate" type="button">Validate</button>
+              <button class="btn btn-primary"    id="un-draft-promote"  type="button">Promote</button>
+              <button class="btn btn-danger"     id="un-draft-discard"  type="button">Discard</button>
+              <button class="btn btn-secondary"  id="un-draft-skip"     type="button">Skip</button>
+            </div>
+          </div>
+
+          <div class="un-status-bar" id="un-status-bar"></div>
 
           <div class="un-meta-section">
             <div class="un-section-label">Title metadata</div>
@@ -152,17 +163,6 @@ export function mountDraft(paneEl, state, {
             <div class="un-section-label">Tags</div>
             <div class="un-tags-panel" id="un-tags-panel"></div>
           </div>
-
-          <div class="un-actions-row">
-            <div class="un-actions-left">
-              <button class="btn btn-secondary"  id="un-draft-validate" type="button">Validate</button>
-              <button class="btn btn-primary"    id="un-draft-promote"  type="button">Promote</button>
-              <button class="btn btn-danger"     id="un-draft-discard"  type="button">Discard</button>
-              <button class="btn btn-secondary"  id="un-draft-skip"     type="button">Skip</button>
-            </div>
-          </div>
-
-          <div class="un-status-bar" id="un-status-bar"></div>
 
         </div>
       </div>

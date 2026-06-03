@@ -4814,12 +4814,27 @@
   color: var(--accent-fg);
 }
 .un-editor-folder {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+.un-editor-folder-key {
+  flex-shrink: 0;
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+}
+.un-editor-folder-path {
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--text-faint);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 .un-dup-badge {
   display: inline-block;

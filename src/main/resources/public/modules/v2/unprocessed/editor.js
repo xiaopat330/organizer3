@@ -143,10 +143,29 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
             ${isDup ? '<span class="un-dup-badge">DUPLICATE</span>' : ''}
             ${isProcessed ? '<span class="un-processed-pill un-processed-pill-header" title="Already curated via javdb">Processed via javdb</span>' : ''}
           </div>
-          <div class="un-editor-folder" id="un-ed-folder">${esc(d?.folderName)}</div>
+          <div class="un-editor-folder" id="un-ed-folder"><span class="un-editor-folder-key">Folder</span><span class="un-editor-folder-path">${esc(d?.folderName)}</span></div>
         </div>
 
         <div class="un-editor-body">
+
+          <div class="un-actions-row">
+            <div class="un-actions-left">
+              <button class="btn btn-primary" id="un-save-btn" type="button" disabled>Save</button>
+              <button class="btn btn-secondary" id="un-skip-btn" type="button" ${isProcessed ? 'disabled' : ''}>Skip</button>
+              ${!isDup ? `
+                <button class="btn btn-secondary" id="un-enrich-btn" type="button" ${isProcessed ? 'disabled' : ''}>Enrich via JavDB</button>
+                <span class="un-enrich-elapsed" id="un-enrich-elapsed" style="display:none"></span>
+              ` : ''}
+            </div>
+            <div class="un-actions-right">
+              <label class="un-advance-label">
+                <input type="checkbox" id="un-advance-cb" ${advanceChecked ? 'checked' : ''}>
+                Advance after save
+              </label>
+            </div>
+          </div>
+
+          <div class="un-status-bar" id="un-status-bar"></div>
 
           <div class="un-cover-section">
             <div class="un-section-label">Cover</div>
@@ -170,25 +189,6 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
             <div class="un-section-label">Tags</div>
             <div class="un-tags-panel" id="un-tags-panel"></div>
           </div>
-
-          <div class="un-actions-row">
-            <div class="un-actions-left">
-              <button class="btn btn-primary" id="un-save-btn" type="button" disabled>Save</button>
-              <button class="btn btn-secondary" id="un-skip-btn" type="button" ${isProcessed ? 'disabled' : ''}>Skip</button>
-              ${!isDup ? `
-                <button class="btn btn-secondary" id="un-enrich-btn" type="button" ${isProcessed ? 'disabled' : ''}>Enrich via JavDB</button>
-                <span class="un-enrich-elapsed" id="un-enrich-elapsed" style="display:none"></span>
-              ` : ''}
-            </div>
-            <div class="un-actions-right">
-              <label class="un-advance-label">
-                <input type="checkbox" id="un-advance-cb" ${advanceChecked ? 'checked' : ''}>
-                Advance after save
-              </label>
-            </div>
-          </div>
-
-          <div class="un-status-bar" id="un-status-bar"></div>
 
         </div>
       </div>
