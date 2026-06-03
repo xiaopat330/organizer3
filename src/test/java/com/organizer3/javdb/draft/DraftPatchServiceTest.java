@@ -338,4 +338,99 @@ class DraftPatchServiceTest {
                         List.of(new DraftPatchService.CastResolutionEdit("s", "pick", null, null, null)),
                         List.of()));
     }
+
+    // ── Test B: "remove" resolution ────────────────────────────────────────────
+
+    @Test
+    void validate_removeResolution_isAlwaysValid() {
+        // "remove" is unconditionally valid (like skip/unresolved).
+        var errors = service.validate(
+                List.of(new DraftPatchService.CastResolutionEdit("s1", "remove", null, null, null)),
+                List.of());
+        assertTrue(errors.isEmpty(), "remove resolution should always be valid");
+    }
+
+    @Test
+    void patch_removeExistingSlug_dropsItFromDraftTitleActresses() throws Exception {
+        long draftId = insertDraft(1L);
+        insertActress("a1", "A");
+        insertActress("a2", "B");
+        // Two slots.
+        draftTitleActressesRepo.replaceForDraft(draftId, List.of(
+                new DraftTitleActress(draftId, "a1", "pick"),
+                new DraftTitleActress(draftId, "a2", "pick")));
+
+        // Remove a1.
+        service.patch(1L, "2024-01-01T00:00:00Z",
+                List.of(new DraftPatchService.CastResolutionEdit("a1", "remove", null, null, null)),
+                List.of());
+
+        var slots = draftTitleActressesRepo.findByDraftTitleId(draftId);
+        assertEquals(1, slots.size(), "remove should drop the targeted slot");
+        assertEquals("a2", slots.get(0).getJavdbSlug(), "remaining slot should be a2");
+    }
+
+    @Test
+    void patch_removeAllThenAddSentinel_yieldsSingleSentinelSlot() throws Exception {
+        long draftId = insertDraft(1L);
+        insertActress("real1", "Real");
+        draftTitleActressesRepo.replaceForDraft(draftId, List.of(
+                new DraftTitleActress(draftId, "real1", "pick")));
+
+        // Step 1: remove existing slot.
+        String token = service.patch(1L, "2024-01-01T00:00:00Z",
+                List.of(new DraftPatchService.CastResolutionEdit("real1", "remove", null, null, null)),
+                List.of());
+
+        var slotsAfterRemove = draftTitleActressesRepo.findByDraftTitleId(draftId);
+        assertEquals(0, slotsAfterRemove.size(), "all slots removed");
+
+        // Step 2: add sentinel slot with manual slug.
+        service.patch(1L, token,
+                List.of(new DraftPatchService.CastResolutionEdit("manual:1", "sentinel:99", null, null, null)),
+                List.of());
+
+        var slots = draftTitleActressesRepo.findByDraftTitleId(draftId);
+        assertEquals(1, slots.size(), "should have exactly one slot after adding sentinel");
+        assertEquals("manual:1", slots.get(0).getJavdbSlug());
+        assertEquals("sentinel:99", slots.get(0).getResolution());
+    }
+
+    @Test
+    void patch_addManualSlotWithPickAndLinkToExistingId_createsRowWithLinkSet() throws Exception {
+        long draftId = insertDraft(1L);
+        // No existing slots.
+
+        // Add a manual:1 slot with pick + linkToExistingId=10.
+        service.patch(1L, "2024-01-01T00:00:00Z",
+                List.of(new DraftPatchService.CastResolutionEdit("manual:1", "pick", 10L, null, null)),
+                List.of());
+
+        var slots = draftTitleActressesRepo.findByDraftTitleId(draftId);
+        assertEquals(1, slots.size(), "manual:1 slot should be created");
+        assertEquals("pick", slots.get(0).getResolution());
+
+        // draft_actresses row should have link_to_existing_id = 10.
+        var actress = draftActressRepo.findBySlug("manual:1");
+        assertTrue(actress.isPresent(), "draft_actresses row must be created for manual:1");
+        assertEquals(10L, actress.get().getLinkToExistingId(),
+                "link_to_existing_id must be set on the new draft_actresses row");
+    }
+
+    @Test
+    void patch_removeNonExistentSlug_isNoOp() throws Exception {
+        long draftId = insertDraft(1L);
+        insertActress("a1", "A");
+        draftTitleActressesRepo.replaceForDraft(draftId, List.of(
+                new DraftTitleActress(draftId, "a1", "pick")));
+
+        // Remove a slug that doesn't exist — should be a no-op, not an error.
+        assertDoesNotThrow(() ->
+                service.patch(1L, "2024-01-01T00:00:00Z",
+                        List.of(new DraftPatchService.CastResolutionEdit("nonexistent", "remove", null, null, null)),
+                        List.of()));
+
+        var slots = draftTitleActressesRepo.findByDraftTitleId(draftId);
+        assertEquals(1, slots.size(), "existing slot should be unaffected by remove of nonexistent slug");
+    }
 }

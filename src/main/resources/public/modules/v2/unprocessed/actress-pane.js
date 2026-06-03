@@ -43,6 +43,23 @@ function highlight(text, query) {
  * @returns {{ destroy:Function, renderActresses:Function }}
  */
 export function mountActressPane(containerEl, editorState, isDuplicate, onChange) {
+  // ── Sentinel state ───────────────────────────────────────────────────
+  let _sentinels   = [];     // Array of sentinel actress objects
+  let _sentinelIds = new Set(); // Set of sentinel actress ids (numbers)
+
+  // Fetch sentinels once on mount; render placeholder buttons after load.
+  if (!isDuplicate) {
+    fetch('/api/actresses?sentinel=true&limit=20')
+      .then(r => r.ok ? r.json() : [])
+      .then(data => {
+        const arr = Array.isArray(data) ? data : (data.items || []);
+        _sentinels   = arr.filter(a => a.isSentinel || a.is_sentinel);
+        _sentinelIds = new Set(_sentinels.map(s => s.id));
+        _renderSentinelButtons();
+      })
+      .catch(err => console.warn('[actress-pane] fetchSentinels failed', err));
+  }
+
   // ── Build DOM ────────────────────────────────────────────────────────
   containerEl.innerHTML = `
     <div class="un-actress-pane">
@@ -55,20 +72,62 @@ export function mountActressPane(containerEl, editorState, isDuplicate, onChange
                  placeholder="Type a name to search or create…" autocomplete="off">
           <div class="un-actress-suggest" id="un-ap-suggest" style="display:none"></div>
         </div>
+        <div class="un-actress-sentinel-row" id="un-ap-sentinel-row" style="display:none">
+          <span class="un-actress-sentinel-label">Placeholders:</span>
+        </div>
       `}
       ${isDuplicate ? '<div class="un-actress-dup-lock">Actress assignment locked (duplicate)</div>' : ''}
     </div>
   `;
 
-  const listEl    = containerEl.querySelector('#un-ap-list');
-  const hintEl    = containerEl.querySelector('#un-ap-hint');
-  const inputEl   = containerEl.querySelector('#un-ap-input');
-  const suggestEl = containerEl.querySelector('#un-ap-suggest');
+  const listEl      = containerEl.querySelector('#un-ap-list');
+  const hintEl      = containerEl.querySelector('#un-ap-hint');
+  const inputEl     = containerEl.querySelector('#un-ap-input');
+  const suggestEl   = containerEl.querySelector('#un-ap-suggest');
+  const sentinelRow = containerEl.querySelector('#un-ap-sentinel-row');
 
   // ── State ────────────────────────────────────────────────────────────
   let searchSeq        = 0;
   let suggestHighlight = -1;
   let debounceTimer    = null;
+
+  // ── Sentinel helpers ─────────────────────────────────────────────────
+  /** True iff the current actress list consists solely of sentinels. */
+  function _listIsSolelysentinel() {
+    return editorState.actresses.length > 0
+        && editorState.actresses.every(a => _sentinelIds.has(a.id));
+  }
+
+  /** Replace entire actress list with a single sentinel entry. */
+  function _replacWithSentinel(sentinel) {
+    editorState.actresses = [{
+      id:            sentinel.id,
+      canonicalName: sentinel.canonicalName,
+      stageName:     sentinel.stageName || null,
+      primary:       true,
+      isNew:         false,
+    }];
+    hideSuggest();
+    if (inputEl) inputEl.value = '';
+    renderActresses();
+    onChange?.();
+  }
+
+  /** Render the placeholder sentinel buttons (called once sentinels are fetched). */
+  function _renderSentinelButtons() {
+    if (!sentinelRow) return;
+    // Remove any previously rendered buttons (re-entrant guard)
+    sentinelRow.querySelectorAll('.un-actress-sentinel-btn').forEach(b => b.remove());
+    _sentinels.forEach(s => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn btn-secondary btn-sm un-actress-sentinel-btn';
+      btn.textContent = s.canonicalName;
+      btn.addEventListener('click', () => _replacWithSentinel(s));
+      sentinelRow.appendChild(btn);
+    });
+    if (_sentinels.length > 0) sentinelRow.style.display = 'flex';
+  }
 
   // ── Render actress list ──────────────────────────────────────────────
   function renderActresses() {
@@ -159,6 +218,17 @@ export function mountActressPane(containerEl, editorState, isDuplicate, onChange
   }
 
   function addExisting(hit) {
+    // If the picked actress is itself a sentinel, treat like a placeholder button.
+    if (_sentinelIds.has(hit.id)) {
+      const sentinel = _sentinels.find(s => s.id === hit.id) || hit;
+      _replacWithSentinel(sentinel);
+      return;
+    }
+    // If the list currently consists solely of sentinels, clear first
+    // (real actress replaces placeholder).
+    if (_listIsSolelysentinel()) {
+      editorState.actresses = [];
+    }
     const hadPrimary = editorState.actresses.some(a => a.primary);
     editorState.actresses.push({
       id:            hit.id,
@@ -176,6 +246,10 @@ export function mountActressPane(containerEl, editorState, isDuplicate, onChange
   function addDraft(name) {
     const trimmed = name.trim();
     if (!trimmed) return;
+    // If the list currently consists solely of sentinels, clear first.
+    if (_listIsSolelysentinel()) {
+      editorState.actresses = [];
+    }
     const hadPrimary = editorState.actresses.some(a => a.primary);
     editorState.actresses.push({
       id:            null,

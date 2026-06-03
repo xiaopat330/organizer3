@@ -18,9 +18,11 @@ import org.jdbi.v3.core.mapper.RowMapper;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -132,6 +134,28 @@ public class JdbiActressRepository implements ActressRepository {
             for (int i = 0; i < ids.size(); i++) query.bind(i, ids.get(i));
             return query.map(ACTRESS_MAPPER).list();
         });
+    }
+
+    @Override
+    public Set<Long> findSentinelIds(Collection<Long> ids) {
+        if (ids == null || ids.isEmpty()) return Set.of();
+        List<Long> idList = List.copyOf(ids);
+        String placeholders = idList.stream().map(id -> "?").collect(Collectors.joining(", "));
+        return jdbi.withHandle(h -> {
+            var query = h.createQuery(
+                    "SELECT id FROM actresses WHERE id IN (" + placeholders + ") AND is_sentinel = 1");
+            for (int i = 0; i < idList.size(); i++) query.bind(i, idList.get(i));
+            return new HashSet<>(query.mapTo(Long.class).list());
+        });
+    }
+
+    @Override
+    public List<Actress> findSentinels() {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses WHERE is_sentinel = 1 ORDER BY canonical_name")
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
     }
 
     @Override

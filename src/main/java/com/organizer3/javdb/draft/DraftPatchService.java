@@ -122,16 +122,19 @@ public class DraftPatchService {
             }
 
             // Apply overrides to existing list.
+            // A "remove" override drops the slot entirely (replaceForDraft will not reinsert it).
             List<DraftTitleActress> updated = new ArrayList<>();
             for (DraftTitleActress row : existing) {
                 String newRes = overrides.getOrDefault(row.getJavdbSlug(), row.getResolution());
+                if ("remove".equals(newRes)) continue; // drop the slot
                 updated.add(new DraftTitleActress(draftId, row.getJavdbSlug(), newRes));
             }
             // Add any slug in overrides that wasn't in the existing list (new slots).
+            // "remove" for a non-existent slug is a no-op — do not add it.
             java.util.Set<String> existingSlugs = new java.util.HashSet<>();
             for (DraftTitleActress row : existing) existingSlugs.add(row.getJavdbSlug());
             for (CastResolutionEdit edit : castResolutions) {
-                if (!existingSlugs.contains(edit.javdbSlug())) {
+                if (!existingSlugs.contains(edit.javdbSlug()) && !"remove".equals(edit.resolution())) {
                     updated.add(new DraftTitleActress(draftId, edit.javdbSlug(), edit.resolution()));
                 }
             }
@@ -184,7 +187,7 @@ public class DraftPatchService {
                         errors.add("CREATE_NEW_MISSING_LAST_NAME");
                     }
                 }
-                case "skip", "unresolved" -> { /* always valid */ }
+                case "skip", "unresolved", "remove" -> { /* always valid */ }
                 default -> {
                     if (res.startsWith("sentinel:")) {
                         String idStr = res.substring("sentinel:".length());
@@ -215,6 +218,10 @@ public class DraftPatchService {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private void applyResolutionUpsert(CastResolutionEdit edit, String nowIso) {
+        // "remove" deletes the slot — no draft_actresses upsert needed.
+        if ("remove".equals(edit.resolution())) {
+            return;
+        }
         DraftActress existing = draftActressRepo.findBySlug(edit.javdbSlug()).orElse(null);
 
         DraftActress.DraftActressBuilder builder = DraftActress.builder()

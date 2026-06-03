@@ -329,6 +329,20 @@ public class UnsortedEditorService {
             }
         }
 
+        // Sentinel guard: a sentinel (Amateur/Various/Unknown) must be the sole cast member.
+        // New entries (id==null) are never sentinels — only check existing ids.
+        List<Long> existingIds = entries.stream()
+                .filter(e -> e.id() != null)
+                .map(ActressEntry::id)
+                .toList();
+        java.util.Set<Long> sentinelIds = actressRepo.findSentinelIds(existingIds);
+        int sentinelCount = sentinelIds.size();
+        int totalEntries = entries.size();
+        if (sentinelCount > 1 || (sentinelCount == 1 && totalEntries > 1)) {
+            throw new IllegalArgumentException(
+                    "A placeholder (Amateur/Various/Unknown) must be the only cast member.");
+        }
+
         SaveResult committed = repo.inTransaction(h -> {
             // Resolve draft actresses first (create) so we know their ids before link.
             List<Long> ids = new ArrayList<>(entries.size());

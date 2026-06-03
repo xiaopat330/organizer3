@@ -6,8 +6,10 @@
      - Render slots: stage name, javdb slug, resolution badge.
      - Resolved slot: linked-actress avatar / summary + Unlink button.
      - Unresolved slot: full picker — search typeahead, create-new
-       inline form (last/first), Skip (≥2 slots), Sentinel dropdown
-       (0 or ≥2 slots).
+       inline form (last/first), Skip (≥2 slots).
+     - Empty-cast state: Add-cast block with search existing, create new,
+       and placeholder (sentinel) buttons. Mutually exclusive with slots.
+     - Per-slot Remove button; Clear all cast button when list is non-empty.
      - Stage-name translation polling loop (30 × 5s) for slots with
        Japanese stage names but no english_first/last yet.
      - Auto-fill dirty-slot guard; auto-fill cue.
@@ -15,18 +17,24 @@
      - Alias-capture check after pick → openAliasCaptureModal.
 
    Pure UI: PATCH semantics live in draft.js via callbacks
-   (onResolve, onUnlink). State for timers/dirty/suppress/sentinels
-   lives on shared `state` (per spec §4.2) — not module-local — so
-   they survive re-renders and are torn down cleanly on destroy().
+   (onResolve, onUnlink, onAddManual, onRemove, onClearAll). State for
+   timers/dirty/suppress/sentinels lives on shared `state` (per spec §4.2)
+   — not module-local — so they survive re-renders and are torn down
+   cleanly on destroy().
 
    Exported:
-     mountCastPane(containerEl, state, { onResolve, onUnlink, onReload })
-       → { renderCast, destroy }
+     mountCastPane(containerEl, state, {
+       onResolve, onUnlink, onReload,
+       onAddManual, onRemove, onClearAll
+     }) → { renderCast, destroy }
 
    onResolve(javdbSlug, resolution, extra, idx, afterSuccess?)
    onUnlink(javdbSlug, idx)
    onReload()  — invoked by the near-miss-resolved window event so the
                  owning draft.js can re-fetch /api/drafts/:id.
+   onAddManual(resolution, extra) — add a manual cast slot (empty-state)
+   onRemove(javdbSlug)            — remove a cast slot by javdbSlug
+   onClearAll()                   — remove all cast slots
    ───────────────────────────────────────────────────────────────────── */
 
 import { mount as mountNearMissModal } from '../../near-miss-modal.js';
@@ -88,7 +96,7 @@ function resolutionCls(res) {
   return 'un-cast-res-unresolved';
 }
 
-function resolvedSummary(slot) {
+function resolvedSummary(slot, sentinelsCache) {
   const res = slot.resolution;
   if (res === 'pick') {
     const link = slot.linkToExistingId ? `id:${slot.linkToExistingId}` : '';
@@ -101,7 +109,12 @@ function resolvedSummary(slot) {
     return `Create new: ${full || '(name pending)'}`;
   }
   if (res === 'skip') return 'Skipped — will not be linked';
-  if (res && res.startsWith('sentinel:')) return 'Replaced with sentinel actress';
+  if (res && res.startsWith('sentinel:')) {
+    const sentinelId = String(res.slice('sentinel:'.length));
+    const cache = sentinelsCache || [];
+    const found = cache.find(s => String(s.id) === sentinelId);
+    return found ? `Placeholder: ${found.canonicalName}` : 'Placeholder';
+  }
   return res || '';
 }
 
@@ -165,12 +178,18 @@ async function checkAndOpenAliasModal(actressId, stageName, capturedFirst, captu
  * @param {HTMLElement} containerEl
  * @param {object}      state
  * @param {object}      callbacks
- * @param {Function}    callbacks.onResolve  — (javdbSlug, resolution, extra, idx, afterSuccess?) → void
- * @param {Function}    callbacks.onUnlink   — (javdbSlug, idx) → void
- * @param {Function}    callbacks.onReload   — () → void  (near-miss-resolved → reload draft)
+ * @param {Function}    callbacks.onResolve   — (javdbSlug, resolution, extra, idx, afterSuccess?) → void
+ * @param {Function}    callbacks.onUnlink    — (javdbSlug, idx) → void
+ * @param {Function}    callbacks.onReload    — () → void  (near-miss-resolved → reload draft)
+ * @param {Function}    [callbacks.onAddManual] — (resolution, extra) → void  (empty-state add)
+ * @param {Function}    [callbacks.onRemove]    — (javdbSlug) → void  (per-slot remove)
+ * @param {Function}    [callbacks.onClearAll]  — () → void  (clear all cast)
  * @returns {{ renderCast:Function, destroy:Function }}
  */
-export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReload }) {
+export function mountCastPane(containerEl, state, {
+  onResolve, onUnlink, onReload,
+  onAddManual, onRemove, onClearAll,
+}) {
 
   // Make our reloader the active one for the singleton listener.
   ensureNearMissListener();
@@ -303,14 +322,43 @@ export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReloa
 
     const cast = state.draft?.cast || [];
     if (cast.length === 0) {
-      containerEl.innerHTML = `
-        <div class="un-cast-empty">No cast slots — javdb returned 0 stage names.</div>
-      `;
+      // Empty-state: render Add-cast block with search, create-new, and
+      // placeholder sentinel buttons. Warm the sentinel cache if needed.
+      containerEl.innerHTML = '';
+      const addBlock = _buildAddCastBlock((resolution, extra) => {
+        onAddManual?.(resolution, extra);
+      });
+      containerEl.appendChild(addBlock);
       return;
     }
 
-    containerEl.innerHTML = `<ul class="un-cast-list" id="un-cast-list"></ul>`;
-    const listEl = containerEl.querySelector('#un-cast-list');
+    // Warm sentinel cache if any slot uses a sentinel resolution, so that
+    // resolvedSummary() can show the canonical name synchronously after re-render.
+    const hasSentinelSlot = cast.some(s => s.resolution?.startsWith?.('sentinel:'));
+    if (hasSentinelSlot && !state.sentinelsCache) {
+      fetchSentinels(state).then(() => {
+        // Re-render once cache is populated so resolved summaries show names.
+        renderCast();
+      });
+    }
+
+    containerEl.innerHTML = '';
+
+    // ── Clear-all button (non-empty list) ──────────────────────────────
+    const clearAllRow = document.createElement('div');
+    clearAllRow.className = 'un-cast-clear-all-row';
+    const clearAllBtn = document.createElement('button');
+    clearAllBtn.type = 'button';
+    clearAllBtn.className = 'btn btn-secondary btn-sm';
+    clearAllBtn.textContent = 'Clear all cast';
+    clearAllBtn.addEventListener('click', () => onClearAll?.());
+    clearAllRow.appendChild(clearAllBtn);
+    containerEl.appendChild(clearAllRow);
+
+    const listEl = document.createElement('ul');
+    listEl.className = 'un-cast-list';
+    listEl.id = 'un-cast-list';
+    containerEl.appendChild(listEl);
 
     cast.forEach((slot, idx) => {
       const li = document.createElement('li');
@@ -414,7 +462,7 @@ export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReloa
       } else {
         const summary = document.createElement('div');
         summary.className = 'un-cast-slot-summary';
-        summary.textContent = resolvedSummary(slot);
+        summary.textContent = resolvedSummary(slot, state.sentinelsCache);
         frag.appendChild(summary);
       }
 
@@ -430,17 +478,31 @@ export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReloa
       frag.appendChild(_buildPicker(slot, idx, header));
     }
 
+    // ── Per-slot Remove button (both resolved and unresolved) ──
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'btn btn-secondary btn-sm un-cast-remove-btn';
+    removeBtn.textContent = 'Remove';
+    removeBtn.addEventListener('click', () => onRemove?.(slot.javdbSlug));
+    frag.appendChild(removeBtn);
+
     return frag;
   }
 
-  function _buildPicker(slot, idx, headerEl) {
-    const container = document.createElement('div');
-    container.className = 'un-cast-picker';
-
-    const actionsRow = document.createElement('div');
-    actionsRow.className = 'un-cast-picker-actions';
-
-    // ── Search existing ────────────────────────────────────────────────
+  /**
+   * Build the search-existing sub-component.
+   * submit(resolution, extra, afterSuccess?) — called when the user picks a hit.
+   * If slot/headerEl/pickerContainerRef are provided, alias-capture is enabled;
+   * otherwise (empty-state) they should be null/undefined.
+   *
+   * @param {Function} submit
+   * @param {object|null}   slot             — current draft cast slot (or null for empty-state)
+   * @param {HTMLElement|null} headerEl      — slot header for alias modal (or null)
+   * @param {object}    pickerContainerRef   — { el: HTMLElement } reference to picker container
+   *                                           (needed to read captured name inputs pre-render)
+   * @returns {HTMLElement} searchWrap
+   */
+  function _buildSearchExisting(submit, slot, headerEl, pickerContainerRef) {
     const searchWrap = document.createElement('div');
     searchWrap.className = 'un-cast-picker-search';
 
@@ -475,14 +537,18 @@ export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReloa
             item.addEventListener('click', () => {
               suggestBox.style.display = 'none';
               searchInput.value = '';
-              // Capture name inputs before re-render destroys them.
-              const lastEl  = container.querySelector('.un-cast-picker-name-input[data-name-field="last"]');
-              const firstEl = container.querySelector('.un-cast-picker-name-input[data-name-field="first"]');
-              const capturedLast  = lastEl  ? lastEl.value.trim()  : '';
-              const capturedFirst = firstEl ? firstEl.value.trim() : '';
-              onResolve?.(slot.javdbSlug, 'pick', { linkToExistingId: h.id }, idx, () => {
-                checkAndOpenAliasModal(h.id, slot.stageName, capturedFirst, capturedLast);
-              });
+              if (slot && pickerContainerRef?.el) {
+                // Capture name inputs before re-render destroys them (per-slot only).
+                const lastEl  = pickerContainerRef.el.querySelector('.un-cast-picker-name-input[data-name-field="last"]');
+                const firstEl = pickerContainerRef.el.querySelector('.un-cast-picker-name-input[data-name-field="first"]');
+                const capturedLast  = lastEl  ? lastEl.value.trim()  : '';
+                const capturedFirst = firstEl ? firstEl.value.trim() : '';
+                submit('pick', { linkToExistingId: h.id }, () => {
+                  checkAndOpenAliasModal(h.id, slot.stageName, capturedFirst, capturedLast);
+                });
+              } else {
+                submit('pick', { linkToExistingId: h.id });
+              }
             });
             suggestBox.appendChild(item);
           });
@@ -495,58 +561,26 @@ export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReloa
 
     searchWrap.appendChild(searchInput);
     searchWrap.appendChild(suggestBox);
-    actionsRow.appendChild(searchWrap);
+    return searchWrap;
+  }
 
-    // ── Create-new toggle button ───────────────────────────────────────
+  /**
+   * Build the create-new sub-component (toggle button + inline form).
+   * submit(resolution, extra) — called when the user submits the form.
+   * If slot/headerEl are provided, dirty-tracking + autofill cue are enabled.
+   *
+   * @param {Function}      submit
+   * @param {object|null}   slot
+   * @param {HTMLElement|null} headerEl
+   * @param {object}        pickerContainerRef — { el: HTMLElement } set once the container is live
+   * @returns {{ createBtn: HTMLElement, createForm: HTMLElement }}
+   */
+  function _buildCreateNew(submit, slot, headerEl, pickerContainerRef) {
     const createBtn = document.createElement('button');
     createBtn.type = 'button';
     createBtn.className = 'btn btn-secondary btn-sm';
     createBtn.textContent = 'Create new…';
-    actionsRow.appendChild(createBtn);
 
-    const totalSlots = state.draft?.cast?.length || 0;
-
-    // ── Skip (≥2 slots) ────────────────────────────────────────────────
-    if (totalSlots >= 2) {
-      const skipBtn = document.createElement('button');
-      skipBtn.type = 'button';
-      skipBtn.className = 'btn btn-secondary btn-sm';
-      skipBtn.textContent = 'Skip';
-      skipBtn.addEventListener('click', () =>
-        onResolve?.(slot.javdbSlug, 'skip', {}, idx));
-      actionsRow.appendChild(skipBtn);
-    }
-
-    // ── Sentinel dropdown (0 or ≥2 slots) ──────────────────────────────
-    if (totalSlots === 0 || totalSlots >= 2) {
-      const sel = document.createElement('select');
-      sel.className = 'un-cast-picker-input un-cast-picker-sentinel';
-      const def = document.createElement('option');
-      def.value = '';
-      def.textContent = 'Sentinel…';
-      sel.appendChild(def);
-
-      fetchSentinels(state).then(sentinels => {
-        sentinels.forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = 'sentinel:' + s.id;
-          opt.textContent = s.canonicalName;
-          sel.appendChild(opt);
-        });
-      });
-
-      sel.addEventListener('change', () => {
-        const val = sel.value;
-        if (!val) return;
-        onResolve?.(slot.javdbSlug, val, {}, idx);
-        sel.value = '';
-      });
-      actionsRow.appendChild(sel);
-    }
-
-    container.appendChild(actionsRow);
-
-    // ── Create-new inline form (hidden by default) ─────────────────────
     const createForm = document.createElement('div');
     createForm.className = 'un-cast-picker-create-form';
     createForm.style.display = 'none';
@@ -571,13 +605,16 @@ export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReloa
     firstInput.placeholder = 'First name (optional)';
     firstRow.appendChild(firstLabel); firstRow.appendChild(firstInput);
 
-    function markDirtyAndRemoveCue() {
-      if (state.suppressInput.has(slot.javdbSlug)) return;
-      state.dirtySlots.add(slot.javdbSlug);
-      if (headerEl) removeCue(headerEl, slot.javdbSlug);
+    // Per-slot dirty-tracking (no-op when slot is null / empty-state).
+    if (slot) {
+      function markDirtyAndRemoveCue() {
+        if (state.suppressInput.has(slot.javdbSlug)) return;
+        state.dirtySlots.add(slot.javdbSlug);
+        if (headerEl) removeCue(headerEl, slot.javdbSlug);
+      }
+      lastInput.addEventListener('input', markDirtyAndRemoveCue);
+      firstInput.addEventListener('input', markDirtyAndRemoveCue);
     }
-    lastInput.addEventListener('input', markDirtyAndRemoveCue);
-    firstInput.addEventListener('input', markDirtyAndRemoveCue);
 
     const submitRow = document.createElement('div');
     submitRow.className = 'un-cast-picker-create-row';
@@ -594,7 +631,6 @@ export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReloa
     createForm.appendChild(lastRow);
     createForm.appendChild(firstRow);
     createForm.appendChild(submitRow);
-    container.appendChild(createForm);
 
     createBtn.addEventListener('click', () => {
       const showing = createForm.style.display === 'flex';
@@ -607,9 +643,105 @@ export function mountCastPane(containerEl, state, { onResolve, onUnlink, onReloa
       const lastName  = lastInput.value.trim();
       const firstName = firstInput.value.trim();
       if (!lastName) { lastInput.focus(); return; }
-      onResolve?.(slot.javdbSlug, 'create_new',
-        { englishLastName: lastName, englishFirstName: firstName || null }, idx);
+      submit('create_new', { englishLastName: lastName, englishFirstName: firstName || null });
     });
+
+    return { createBtn, createForm };
+  }
+
+  /**
+   * Build the Add-cast block shown when cast list is empty.
+   * Contains: search-existing, create-new, and placeholder (sentinel) buttons.
+   * @param {Function} submit — (resolution, extra) → void
+   * @returns {HTMLElement}
+   */
+  function _buildAddCastBlock(submit) {
+    const block = document.createElement('div');
+    block.className = 'un-cast-add-block';
+
+    const label = document.createElement('div');
+    label.className = 'un-cast-add-label';
+    label.textContent = 'Add cast';
+    block.appendChild(label);
+
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'un-cast-picker-actions';
+
+    // Ref used only if needed; empty-state has no slot container to reference.
+    const pickerContainerRef = { el: block };
+
+    const searchWrap = _buildSearchExisting(submit, null, null, null);
+    actionsRow.appendChild(searchWrap);
+
+    const { createBtn, createForm } = _buildCreateNew(submit, null, null, null);
+    actionsRow.appendChild(createBtn);
+
+    block.appendChild(actionsRow);
+    block.appendChild(createForm);
+
+    // ── Sentinel placeholder buttons ───────────────────────────────────
+    const sentinelRow = document.createElement('div');
+    sentinelRow.className = 'un-cast-sentinel-row';
+    const sentinelLabel = document.createElement('span');
+    sentinelLabel.className = 'un-cast-sentinel-label';
+    sentinelLabel.textContent = 'Placeholders:';
+    sentinelRow.appendChild(sentinelLabel);
+
+    fetchSentinels(state).then(sentinels => {
+      sentinels.forEach(s => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn btn-secondary btn-sm';
+        btn.textContent = s.canonicalName;
+        btn.addEventListener('click', () => submit('sentinel:' + s.id, {}));
+        sentinelRow.appendChild(btn);
+      });
+    });
+
+    block.appendChild(sentinelRow);
+    return block;
+  }
+
+  function _buildPicker(slot, idx, headerEl) {
+    const container = document.createElement('div');
+    container.className = 'un-cast-picker';
+
+    // Mutable ref so search builder can read name inputs from this container.
+    const pickerContainerRef = { el: container };
+
+    const actionsRow = document.createElement('div');
+    actionsRow.className = 'un-cast-picker-actions';
+
+    // Per-slot submit: routes through onResolve with slot context + alias-capture.
+    const perSlotSubmit = (resolution, extra, afterSuccess) =>
+      onResolve?.(slot.javdbSlug, resolution, extra, idx, afterSuccess);
+
+    // ── Search existing ────────────────────────────────────────────────
+    const searchWrap = _buildSearchExisting(perSlotSubmit, slot, headerEl, pickerContainerRef);
+    actionsRow.appendChild(searchWrap);
+
+    // ── Create-new toggle button + form ───────────────────────────────
+    const { createBtn, createForm } = _buildCreateNew(perSlotSubmit, slot, headerEl, pickerContainerRef);
+    actionsRow.appendChild(createBtn);
+
+    const totalSlots = state.draft?.cast?.length || 0;
+
+    // ── Skip (≥2 slots) ────────────────────────────────────────────────
+    if (totalSlots >= 2) {
+      const skipBtn = document.createElement('button');
+      skipBtn.type = 'button';
+      skipBtn.className = 'btn btn-secondary btn-sm';
+      skipBtn.textContent = 'Skip';
+      skipBtn.addEventListener('click', () =>
+        onResolve?.(slot.javdbSlug, 'skip', {}, idx));
+      actionsRow.appendChild(skipBtn);
+    }
+
+    // NOTE: Sentinel dropdown removed. Sentinels are only available via the
+    // empty-state Add-cast block (mutual exclusivity rule).
+
+    container.appendChild(actionsRow);
+    container.appendChild(createForm);
 
     return container;
   }

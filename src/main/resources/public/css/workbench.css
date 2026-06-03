@@ -5332,6 +5332,42 @@
   color: var(--text-faint);
   font-style: italic;
 }
+/* Manual cast + placeholder additions */
+.un-cast-add-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 0;
+}
+.un-cast-add-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
+}
+.un-cast-sentinel-row,
+.un-actress-sentinel-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.un-actress-sentinel-row { margin-top: 8px; }
+.un-cast-sentinel-label,
+.un-actress-sentinel-label {
+  font-size: 11.5px;
+  color: var(--text-dim);
+}
+.un-cast-clear-all-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.un-cast-remove-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+}
 .un-cast-slot {
   border: 1px solid var(--border);
   border-radius: var(--radius-card);
