@@ -1167,6 +1167,39 @@
   flex-wrap: wrap;
   align-items: center;
 }
+/* Manual cast + placeholder additions */
+.queue-cast-add-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 0;
+}
+.queue-cast-add-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #64748b;
+}
+.queue-cast-sentinel-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.queue-cast-sentinel-label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+.queue-cast-clear-all-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+.queue-cast-remove-btn {
+  align-self: flex-start;
+  margin-top: 4px;
+}
 .queue-cast-picker-search {
   position: relative;
 }
