@@ -100,6 +100,14 @@ public class ActressBrowseService {
     }
 
     /**
+     * Returns all sentinel actresses ({@code is_sentinel = 1}), ordered by canonical name.
+     * Used by the {@code ?sentinel=true} branch of the actress browse API.
+     */
+    public List<Actress> findSentinels() {
+        return actressRepo.findSentinels();
+    }
+
+    /**
      * Returns all actresses whose canonical name starts with {@code prefix}, enriched with
      * title count, cover image URLs, and SMB folder paths.
      */

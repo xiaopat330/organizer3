@@ -30,6 +30,12 @@ public interface ActressRepository {
      */
     Set<Long> findSentinelIds(Collection<Long> ids);
 
+    /**
+     * Returns all sentinel actresses ({@code is_sentinel = 1}), ordered by
+     * {@code canonical_name}.
+     */
+    List<Actress> findSentinels();
+
     Optional<Actress> findByCanonicalName(String name);
 
     /**

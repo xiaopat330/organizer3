@@ -1456,6 +1456,39 @@ class JdbiActressRepositoryTest {
         assertEquals(good.getId().longValue(), rows.get(0).actressId());
     }
 
+    // --- findSentinels ---
+
+    @Test
+    void findSentinelsReturnsOnlySentinelRowsOrderedByName() {
+        Actress normal1 = repo.save(actress("Aya Sazanami"));
+        Actress normal2 = repo.save(actress("Hibiki Otsuki"));
+        Actress sentinel1 = repo.save(actress("Various"));
+        Actress sentinel2 = repo.save(actress("Amateur"));
+
+        connection_execute("UPDATE actresses SET is_sentinel = 1 WHERE id IN ("
+                + sentinel1.getId() + "," + sentinel2.getId() + ")");
+
+        List<Actress> result = repo.findSentinels();
+
+        assertEquals(2, result.size());
+        // ordered by canonical_name: Amateur < Various
+        assertEquals("Amateur", result.get(0).getCanonicalName());
+        assertEquals("Various", result.get(1).getCanonicalName());
+        // normal actresses must not appear
+        assertTrue(result.stream().noneMatch(a -> a.getId().equals(normal1.getId())));
+        assertTrue(result.stream().noneMatch(a -> a.getId().equals(normal2.getId())));
+    }
+
+    @Test
+    void findSentinelsReturnsEmptyListWhenNoneExist() {
+        repo.save(actress("Aya Sazanami"));
+        repo.save(actress("Hibiki Otsuki"));
+
+        List<Actress> result = repo.findSentinels();
+
+        assertTrue(result.isEmpty());
+    }
+
     // --- helpers ---
 
     private static Actress actress(String canonicalName) {

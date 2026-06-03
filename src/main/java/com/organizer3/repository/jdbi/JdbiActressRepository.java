@@ -150,6 +150,15 @@ public class JdbiActressRepository implements ActressRepository {
     }
 
     @Override
+    public List<Actress> findSentinels() {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT * FROM actresses WHERE is_sentinel = 1 ORDER BY canonical_name")
+                        .map(ACTRESS_MAPPER)
+                        .list()
+        );
+    }
+
+    @Override
     public Optional<Actress> findByCanonicalName(String name) {
         return jdbi.withHandle(h ->
                 h.createQuery("SELECT * FROM actresses WHERE canonical_name = :name COLLATE NOCASE")

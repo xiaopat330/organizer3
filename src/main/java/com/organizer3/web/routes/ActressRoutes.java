@@ -47,6 +47,7 @@ public class ActressRoutes {
 
         app.get("/api/actresses", ctx -> {
             String idsParam     = ctx.queryParam("ids");
+            String sentinel     = ctx.queryParam("sentinel");
             String prefix       = ctx.queryParam("prefix");
             String tier         = ctx.queryParam("tier");
             String volumesParam = ctx.queryParam("volumes");
@@ -67,6 +68,18 @@ public class ActressRoutes {
                         .map(String::trim).filter(s -> !s.isEmpty())
                         .map(Long::parseLong).toList();
                 ctx.json(actressBrowseService.findByIds(ids));
+            } else if ("true".equals(sentinel)) {
+                List<java.util.Map<String, Object>> result = actressBrowseService.findSentinels().stream()
+                        .map(a -> {
+                            java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+                            m.put("id", a.getId());
+                            m.put("canonicalName", a.getCanonicalName());
+                            m.put("stageName", a.getStageName());
+                            m.put("isSentinel", true);
+                            return m;
+                        })
+                        .toList();
+                ctx.json(result);
             } else if (search != null && !search.isBlank()) {
                 if (search.trim().length() < 2) {
                     ctx.json(List.of());
