@@ -74,6 +74,7 @@ class UnsortedEditorServiceTest {
                 smbFactory,
                 VOL,
                 "//host.local/unsorted",
+                java.util.Map.of(VOL, "//host.local/unsorted", "tz", "//pandora.local/jav_TZ"),
                 renamer);
     }
 
@@ -333,11 +334,51 @@ class UnsortedEditorServiceTest {
                 org.mockito.Mockito.mock(SmbConnectionFactory.class),
                 VOL,
                 null,
+                java.util.Map.of(VOL, "//host.local/unsorted", "tz", "//pandora.local/jav_TZ"),
                 renamer2);
         long titleId = seedTitle("ONED-031", "Bar (ONED-031)");
         UnsortedEditorService.TitleDetailView view = nullBaseService.findEligibleById(titleId).orElseThrow();
         assertNull(view.folderNasPath(),
                 "folderNasPath must be null when smbBase is null (null guard prevents literal \"null/...\" string)");
+    }
+
+    // ── otherLocations nasPath tests ─────────────────────────────────────
+
+    @Test
+    void findEligibleById_otherLocationNasPath_resolvesViaVolumeSmbMap() {
+        // Title with a duplicate location on volume "tz" (present in the smb-path map).
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO volumes (id, structure_type) VALUES ('tz', 'library')"));
+        long titleId = seedTitle("IPX-633", "Dup (IPX-633)");
+        String otherPath = "/stars/goddess/Tsumugi Akari/Tsumugi Akari - Demosaiced (IPX-633)";
+        locationRepo.save(TitleLocation.builder().titleId(titleId).volumeId("tz")
+                .partitionId("stars").path(Path.of(otherPath))
+                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now()).build());
+
+        var view = service.findEligibleById(titleId).orElseThrow();
+        assertTrue(view.duplicate(), "title with another live location must be flagged duplicate");
+        var loc = view.otherLocations().stream()
+                .filter(l -> "tz".equals(l.volumeId())).findFirst().orElseThrow();
+        assertEquals(otherPath, loc.path());
+        assertEquals("//pandora.local/jav_TZ" + otherPath, loc.nasPath(),
+                "nasPath must be smbBase + share-relative path with no extra separator");
+    }
+
+    @Test
+    void findEligibleById_otherLocationNasPath_nullWhenVolumeNotInMap() {
+        // Duplicate location on a volume absent from the smb-path map → nasPath null.
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO volumes (id, structure_type) VALUES ('mystery', 'library')"));
+        long titleId = seedTitle("IPX-634", "Dup2 (IPX-634)");
+        String otherPath = "/stars/x/Foo (IPX-634)";
+        locationRepo.save(TitleLocation.builder().titleId(titleId).volumeId("mystery")
+                .partitionId("stars").path(Path.of(otherPath))
+                .lastSeenAt(LocalDate.now()).addedDate(LocalDate.now()).build());
+
+        var view = service.findEligibleById(titleId).orElseThrow();
+        var loc = view.otherLocations().stream()
+                .filter(l -> "mystery".equals(l.volumeId())).findFirst().orElseThrow();
+        assertNull(loc.nasPath(), "nasPath must be null when the volume is not in the smb-path map");
     }
 
     // ── Test D: sentinel mutual-exclusivity guard ─────────────────────────

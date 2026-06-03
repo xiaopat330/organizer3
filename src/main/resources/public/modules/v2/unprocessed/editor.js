@@ -207,9 +207,11 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
       (detail.otherLocations || []).forEach(loc => {
         const li = document.createElement('li');
         li.className = 'un-dup-location';
+        const pathText = loc.nasPath
+          ? displayPath(loc.nasPath)
+          : `${loc.volumeId || ''} ${loc.path || ''}`.trim();
         li.innerHTML = `
-          <span class="un-dup-vol">${esc(loc.volumeId || '')}</span>
-          <span class="un-dup-path">${esc(loc.path || '')}</span>
+          <span class="un-dup-path">${esc(pathText)}</span>
           <button class="btn btn-sm" data-code="${esc(d?.code)}" type="button">View</button>
         `;
         li.querySelector('button').addEventListener('click', () => {

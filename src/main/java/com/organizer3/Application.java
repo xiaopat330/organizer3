@@ -1114,7 +1114,8 @@ public class Application {
                 new com.organizer3.web.TitleFolderRenamer(smbConnectionFactory, jdbi, UNSORTED_VOLUME_ID);
         com.organizer3.web.UnsortedEditorService unsortedEditorService =
                 new com.organizer3.web.UnsortedEditorService(unsortedRepo, actressRepo, coverPath,
-                        smbConnectionFactory, UNSORTED_VOLUME_ID, volumeSmbPaths.get(UNSORTED_VOLUME_ID), titleFolderRenamer);
+                        smbConnectionFactory, UNSORTED_VOLUME_ID, volumeSmbPaths.get(UNSORTED_VOLUME_ID),
+                        volumeSmbPaths, titleFolderRenamer);
         com.organizer3.web.CoverWriteService coverWriteService =
                 new com.organizer3.web.CoverWriteService(smbConnectionFactory, coverPath, UNSORTED_VOLUME_ID);
         webServer.registerUnsortedEditor(new com.organizer3.web.routes.UnsortedEditorRoutes(
