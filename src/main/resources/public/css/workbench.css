@@ -5364,8 +5364,10 @@
   justify-content: flex-end;
   margin-bottom: 8px;
 }
-.un-cast-remove-btn {
-  align-self: flex-start;
+.un-cast-slot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   margin-top: 4px;
 }
 .un-cast-slot {

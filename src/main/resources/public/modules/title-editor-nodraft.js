@@ -27,6 +27,7 @@ export function mountNoDraftView(detail, state, onEnrichSuccess, setStatus) {
     enrichBtn.disabled = isProcessed;
     enrichBtn.textContent = 'Enrich (draft)';
     enrichBtn.classList.remove('enriching');
+    enrichBtn.style.minWidth = '';
   }
 
   if (enrichBtn && !isDup && !isProcessed) {
@@ -40,6 +41,7 @@ export function mountNoDraftView(detail, state, onEnrichSuccess, setStatus) {
       const titleId = detail.detail?.titleId ?? detail.titleId;
       if (!titleId) return;
 
+      enrichBtn.style.minWidth = enrichBtn.offsetWidth + 'px';
       enrichBtn.disabled = true;
       enrichBtn.textContent = 'Enriching…';
       enrichBtn.classList.add('enriching');
@@ -54,6 +56,7 @@ export function mountNoDraftView(detail, state, onEnrichSuccess, setStatus) {
 
       const resetBtn = () => {
         clearInterval(timer);
+        enrichBtn.style.minWidth = '';
         enrichBtn.classList.remove('enriching');
         enrichBtn.disabled = false;
         enrichBtn.textContent = 'Enrich (draft)';

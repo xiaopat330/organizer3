@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -39,11 +40,13 @@ public class UnsortedEditorService {
     private final SmbConnectionFactory smbFactory;
     private final String unsortedVolumeId;
     private final String unsortedSmbBasePath;
+    private final Map<String, String> volumeSmbPaths;
     private final TitleFolderRenamer renamer;
 
     public UnsortedEditorService(UnsortedEditorRepository repo, ActressRepository actressRepo,
                                  CoverPath coverPath, SmbConnectionFactory smbFactory,
                                  String unsortedVolumeId, String unsortedSmbBasePath,
+                                 Map<String, String> volumeSmbPaths,
                                  TitleFolderRenamer renamer) {
         this.repo = repo;
         this.actressRepo = actressRepo;
@@ -51,6 +54,7 @@ public class UnsortedEditorService {
         this.smbFactory = smbFactory;
         this.unsortedVolumeId = unsortedVolumeId;
         this.unsortedSmbBasePath = unsortedSmbBasePath;
+        this.volumeSmbPaths = volumeSmbPaths;
         this.renamer = renamer;
     }
 
@@ -91,6 +95,13 @@ public class UnsortedEditorService {
                     String descriptor = extractDescriptor(detail.folderName(), detail.code());
                     List<UnsortedEditorRepository.OtherLocation> others =
                             repo.findOtherLocations(titleId, unsortedVolumeId, detail.folderPath());
+                    List<OtherLocationView> otherViews = others.stream()
+                            .map(loc -> {
+                                String base = volumeSmbPaths == null ? null : volumeSmbPaths.get(loc.volumeId());
+                                String nasPath = base != null ? base + loc.path() : null;
+                                return new OtherLocationView(loc.volumeId(), loc.path(), nasPath);
+                            })
+                            .toList();
                     List<String> directTags       = repo.findDirectTags(titleId);
                     List<String> labelImpliedTags = repo.findLabelTags(detail.label());
                     boolean processed = detail.curatedAt() != null;
@@ -98,14 +109,16 @@ public class UnsortedEditorService {
                             ? unsortedSmbBasePath + detail.folderPath()
                             : null;
                     return new TitleDetailView(detail, coverFile != null, coverFile, descriptor,
-                            !others.isEmpty(), others, directTags, labelImpliedTags, processed,
+                            !others.isEmpty(), otherViews, directTags, labelImpliedTags, processed,
                             folderNasPath);
                 });
     }
 
+    public record OtherLocationView(String volumeId, String path, String nasPath) {}
+
     public record TitleDetailView(TitleDetail detail, boolean hasCover, String coverFilename,
                                   String descriptor, boolean duplicate,
-                                  List<UnsortedEditorRepository.OtherLocation> otherLocations,
+                                  List<OtherLocationView> otherLocations,
                                   List<String> directTags, List<String> labelImpliedTags,
                                   boolean processed, String folderNasPath) {}
 

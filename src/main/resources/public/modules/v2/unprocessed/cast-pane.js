@@ -440,6 +440,7 @@ export function mountCastPane(containerEl, state, {
 
     frag.appendChild(header);
 
+    let unlinkBtn = null;
     if (!isUnresolved) {
       // ── Resolved body ──────────────────────────────────────────
       if (slot.resolution === 'pick' && (slot.linkedActressName || slot.linkedActressAvatarUrl)) {
@@ -466,25 +467,28 @@ export function mountCastPane(containerEl, state, {
         frag.appendChild(summary);
       }
 
-      const unlinkBtn = document.createElement('button');
+      unlinkBtn = document.createElement('button');
       unlinkBtn.type = 'button';
       unlinkBtn.className = 'btn btn-secondary btn-sm';
       unlinkBtn.textContent = 'Unlink and pick different';
       unlinkBtn.addEventListener('click', () => onUnlink?.(slot.javdbSlug, idx));
-      frag.appendChild(unlinkBtn);
 
     } else {
       // ── Unresolved: real picker ────────────────────────────────
       frag.appendChild(_buildPicker(slot, idx, header));
     }
 
-    // ── Per-slot Remove button (both resolved and unresolved) ──
+    // ── Slot actions: Unlink (resolved) + Remove, side by side ──
+    const actions = document.createElement('div');
+    actions.className = 'un-cast-slot-actions';
+    if (unlinkBtn) actions.appendChild(unlinkBtn);
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button';
     removeBtn.className = 'btn btn-secondary btn-sm un-cast-remove-btn';
     removeBtn.textContent = 'Remove';
     removeBtn.addEventListener('click', () => onRemove?.(slot.javdbSlug));
-    frag.appendChild(removeBtn);
+    actions.appendChild(removeBtn);
+    frag.appendChild(actions);
 
     return frag;
   }

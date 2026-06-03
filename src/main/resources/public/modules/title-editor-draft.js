@@ -4,6 +4,7 @@
 // See spec/PROPOSAL_DRAFT_MODE.md §11 (editor states, cast picker, actions).
 
 import { esc } from './utils.js';
+import { displayPath } from './path-utils.js';
 import { mount as mountNearMissModal } from './near-miss-modal.js';
 import { openAliasCaptureModal } from './alias-capture-modal.js';
 
@@ -44,6 +45,7 @@ let _nearMissListenerRegistered = false;
 let _draft      = null;  // last fetched GET /api/drafts/:titleId response
 let _titleId    = null;
 let _folderName = null;
+let _folderNasPath = null;
 let _tagsCatalog = null;
 let _directTags = null;   // Set<string> — mutable copy for tag toggles
 let _upstreamBannerDismissed = false;
@@ -215,9 +217,10 @@ function removeBadge(headerEl, slug) {
 /**
  * Mount and render the draft pane for the given title + draft data.
  *
- * @param {number}   titleId    canonical title id
- * @param {string}   folderName display name for the header
- * @param {object}   draft      GET /api/drafts/:titleId response
+ * @param {number}   titleId        canonical title id
+ * @param {string}   folderName     display name for the header
+ * @param {string}   folderNasPath  full canonical NAS path (copy-clickable)
+ * @param {object}   draft          GET /api/drafts/:titleId response
  * @param {Array}    tagsCatalog from GET /api/tags
  * @param {Array}    directTags current intrinsic tags for the title
  * @param {Function} onDiscard  called after discard completes
@@ -225,10 +228,11 @@ function removeBadge(headerEl, slug) {
  * @param {Function} onSkip     called when Skip is clicked
  * @param {Function} setStatus  (msg, cls) → void for parent status
  */
-export function mountDraftView(titleId, folderName, draft, tagsCatalog, directTags,
+export function mountDraftView(titleId, folderName, folderNasPath, draft, tagsCatalog, directTags,
                                onDiscard, onPromote, onSkip, setStatus) {
   _titleId    = titleId;
   _folderName = folderName;
+  _folderNasPath = folderNasPath;
   _draft      = draft;
   _tagsCatalog = tagsCatalog;
   _directTags = new Set(directTags || []);
@@ -266,12 +270,38 @@ export function unmountDraftView() {
 
 // ── Render ───────────────────────────────────────────────────��────────────
 
+/**
+ * Render the header folder field: a "Folder" label + the full canonical NAS
+ * path (copy-clickable, OS-adjusted) when folderNasPath is present; otherwise
+ * the plain folder name with no copy affordance. Mirrors the no-draft pane.
+ */
+function renderFolderField(containerEl, folderNasPath, folderName) {
+  if (!containerEl) return;
+  if (folderNasPath) {
+    containerEl.innerHTML =
+      `<span class="queue-editor-folder-key">Folder</span>` +
+      `<span class="queue-folder-path queue-code-copyable" data-path="${esc(folderNasPath)}" title="Click to copy full path">${esc(displayPath(folderNasPath))}</span>`;
+    const pathEl = containerEl.querySelector('.queue-folder-path');
+    pathEl?.addEventListener('click', () => {
+      const raw = pathEl.dataset.path || '';
+      if (!raw) return;
+      const text = displayPath(raw.startsWith('//') ? 'smb:' + raw : raw);
+      navigator.clipboard?.writeText(text).then(() => {
+        pathEl.classList.add('queue-code-copied');
+        setTimeout(() => pathEl.classList.remove('queue-code-copied'), 1100);
+      }).catch(() => {});
+    });
+  } else {
+    containerEl.innerHTML = `<span class="queue-editor-folder-key">Folder</span><span class="queue-folder-name">${esc(folderName || '')}</span>`;
+  }
+}
+
 function renderDraftPane() {
   if (!_draft) return;
 
   draftPane.style.display = 'flex';
   draftCodeEl.textContent = _draft.code   || '';
-  draftFolderEl.textContent = _folderName || '';
+  renderFolderField(draftFolderEl, _folderNasPath, _folderName);
 
   // Reset action button states — they may be stale from a previous title's operation.
   if (discardBtn)  discardBtn.disabled  = false;
