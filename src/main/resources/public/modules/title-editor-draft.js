@@ -25,6 +25,7 @@ const draftCoverImg        = document.getElementById('queue-draft-cover-img');
 const draftCoverPlaceholder= document.getElementById('queue-draft-cover-placeholder');
 const coverRefetchBtn      = document.getElementById('queue-draft-cover-refetch-btn');
 const coverClearBtn        = document.getElementById('queue-draft-cover-clear-btn');
+const draftCoverPanel      = document.getElementById('queue-draft-cover-panel');
 
 const metaTitle      = document.getElementById('queue-draft-meta-title');
 const metaRatingRow  = document.getElementById('queue-draft-meta-rating-row');
@@ -1341,6 +1342,85 @@ if (coverClearBtn) {
       showDraftStatus('Clear error: ' + (err.message || err), 'error');
     } finally {
       coverClearBtn.disabled = false;
+    }
+  });
+}
+
+// Cover drag-drop / paste staging (mirrors v2 mountDraftCoverPane)
+if (draftCoverPanel) {
+  const confirmCoverReplace = () =>
+    (_draft && _draft.coverScratchPresent)
+      ? confirm('Replace existing scratch cover?')
+      : true;
+
+  async function uploadCoverFile(file) {
+    if (!_titleId || !file) return;
+    try {
+      const fd = new FormData();
+      fd.append('file', file);
+      const res = await fetch(`/api/drafts/${_titleId}/cover`, { method: 'POST', body: fd });
+      if (res.ok) {
+        _draft = { ..._draft, coverScratchPresent: true };
+        renderCoverPreview(Date.now());
+        showDraftStatus('Cover updated.', 'ok');
+      } else {
+        showDraftStatus('Upload failed: ' + (await res.text().catch(() => res.status)), 'error');
+      }
+    } catch (err) {
+      showDraftStatus('Upload error: ' + (err.message || err), 'error');
+    }
+  }
+
+  async function uploadCoverUrl(url) {
+    if (!_titleId || !url) return;
+    try {
+      const res = await fetch(`/api/drafts/${_titleId}/cover`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      if (res.ok) {
+        _draft = { ..._draft, coverScratchPresent: true };
+        renderCoverPreview(Date.now());
+        showDraftStatus('Cover updated.', 'ok');
+      } else {
+        showDraftStatus('Upload failed: ' + (await res.text().catch(() => res.status)), 'error');
+      }
+    } catch (err) {
+      showDraftStatus('Upload error: ' + (err.message || err), 'error');
+    }
+  }
+
+  draftCoverPanel.addEventListener('dragover', e => {
+    e.preventDefault();
+    draftCoverPanel.classList.add('dragover');
+  });
+  draftCoverPanel.addEventListener('dragleave', () => draftCoverPanel.classList.remove('dragover'));
+  draftCoverPanel.addEventListener('drop', e => {
+    e.preventDefault();
+    draftCoverPanel.classList.remove('dragover');
+    if (!confirmCoverReplace()) return;
+    const dt = e.dataTransfer;
+    if (dt?.files && dt.files.length > 0) {
+      uploadCoverFile(dt.files[0]);
+    } else if (dt) {
+      const url = (dt.getData('text/uri-list') || dt.getData('text/plain') || '').split('\n')[0].trim();
+      if (url) uploadCoverUrl(url);
+    }
+  });
+  draftCoverPanel.addEventListener('paste', e => {
+    if (!confirmCoverReplace()) { e.preventDefault(); return; }
+    const items = e.clipboardData?.items || [];
+    for (const it of items) {
+      if (it.type && it.type.startsWith('image/')) {
+        const file = it.getAsFile();
+        if (file) { uploadCoverFile(file); e.preventDefault(); return; }
+      }
+    }
+    const text = e.clipboardData?.getData('text/plain');
+    if (text) {
+      const trimmed = text.trim();
+      if (/^https?:\/\//i.test(trimmed)) { uploadCoverUrl(trimmed); e.preventDefault(); }
     }
   });
 }
