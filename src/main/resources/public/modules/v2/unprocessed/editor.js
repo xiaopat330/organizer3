@@ -15,6 +15,7 @@ import { mountActressPane }  from './actress-pane.js';
 import { mountCoverPane }    from './cover-pane.js';
 import { renderTagPanel }    from './tags-pane.js';
 import { mountDraft }        from './draft.js';
+import { displayPath }       from '../../path-utils.js';
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -107,11 +108,12 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
 
   // ── No-draft render ──────────────────────────────────────────────────
   function _renderNoDraft() {
-    const detail      = state.detail;
-    const es          = state.editorState;
-    const d           = detail?.detail;
-    const isDup       = !!(detail?.duplicate);
-    const isProcessed = !!(detail?.processed);
+    const detail        = state.detail;
+    const es            = state.editorState;
+    const d             = detail?.detail;
+    const isDup         = !!(detail?.duplicate);
+    const isProcessed   = !!(detail?.processed);
+    const folderNasPath = detail?.folderNasPath || '';
 
     // Teardown existing sub-pane handles
     _actressHandle?.destroy();
@@ -143,7 +145,12 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
             ${isDup ? '<span class="un-dup-badge">DUPLICATE</span>' : ''}
             ${isProcessed ? '<span class="un-processed-pill un-processed-pill-header" title="Already curated via javdb">Processed via javdb</span>' : ''}
           </div>
-          <div class="un-editor-folder" id="un-ed-folder"><span class="un-editor-folder-key">Folder</span><span class="un-editor-folder-path">${esc(d?.folderName)}</span></div>
+          <div class="un-editor-folder" id="un-ed-folder">
+            <span class="un-editor-folder-key">Folder</span>
+            ${folderNasPath
+              ? `<span class="un-editor-folder-path un-editor-folder-copy" id="un-ed-folder-path" data-path="${esc(folderNasPath)}" title="Click to copy full path">${esc(displayPath(folderNasPath))}</span>`
+              : `<span class="un-editor-folder-path">${esc(d?.folderName)}</span>`}
+          </div>
         </div>
 
         <div class="un-editor-body">
@@ -221,6 +228,18 @@ export function mountEditor(paneEl, state, { onSaveSuccess, loadDetail, queueRel
       navigator.clipboard?.writeText(code).then(() => {
         codeEl.classList.add('un-code-copied');
         setTimeout(() => codeEl.classList.remove('un-code-copied'), 900);
+      }).catch(() => {});
+    });
+
+    // ── Folder path copy ─────────────────────────────────────────────
+    const folderPathEl = paneEl.querySelector('#un-ed-folder-path');
+    folderPathEl?.addEventListener('click', () => {
+      const raw = folderPathEl.dataset.path || '';
+      if (!raw) return;
+      const text = displayPath(raw.startsWith('//') ? 'smb:' + raw : raw);
+      navigator.clipboard?.writeText(text).then(() => {
+        folderPathEl.classList.add('un-code-copied');
+        setTimeout(() => folderPathEl.classList.remove('un-code-copied'), 900);
       }).catch(() => {});
     });
 

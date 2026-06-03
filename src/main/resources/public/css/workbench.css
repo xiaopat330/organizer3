@@ -4836,6 +4836,8 @@
   white-space: nowrap;
   min-width: 0;
 }
+.un-editor-folder-copy { cursor: pointer; border-radius: 3px; padding: 0 3px; transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out); }
+.un-editor-folder-copy:hover { background: var(--bg-hover); color: var(--text-dim); }
 .un-dup-badge {
   display: inline-block;
   font-size: 9.5px;

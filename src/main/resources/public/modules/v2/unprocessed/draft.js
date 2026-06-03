@@ -21,6 +21,7 @@
 import { mountDraftCoverPane } from './cover-pane.js';
 import { mountCastPane }       from './cast-pane.js';
 import { renderTagPanel }      from './tags-pane.js';
+import { displayPath }         from '../../path-utils.js';
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -90,10 +91,11 @@ export function mountDraft(paneEl, state, {
 
   // ── Shell render (HTML scaffolding only) ─────────────────────────────
   function _renderShell() {
-    const draft  = state.draft  || {};
-    const detail = state.detail?.detail || {};
-    const code   = draft.code   || detail.code   || '';
-    const folder = detail.folderName || '';
+    const draft        = state.draft  || {};
+    const detail       = state.detail?.detail || {};
+    const code         = draft.code   || detail.code   || '';
+    const folder       = detail.folderName || '';
+    const folderNasPath = state.detail?.folderNasPath || '';
 
     paneEl.innerHTML = `
       <div class="un-editor-shell un-draft-shell">
@@ -103,7 +105,12 @@ export function mountDraft(paneEl, state, {
             <span class="un-editor-code" id="un-ed-code" title="Click to copy">${esc(code)}</span>
             <span class="un-draft-pill">DRAFT</span>
           </div>
-          <div class="un-editor-folder"><span class="un-editor-folder-key">Folder</span><span class="un-editor-folder-path">${esc(folder)}</span></div>
+          <div class="un-editor-folder">
+            <span class="un-editor-folder-key">Folder</span>
+            ${folderNasPath
+              ? `<span class="un-editor-folder-path un-editor-folder-copy" id="un-ed-folder-path" data-path="${esc(folderNasPath)}" title="Click to copy full path">${esc(displayPath(folderNasPath))}</span>`
+              : `<span class="un-editor-folder-path">${esc(folder)}</span>`}
+          </div>
         </div>
 
         <div class="un-upstream-banner" id="un-upstream-banner" style="display:none">
@@ -176,6 +183,18 @@ export function mountDraft(paneEl, state, {
       navigator.clipboard?.writeText(c).then(() => {
         codeEl.classList.add('un-code-copied');
         setTimeout(() => codeEl.classList.remove('un-code-copied'), 900);
+      }).catch(() => {});
+    });
+
+    // ── Folder path copy ───────────────────────────────────────────────
+    const folderPathEl = paneEl.querySelector('#un-ed-folder-path');
+    folderPathEl?.addEventListener('click', () => {
+      const raw = folderPathEl.dataset.path || '';
+      if (!raw) return;
+      const text = displayPath(raw.startsWith('//') ? 'smb:' + raw : raw);
+      navigator.clipboard?.writeText(text).then(() => {
+        folderPathEl.classList.add('un-code-copied');
+        setTimeout(() => folderPathEl.classList.remove('un-code-copied'), 900);
       }).catch(() => {});
     });
 
