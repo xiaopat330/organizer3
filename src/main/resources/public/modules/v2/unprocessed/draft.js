@@ -108,7 +108,7 @@ export function mountDraft(paneEl, state, {
           <div class="un-editor-folder">
             <span class="un-editor-folder-key">Folder</span>
             ${folderNasPath
-              ? `<span class="un-editor-folder-path un-editor-folder-copy" id="un-ed-folder-path" data-path="${esc(folderNasPath)}" title="Click to copy full path">${esc(displayPath(folderNasPath))}</span>`
+              ? `<span class="un-editor-folder-path un-editor-folder-copy" id="un-ed-folder-path" data-path="${esc(folderNasPath)}" title="Click to copy full path"><span class="un-editor-folder-text">${esc(displayPath(folderNasPath))}</span><svg class="un-editor-folder-copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>`
               : `<span class="un-editor-folder-path">${esc(folder)}</span>`}
           </div>
         </div>
@@ -193,8 +193,8 @@ export function mountDraft(paneEl, state, {
       if (!raw) return;
       const text = displayPath(raw.startsWith('//') ? 'smb:' + raw : raw);
       navigator.clipboard?.writeText(text).then(() => {
-        folderPathEl.classList.add('un-code-copied');
-        setTimeout(() => folderPathEl.classList.remove('un-code-copied'), 900);
+        folderPathEl.classList.add('un-editor-folder-copied');
+        setTimeout(() => folderPathEl.classList.remove('un-editor-folder-copied'), 1100);
       }).catch(() => {});
     });
 
