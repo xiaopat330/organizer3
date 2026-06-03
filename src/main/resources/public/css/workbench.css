@@ -1848,6 +1848,7 @@
 .dup-cover {
   width: 52px; height: 73px;
   object-fit: cover;
+  object-position: right center;
   border-radius: 3px;
   flex-shrink: 0;
   cursor: zoom-in;
