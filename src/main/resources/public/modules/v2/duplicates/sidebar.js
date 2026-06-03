@@ -109,7 +109,7 @@ export function renderSortBar(state, sortBarEl, onChange) {
 
 // ── Actress sidebar ───────────────────────────────────────────────────
 
-export function renderActressSidebar(state, sidebarEl, onSelectActress) {
+export function renderActressSidebar(state, sidebarEl, onSelectActress, scrollToSelected = false) {
   sidebarEl.innerHTML = '';
   const { decisions } = state;
 
@@ -165,5 +165,7 @@ export function renderActressSidebar(state, sidebarEl, onSelectActress) {
     sidebarEl.appendChild(row);
   }
 
-  sidebarEl.querySelector('.dup-actress-row.selected')?.scrollIntoView({ block: 'nearest' });
+  if (scrollToSelected) {
+    sidebarEl.querySelector('.dup-actress-row.selected')?.scrollIntoView({ block: 'nearest' });
+  }
 }

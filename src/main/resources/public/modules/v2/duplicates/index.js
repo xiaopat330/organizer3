@@ -26,7 +26,7 @@ import { initExecute } from './execute.js';
 import {
   renderHeadline, renderAlphaBar, renderSortBar, renderActressSidebar,
 } from './sidebar.js';
-import { renderGroups } from './group-card.js';
+import { renderGroups, syncClosureBadge } from './group-card.js';
 
 function esc(s) {
   return String(s ?? '').replace(/[&<>"']/g, c => ({
@@ -107,26 +107,29 @@ export async function mountDuplicates(rootEl) {
   //
   // onSelectActress: fired when user clicks a sidebar row — refresh groups.
   // onDecisionChange: fired when a KEEP/TRASH/VARIANT button is toggled —
-  //   refresh headline, sidebar badges, and rebuild the groups panel so
-  //   button active-states and auto-keep promotions are reflected.
+  //   refresh headline, sidebar badges, and closure badge only; the clicked
+  //   card rebuilds itself in-place via refreshCard() / card.replaceWith().
   // reRenderAll: fired by alpha/sort bar changes — full refresh.
 
   const onSelectActress = () => {
-    renderActressSidebar(state, sidebarEl, onSelectActress);
+    renderActressSidebar(state, sidebarEl, onSelectActress, true);
     renderGroups(state, groupsEl, onDecisionChange);
   };
 
+  // onDecisionChange: fired after a per-card KEEP/TRASH/VARIANT toggle.
+  // Only updates headline stats, sidebar badges, and the closure badge —
+  // does NOT rebuild cards (the clicked card does its own targeted replaceWith).
   function onDecisionChange() {
     renderHeadline(state, headlineEl);
     renderActressSidebar(state, sidebarEl, onSelectActress);
-    renderGroups(state, groupsEl, onDecisionChange);
+    syncClosureBadge(state, groupsEl);
   }
 
   function reRenderAll() {
     renderHeadline(state, headlineEl);
     renderAlphaBar(state, alphaBarEl, reRenderAll);
     renderSortBar(state, sortBarEl, reRenderAll);
-    renderActressSidebar(state, sidebarEl, onSelectActress);
+    renderActressSidebar(state, sidebarEl, onSelectActress, true);
     renderGroups(state, groupsEl, onDecisionChange);
   }
 
@@ -154,9 +157,10 @@ export async function mountDuplicates(rootEl) {
       state.allDuplicates  = all;
       state.actressGroups  = buildActressGroups(all);
       state.decisions      = await loadAllDecisions(all);
-      // Reset notes cache so renderGroups re-fetches for the new title set.
+      // Reset notes and video caches so renderGroups re-fetches for the new title set.
       state.notesByCode    = new Map();
       state.notesCachedKey = null;
+      state.videosByCode   = new Map();
 
       // Restore or default actress selection
       if (!state.currentActressKey || !state.actressGroups.has(state.currentActressKey)) {
@@ -167,7 +171,7 @@ export async function mountDuplicates(rootEl) {
       renderHeadline(state, headlineEl);
       renderAlphaBar(state, alphaBarEl, reRenderAll);
       renderSortBar(state, sortBarEl, reRenderAll);
-      renderActressSidebar(state, sidebarEl, onSelectActress);
+      renderActressSidebar(state, sidebarEl, onSelectActress, true);
       renderGroups(state, groupsEl, onDecisionChange);
     } catch (err) {
       headlineEl.textContent = 'Failed to load duplicates.';
