@@ -9,6 +9,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Persistence operations for {@link Actress} records and their alias mappings.
@@ -22,6 +23,12 @@ public interface ActressRepository {
 
     /** Fetch multiple actresses by id in one query. Order of results is unspecified. */
     List<Actress> findByIds(List<Long> ids);
+
+    /**
+     * Returns the subset of the given ids that belong to sentinel actresses
+     * ({@code is_sentinel = 1}). Empty input returns an empty set without querying.
+     */
+    Set<Long> findSentinelIds(Collection<Long> ids);
 
     Optional<Actress> findByCanonicalName(String name);
 

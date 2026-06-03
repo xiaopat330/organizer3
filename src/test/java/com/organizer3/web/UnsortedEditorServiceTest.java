@@ -340,6 +340,71 @@ class UnsortedEditorServiceTest {
                 "folderNasPath must be null when smbBase is null (null guard prevents literal \"null/...\" string)");
     }
 
+    // ── Test D: sentinel mutual-exclusivity guard ─────────────────────────
+
+    /** Inserts a sentinel actress row directly and returns its id. */
+    private long insertSentinel(String name) {
+        return jdbi.withHandle(h -> h.createUpdate(
+                "INSERT INTO actresses(canonical_name, tier, first_seen_at, is_sentinel) " +
+                "VALUES (:name, 'LIBRARY', '2024-01-01', 1)")
+                .bind("name", name)
+                .executeAndReturnGeneratedKeys("id")
+                .mapTo(Long.class)
+                .one());
+    }
+
+    @Test
+    void replaceActresses_singleSentinel_isAccepted() {
+        long titleId = seedTitle("SENT-001", "Sentinel (SENT-001)");
+        long sentinelId = insertSentinel("Amateur");
+
+        var entries = List.of(new UnsortedEditorService.ActressEntry(sentinelId, null));
+        var primary = entries.get(0);
+
+        // Single sentinel must be accepted.
+        assertDoesNotThrow(() -> service.replaceActresses(titleId, entries, primary));
+    }
+
+    @Test
+    void replaceActresses_sentinelPlusRealActress_isRejected() {
+        long titleId = seedTitle("SENT-002", "SentinelMix (SENT-002)");
+        long sentinelId = insertSentinel("Various");
+        Actress real = saveActress("Real Actress");
+
+        var entries = List.of(
+                new UnsortedEditorService.ActressEntry(sentinelId, null),
+                new UnsortedEditorService.ActressEntry(real.getId(), null));
+        var primary = entries.get(0);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.replaceActresses(titleId, entries, primary),
+                "sentinel + real actress should be rejected");
+    }
+
+    @Test
+    void replaceActresses_twoSentinels_isRejected() {
+        long titleId = seedTitle("SENT-003", "TwoSentinels (SENT-003)");
+        long s1 = insertSentinel("Amateur");
+        long s2 = insertSentinel("Various");
+
+        var entries = List.of(
+                new UnsortedEditorService.ActressEntry(s1, null),
+                new UnsortedEditorService.ActressEntry(s2, null));
+        var primary = entries.get(0);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.replaceActresses(titleId, entries, primary),
+                "two sentinels should be rejected");
+    }
+
+    @Test
+    void replaceActresses_emptyList_isRejectedRegression() {
+        long titleId = seedTitle("SENT-004", "EmptyReg (SENT-004)");
+        assertThrows(IllegalArgumentException.class,
+                () -> service.replaceActresses(titleId, List.of(),
+                        new UnsortedEditorService.ActressEntry(null, "X")));
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
 
     private long seedTitle(String code, String folderName) {

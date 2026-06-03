@@ -242,11 +242,8 @@ public class DraftPromotionService {
         // Load cast slots
         List<DraftTitleActress> slots = draftCastRepo.findByDraftTitleId(draft.getId());
 
-        // Determine javdb stage_name count from enrichment cast_json
-        int javdbStageNameCount = countJavdbStageNames(draft.getId());
-
         // Check 2: cast mode rule (§5.1)
-        List<String> castErrors = castValidator.validate(javdbStageNameCount, slots.stream()
+        List<String> castErrors = castValidator.validate(slots.stream()
                 .map(DraftTitleActress::getResolution).toList());
         errors.addAll(castErrors);
 
@@ -601,9 +598,7 @@ public class DraftPromotionService {
                 .map(DraftTitleActressesRepository.ROW_MAPPER)
                 .list();
 
-        int javdbStageNameCount = countJavdbStageNamesWithHandle(h, draft.getId());
-
-        List<String> castErrors = castValidator.validate(javdbStageNameCount, slots.stream()
+        List<String> castErrors = castValidator.validate(slots.stream()
                 .map(DraftTitleActress::getResolution).toList());
         errors.addAll(castErrors);
 
@@ -634,34 +629,6 @@ public class DraftPromotionService {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
-
-    /** Counts the number of original javdb cast entries from the enrichment cast_json. */
-    private int countJavdbStageNames(long draftTitleId) {
-        return draftEnrichRepo.findByDraftId(draftTitleId)
-                .map(e -> castListSize(e.getCastJson()))
-                .orElse(0);
-    }
-
-    private int countJavdbStageNamesWithHandle(Handle h, long draftTitleId) {
-        return h.createQuery(
-                "SELECT cast_json FROM draft_title_javdb_enrichment WHERE draft_title_id = :id")
-                .bind("id", draftTitleId)
-                .mapTo(String.class)
-                .findOne()
-                .map(this::castListSize)
-                .orElse(0);
-    }
-
-    private int castListSize(String castJson) {
-        if (castJson == null || castJson.isBlank()) return 0;
-        try {
-            List<?> list = json.readValue(castJson, new TypeReference<List<?>>() {});
-            return list.size();
-        } catch (Exception e) {
-            log.warn("Failed to parse cast_json to count stage names", e);
-            return 0;
-        }
-    }
 
     /**
      * Inserts new actress rows for create_new resolutions; returns slug→newId map.
@@ -915,9 +882,11 @@ public class DraftPromotionService {
 
             // FIX 1a: Register slug→actress mapping in javdb_actress_staging.
             // Slug is not available for sentinel: resolutions (no draft_actress row backing them).
+            // Synthetic slugs (manual:N from the draft editor) must also be excluded — they are
+            // not real javdb slugs and must never be written into javdb_actress_staging.
             String javdbSlug = slot.getJavdbSlug();
             if (javdbStagingRepo != null && javdbSlug != null && !javdbSlug.isBlank()
-                    && !res.startsWith("sentinel:")) {
+                    && !res.startsWith("sentinel:") && !isSyntheticSlug(javdbSlug)) {
                 javdbStagingRepo.upsertActressSlugOnly(h, actressId, javdbSlug, titleCode);
                 // (returns false on slug-collision → already logged by the repo; we just continue)
             }
@@ -925,7 +894,7 @@ public class DraftPromotionService {
             // FIX 1b: Backfill actresses.stage_name from the draft kanji name, only when empty.
             // draft_actresses.stage_name holds the NFKC-normalised kanji from javdb.
             if (actressRepo != null && javdbSlug != null && !javdbSlug.isBlank()
-                    && !res.startsWith("sentinel:")) {
+                    && !res.startsWith("sentinel:") && !isSyntheticSlug(javdbSlug)) {
                 DraftActress da = h.createQuery(
                         "SELECT * FROM draft_actresses WHERE javdb_slug = :slug")
                         .bind("slug", javdbSlug)
@@ -953,6 +922,15 @@ public class DraftPromotionService {
                 }
             }
         }
+    }
+
+    /**
+     * Returns true if the slug is a synthetic manual slug (e.g. {@code "manual:1"}) generated
+     * by the draft editor for manually-added slots. Such slugs are not real javdb slugs and
+     * must never be written into {@code javdb_actress_staging}.
+     */
+    private static boolean isSyntheticSlug(String slug) {
+        return slug != null && slug.startsWith("manual:");
     }
 
     /**

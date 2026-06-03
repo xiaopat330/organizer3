@@ -675,10 +675,21 @@ class DraftPromotionServiceTest {
     }
 
     @Test
-    void preflight_mode1WithSentinel_returnsViolation() throws Exception {
-        // 1 javdb stage_name, sentinel resolution → cast mode violation
-        long draftId = seedDraftFull(1L, castJson("Mana Sakura"), "sentinel:99", "slot-slug",
-                null, null, null, "[]", "2024-06-01T00:00:00Z");
+    void preflight_sentinelMixedWithRealActress_returnsViolation() throws Exception {
+        // Mixing a sentinel with a real actress violates both paths (not pathA because sentinel
+        // present; not pathB because real actress present) → CAST_MODE_VIOLATION.
+        long draftId = seedDraftFull(1L, castJson("Mana Sakura"), "pick", "slug-mana",
+                10L, null, null, "[]", "2024-06-01T00:00:00Z");
+        // Add a sentinel slot alongside the pick slot.
+        draftActressRepo.upsertBySlug(DraftActress.builder()
+                .javdbSlug("sentinel-slot-slug")
+                .stageName(null)
+                .createdAt("2024-06-01T00:00:00Z")
+                .updatedAt("2024-06-01T00:00:00Z")
+                .build());
+        draftCastRepo.replaceForDraft(draftId, List.of(
+                new DraftTitleActress(draftId, "slug-mana", "pick"),
+                new DraftTitleActress(draftId, "sentinel-slot-slug", "sentinel:99")));
 
         PreFlightResult result = service.preflight(draftId, null);
         assertFalse(result.ok());
@@ -1294,6 +1305,117 @@ class DraftPromotionServiceTest {
         var result = service.promote(draftId, "2024-06-01T00:00:00Z");
 
         assertTrue(result.folderRenamed(), "folderRenamed must be true when renamer returns renamed=true");
+    }
+
+    // ── Manual slug / sentinel guard (Phase 1 new rules) ─────────────────────
+
+    /**
+     * Test C-i: promoting a draft whose slot has a synthetic {@code manual:N} slug must NOT
+     * call {@code javdbStagingRepo.upsertActressSlugOnly} for that slug.
+     *
+     * <p>Uses Mockito.spy so the real in-memory implementation still works for other slugs
+     * while allowing verification of the specific call that must NOT happen.
+     */
+    @Test
+    void manualSlug_pick_doesNotWriteToJavdbStaging() throws Exception {
+        // Rebuild the service with a spy on javdbStagingRepo.
+        JavdbStagingRepository stagingSpy = Mockito.spy(new JavdbStagingRepository(jdbi, JSON, dataDir));
+        EnrichmentHistoryRepository historyRepo = new EnrichmentHistoryRepository(jdbi, JSON);
+        TitleEffectiveTagsService effectiveTags = new TitleEffectiveTagsService(jdbi);
+        DraftPromotionService spyService = new DraftPromotionService(
+                jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
+                draftEnrichRepo, coverStore, coverPath, new CastValidator(),
+                titleRepo, historyRepo, effectiveTags, JSON, suggestionRepo,
+                stagingSpy, actressRepo,
+                "unsorted", renamer,
+                coverWriteService);
+
+        // Draft with a manual:1 slug (synthetic) and pick resolution linked to actress 10.
+        DraftTitle dt = DraftTitle.builder()
+                .titleId(1L).code("TST-1")
+                .titleOriginal("Manual Slot Test").titleEnglish("Manual Slot Test")
+                .releaseDate("2024-06-01").grade("A").gradeSource("enrichment")
+                .upstreamChanged(false)
+                .createdAt("2024-06-01T00:00:00Z").updatedAt("2024-06-01T00:00:00Z")
+                .build();
+        long draftId = draftTitleRepo.insert(dt);
+        draftEnrichRepo.upsert(draftId, DraftEnrichment.builder()
+                .draftTitleId(draftId).javdbSlug("slug-1")
+                .castJson("[]").tagsJson("[]").resolverSource("auto_enriched")
+                .updatedAt("2024-06-01T00:00:00Z").build());
+
+        // Actress entry: manual:1 slug, pick resolution, linked to actress 10.
+        DraftActress da = DraftActress.builder()
+                .javdbSlug("manual:1")
+                .stageName(null)
+                .linkToExistingId(10L)
+                .createdAt("2024-06-01T00:00:00Z").updatedAt("2024-06-01T00:00:00Z")
+                .build();
+        draftActressRepo.upsertBySlug(da);
+        draftCastRepo.replaceForDraft(draftId, List.of(new DraftTitleActress(draftId, "manual:1", "pick")));
+
+        spyService.promote(draftId, "2024-06-01T00:00:00Z");
+
+        // title_actresses must still link actress 10.
+        int linkCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_actresses WHERE title_id=1 AND actress_id=10")
+                        .mapTo(Integer.class).one());
+        assertEquals(1, linkCount, "pick slot with manual slug must still link the actress");
+
+        // javdbStagingRepo.upsertActressSlugOnly must NOT have been called for the manual slug.
+        verify(stagingSpy, never()).upsertActressSlugOnly(
+                any(org.jdbi.v3.core.Handle.class), anyLong(), eq("manual:1"), any());
+    }
+
+    /**
+     * Test C-ii: a placeholder-only draft (one {@code sentinel:N} slot) passes preflight
+     * and promotion sets {@code titles.actress_id} to N.
+     * Covered by {@link #happyPath_sentinelMode_writesCorrectly} and
+     * {@link #phase2_sentinelOnlyCast_setsActressIdToSentinel} above — duplicating here as
+     * an explicit named test.
+     */
+    @Test
+    void sentinelOnlyDraft_passesPreflightAndSetsActressId() throws Exception {
+        long draftId = seedDraftFull(1L, "[]", "sentinel:99", "sentinel-slot-only",
+                null, null, null, "[]", "2024-06-01T00:00:00Z");
+
+        PreFlightResult preflightResult = service.preflight(draftId, "2024-06-01T00:00:00Z");
+        assertTrue(preflightResult.ok(), "sentinel-only draft must pass preflight (path B)");
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        Long actressId = jdbi.withHandle(h ->
+                h.createQuery("SELECT actress_id FROM titles WHERE id=1")
+                        .mapTo(Long.class).one());
+        assertEquals(99L, actressId, "sentinel-only: actress_id must be set to the sentinel's id");
+    }
+
+    /**
+     * Test C-iii: an empty-cast draft fails preflight with CAST_MODE_VIOLATION.
+     * (No slots at all → pathA and pathB both fail.)
+     */
+    @Test
+    void emptyCastDraft_failsPreflightWithCastModeViolation() throws Exception {
+        // Build a draft with no cast slots.
+        DraftTitle dt = DraftTitle.builder()
+                .titleId(1L).code("TST-1")
+                .titleOriginal("Empty Cast Test").titleEnglish("Empty Cast Test")
+                .releaseDate("2024-06-01").grade("A").gradeSource("enrichment")
+                .upstreamChanged(false)
+                .createdAt("2024-06-01T00:00:00Z").updatedAt("2024-06-01T00:00:00Z")
+                .build();
+        long draftId = draftTitleRepo.insert(dt);
+        draftEnrichRepo.upsert(draftId, DraftEnrichment.builder()
+                .draftTitleId(draftId).javdbSlug("slug-1")
+                .castJson("[{\"slug\":\"s\",\"name\":\"A\",\"gender\":\"F\"}]")
+                .tagsJson("[]").resolverSource("auto_enriched")
+                .updatedAt("2024-06-01T00:00:00Z").build());
+        // No draftCastRepo entries inserted — empty cast list.
+
+        PreFlightResult result = service.preflight(draftId, "2024-06-01T00:00:00Z");
+        assertFalse(result.ok());
+        assertTrue(result.errors().contains("CAST_MODE_VIOLATION"),
+                "empty cast must fail with CAST_MODE_VIOLATION");
     }
 
     // ── Phase 3: curated_at stamping ─────────────────────────────────────────
