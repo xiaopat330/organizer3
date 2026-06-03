@@ -333,14 +333,33 @@ function renderCastSlots() {
   const cast = _draft.cast || [];
   castList.innerHTML = '';
   if (cast.length === 0) {
+    // Empty-state: render Add-cast block with search, create-new, and
+    // placeholder sentinel buttons. Warm the sentinel cache if needed.
     const li = document.createElement('li');
     li.className = 'queue-cast-slot';
-    li.style.color = '#64748b';
-    li.style.fontSize = '0.85rem';
-    li.textContent = 'No cast slots — javdb returned 0 stage names.';
+    li.appendChild(buildAddCastBlock());
     castList.appendChild(li);
     return;
   }
+
+  // Warm sentinel cache if any slot uses a sentinel resolution, so that
+  // resolvedSummary() can show the canonical name synchronously after re-render.
+  const hasSentinelSlot = cast.some(s => s.resolution?.startsWith?.('sentinel:'));
+  if (hasSentinelSlot && !_sentinelsCache) {
+    fetchSentinels().then(() => renderCastSlots());
+  }
+
+  // Clear-all button (non-empty list): render as first item inside castList.
+  const clearLi = document.createElement('li');
+  clearLi.className = 'queue-cast-clear-all-row';
+  const clearAllBtn = document.createElement('button');
+  clearAllBtn.type = 'button';
+  clearAllBtn.className = 'queue-btn queue-btn-sm queue-btn-secondary';
+  clearAllBtn.textContent = 'Clear all cast';
+  clearAllBtn.addEventListener('click', () => clearAllCast());
+  clearLi.appendChild(clearAllBtn);
+  castList.appendChild(clearLi);
+
   for (let i = 0; i < cast.length; i++) {
     const slot = cast[i];
     const li = document.createElement('li');
@@ -456,13 +475,20 @@ function buildSlotContent(slot, idx) {
     frag.appendChild(buildPicker(slot, idx));
   }
 
+  // Per-slot Remove button (both resolved and unresolved).
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'queue-btn queue-btn-sm queue-btn-secondary queue-cast-remove-btn';
+  removeBtn.textContent = 'Remove';
+  removeBtn.addEventListener('click', () => removeCast(slot.javdbSlug));
+  frag.appendChild(removeBtn);
+
   return frag;
 }
 
 function resolvedSummary(slot) {
   const res = slot.resolution;
   if (res === 'pick') {
-    const name = slot.stageName || '';
     const link = slot.linkToExistingId ? `id:${slot.linkToExistingId}` : '';
     return `Linked to existing actress${link ? ' (' + link + ')' : ''}`;
   }
@@ -473,7 +499,12 @@ function resolvedSummary(slot) {
     return `Create new: ${full || '(name pending)'}`;
   }
   if (res === 'skip') return 'Skipped — will not be linked';
-  if (res && res.startsWith('sentinel:')) return 'Replaced with sentinel actress';
+  if (res && res.startsWith('sentinel:')) {
+    const sentinelId = String(res.slice('sentinel:'.length));
+    const cache = _sentinelsCache || [];
+    const found = cache.find(s => String(s.id) === sentinelId);
+    return found ? `Placeholder: ${found.canonicalName}` : 'Placeholder';
+  }
   return res || '';
 }
 
@@ -583,34 +614,8 @@ function buildPicker(slot, idx) {
     actionsRow.appendChild(skipBtn2);
   }
 
-  // Sentinel dropdown (0 stage_names or multi-actress mode).
-  if (totalSlots === 0 || totalSlots >= 2) {
-    const sentinelSelect = document.createElement('select');
-    sentinelSelect.className = 'queue-cast-picker-input';
-    sentinelSelect.style.width = '130px';
-    const sentinelDefault = document.createElement('option');
-    sentinelDefault.value = '';
-    sentinelDefault.textContent = 'Sentinel…';
-    sentinelSelect.appendChild(sentinelDefault);
-
-    // Load sentinels lazily.
-    fetchSentinels().then(sentinels => {
-      sentinels.forEach(s => {
-        const opt = document.createElement('option');
-        opt.value = 'sentinel:' + s.id;
-        opt.textContent = s.canonicalName;
-        sentinelSelect.appendChild(opt);
-      });
-    });
-
-    sentinelSelect.addEventListener('change', () => {
-      const val = sentinelSelect.value;
-      if (!val) return;
-      patchResolution(slot.javdbSlug, val, {}, idx);
-      sentinelSelect.value = '';
-    });
-    actionsRow.appendChild(sentinelSelect);
-  }
+  // NOTE: Sentinel dropdown removed. Sentinels are only available via the
+  // empty-state Add-cast block (mutual exclusivity rule).
 
   container.appendChild(actionsRow);
 
@@ -701,7 +706,7 @@ async function fetchSentinels() {
   if (_sentinelsCache) return _sentinelsCache;
   try {
     const res = await fetch('/api/actresses?sentinel=true&limit=20');
-    if (!res.ok) return [];
+    if (!res.ok) { _sentinelsCache = []; return []; }
     const data = await res.json();
     // data may be an object with items or a plain array depending on endpoint.
     const arr = Array.isArray(data) ? data : (data.items || []);
@@ -715,6 +720,7 @@ async function fetchSentinels() {
     return _sentinelsCache;
   } catch (err) {
     console.warn('fetchSentinels failed', err);
+    _sentinelsCache = [];
     return [];
   }
 }
@@ -761,7 +767,259 @@ async function checkAndOpenAliasModal(actressId, stageName, capturedFirst, captu
   }
 }
 
-// ── PATCH cast resolution ────────────────────────────────���────────────────
+// ── Add-cast block (empty-state) ─────────────────────────────────────────
+
+/**
+ * Build the Add-cast block shown when the cast list is empty.
+ * Contains: search-existing, create-new, and placeholder (sentinel) buttons.
+ * @returns {HTMLElement}
+ */
+function buildAddCastBlock() {
+  const block = document.createElement('div');
+  block.className = 'queue-cast-add-block';
+
+  const label = document.createElement('div');
+  label.className = 'queue-cast-add-label';
+  label.style.marginBottom = '6px';
+  label.style.color = '#64748b';
+  label.style.fontSize = '0.85rem';
+  label.textContent = 'Add cast';
+  block.appendChild(label);
+
+  const actionsRow = document.createElement('div');
+  actionsRow.className = 'queue-cast-picker-actions';
+
+  // ── Search existing actress ────────────────────────────────────────────
+  const searchWrap = document.createElement('div');
+  searchWrap.className = 'queue-cast-picker-search';
+  const searchInput = document.createElement('input');
+  searchInput.type = 'text';
+  searchInput.className = 'queue-cast-picker-input';
+  searchInput.placeholder = 'Search existing actress…';
+  searchInput.autocomplete = 'off';
+  const suggestBox = document.createElement('div');
+  suggestBox.className = 'queue-cast-picker-suggest';
+  suggestBox.style.display = 'none';
+
+  let searchSeq = 0;
+  let debounce  = null;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(debounce);
+    debounce = setTimeout(async () => {
+      const q = searchInput.value.trim();
+      if (q.length < 1) { suggestBox.style.display = 'none'; return; }
+      const seq = ++searchSeq;
+      try {
+        const res = await fetch(`/api/unsorted/actresses/search?q=${encodeURIComponent(q)}&limit=8`);
+        if (seq !== searchSeq) return;
+        const hits = await res.json();
+        suggestBox.innerHTML = '';
+        hits.forEach(h => {
+          const item = document.createElement('div');
+          item.className = 'queue-cast-picker-suggest-item';
+          item.textContent = (h.canonicalName || '') + (h.stageName ? ` (${h.stageName})` : '');
+          item.addEventListener('click', () => {
+            suggestBox.style.display = 'none';
+            searchInput.value = '';
+            addManualCast('pick', { linkToExistingId: h.id });
+          });
+          suggestBox.appendChild(item);
+        });
+        suggestBox.style.display = hits.length ? 'block' : 'none';
+      } catch (err) {
+        console.error('[draft] add-cast search failed', err);
+      }
+    }, 180);
+  });
+  document.addEventListener('click', e => {
+    if (!searchWrap.contains(e.target)) suggestBox.style.display = 'none';
+  }, { capture: false });
+  searchWrap.appendChild(searchInput);
+  searchWrap.appendChild(suggestBox);
+  actionsRow.appendChild(searchWrap);
+
+  // ── Create-new toggle button ───────────────────────────────────────────
+  const createBtn = document.createElement('button');
+  createBtn.type = 'button';
+  createBtn.className = 'queue-btn queue-btn-sm';
+  createBtn.textContent = 'Create new…';
+  actionsRow.appendChild(createBtn);
+
+  block.appendChild(actionsRow);
+
+  // ── Create-new inline form (hidden by default) ─────────────────────────
+  const createForm = document.createElement('div');
+  createForm.className = 'queue-cast-picker-create-form';
+  createForm.style.display = 'none';
+
+  const lastRow = document.createElement('div');
+  lastRow.className = 'queue-cast-picker-create-row';
+  const lastLabel = document.createElement('label'); lastLabel.textContent = 'Last';
+  const lastInput = document.createElement('input');
+  lastInput.type = 'text';
+  lastInput.className = 'queue-cast-picker-name-input';
+  lastInput.dataset.nameField = 'last';
+  lastInput.placeholder = 'Last name (required)';
+  lastRow.appendChild(lastLabel); lastRow.appendChild(lastInput);
+
+  const firstRow = document.createElement('div');
+  firstRow.className = 'queue-cast-picker-create-row';
+  const firstLabel = document.createElement('label'); firstLabel.textContent = 'First';
+  const firstInput = document.createElement('input');
+  firstInput.type = 'text';
+  firstInput.className = 'queue-cast-picker-name-input';
+  firstInput.dataset.nameField = 'first';
+  firstInput.placeholder = 'First name (optional)';
+  firstRow.appendChild(firstLabel); firstRow.appendChild(firstInput);
+
+  const submitRow = document.createElement('div');
+  submitRow.className = 'queue-cast-picker-create-row';
+  const submitBtn = document.createElement('button');
+  submitBtn.type = 'button';
+  submitBtn.className = 'queue-btn queue-btn-sm queue-btn-primary';
+  submitBtn.textContent = 'Save';
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'queue-btn queue-btn-sm queue-btn-secondary';
+  cancelBtn.textContent = 'Cancel';
+  submitRow.appendChild(submitBtn); submitRow.appendChild(cancelBtn);
+
+  createForm.appendChild(lastRow);
+  createForm.appendChild(firstRow);
+  createForm.appendChild(submitRow);
+  block.appendChild(createForm);
+
+  createBtn.addEventListener('click', () => {
+    const showing = createForm.style.display === 'flex';
+    createForm.style.display = showing ? 'none' : 'flex';
+  });
+  cancelBtn.addEventListener('click', () => {
+    createForm.style.display = 'none';
+  });
+  submitBtn.addEventListener('click', () => {
+    const lastName  = lastInput.value.trim();
+    const firstName = firstInput.value.trim();
+    if (!lastName) { lastInput.focus(); return; }
+    addManualCast('create_new', { englishLastName: lastName, englishFirstName: firstName || null });
+  });
+
+  // ── Sentinel placeholder buttons ───────────────────────────────────────
+  const sentinelRow = document.createElement('div');
+  sentinelRow.className = 'queue-cast-sentinel-row';
+  sentinelRow.style.marginTop = '6px';
+  const sentinelLabel = document.createElement('span');
+  sentinelLabel.style.fontSize = '0.8rem';
+  sentinelLabel.style.color = '#64748b';
+  sentinelLabel.style.marginRight = '6px';
+  sentinelLabel.textContent = 'Placeholders:';
+  sentinelRow.appendChild(sentinelLabel);
+
+  fetchSentinels().then(sentinels => {
+    sentinels.forEach(s => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'queue-btn queue-btn-sm queue-btn-secondary';
+      btn.textContent = s.canonicalName;
+      btn.addEventListener('click', () => addManualCast('sentinel:' + s.id, {}));
+      sentinelRow.appendChild(btn);
+    });
+  });
+
+  block.appendChild(sentinelRow);
+  return block;
+}
+
+// ── Low-level PATCH helper: send castResolutions array ───────────────────
+
+/**
+ * Post a castResolutions array to PATCH /api/drafts/:id.
+ * Returns the updated `updatedAt` token on success, null on failure.
+ * @param {Array} castResolutions
+ * @returns {Promise<string|null>}
+ */
+async function sendPatch(castResolutions) {
+  if (!_draft || !_titleId) return null;
+  const payload = {
+    expectedUpdatedAt: _draft.updatedAt,
+    castResolutions,
+    newActresses: [],
+  };
+  try {
+    const res = await fetch(`/api/drafts/${_titleId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.status === 409) {
+      showDraftStatus('Conflict — draft was updated elsewhere. Reloading…', 'error');
+      await reloadDraft();
+      return null;
+    }
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const errs = body.errors || [body.error || 'Unknown error'];
+      showDraftStatus('Save failed: ' + errs.join(', '), 'error');
+      return null;
+    }
+    const data = await res.json();
+    _draft.updatedAt = data.updatedAt;
+    return data.updatedAt;
+  } catch (err) {
+    showDraftStatus('Error: ' + (err.message || err), 'error');
+    return null;
+  }
+}
+
+// ── Add / Remove / Clear-all ────────────────────────────────────────────
+
+/**
+ * Add a manual cast slot (empty-state). Generates a unique synthetic slug
+ * `manual:<n>` (smallest n not colliding with existing cast slugs), then
+ * PATCHes the resolution and reloads.
+ * @param {string} resolution  — 'pick' | 'create_new' | 'sentinel:<id>'
+ * @param {object} extra       — { linkToExistingId?, englishLastName?, englishFirstName? }
+ */
+async function addManualCast(resolution, extra) {
+  if (!_draft || !_titleId) return;
+  const existingSlugs = new Set((_draft.cast || []).map(s => s.javdbSlug));
+  let n = 1;
+  while (existingSlugs.has(`manual:${n}`)) n++;
+  const javdbSlug = `manual:${n}`;
+  showDraftStatus('Adding…', '');
+  const token = await sendPatch([{
+    javdbSlug,
+    resolution,
+    linkToExistingId: extra?.linkToExistingId ?? null,
+    englishLastName:  extra?.englishLastName  ?? null,
+    englishFirstName: extra?.englishFirstName ?? null,
+  }]);
+  if (token != null) await reloadDraft();
+}
+
+/**
+ * Remove one cast slot by javdbSlug, then reload.
+ * @param {string} javdbSlug
+ */
+async function removeCast(javdbSlug) {
+  if (!_draft || !_titleId) return;
+  showDraftStatus('Removing…', '');
+  const token = await sendPatch([{ javdbSlug, resolution: 'remove' }]);
+  if (token != null) await reloadDraft();
+}
+
+/**
+ * Remove all cast slots in one PATCH, then reload.
+ */
+async function clearAllCast() {
+  if (!_draft || !_titleId) return;
+  const slugs = (_draft.cast || []).map(s => s.javdbSlug).filter(Boolean);
+  if (slugs.length === 0) return;
+  showDraftStatus('Clearing cast…', '');
+  const token = await sendPatch(slugs.map(javdbSlug => ({ javdbSlug, resolution: 'remove' })));
+  if (token != null) await reloadDraft();
+}
+
+// ── PATCH cast resolution ─────────────────────────────────────────────────
 
 async function patchResolution(javdbSlug, resolution, extra, idx, afterSuccess) {
   if (!_draft || !_titleId) return;
