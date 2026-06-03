@@ -56,4 +56,24 @@ public final class TranslationNormalization {
     public static String hashOf(String raw) {
         return sha256Hex(normalize(raw));
     }
+
+    /**
+     * True if the string contains any CJK character — Hiragana, Katakana, or
+     * CJK Unified Ideographs (incl. Extension A). Used to reject non-romaji
+     * stage-name output (a romaji JAV name is pure ASCII). Null/blank → false.
+     */
+    public static boolean containsCjk(String s) {
+        if (s == null || s.isEmpty()) return false;
+        for (int i = 0; i < s.length(); ) {
+            int cp = s.codePointAt(i);
+            if ((cp >= 0x3040 && cp <= 0x30FF)   // Hiragana + Katakana
+             || (cp >= 0x3400 && cp <= 0x4DBF)   // CJK Ext A
+             || (cp >= 0x4E00 && cp <= 0x9FFF)   // CJK Unified Ideographs
+             || (cp >= 0xF900 && cp <= 0xFAFF)) {// CJK Compatibility Ideographs
+                return true;
+            }
+            i += Character.charCount(cp);
+        }
+        return false;
+    }
 }

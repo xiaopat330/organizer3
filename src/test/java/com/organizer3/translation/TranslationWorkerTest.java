@@ -291,6 +291,38 @@ class TranslationWorkerTest {
     }
 
     @Test
+    void processOne_labelNameNonRomajiOutput_marksTier2Pending() {
+        // The model echoed the kanji input back inside its JSON instead of romanizing it.
+        // The raw JSON's ASCII keys ("given"/"surname") mask the kanji values from the
+        // sanitization check, so the composed romaji ("華 倉木") is still CJK. The worker
+        // must re-check the composed output and escalate to tier-2 with reason 'non_romaji'
+        // rather than caching/suggesting the garbage.
+        long labelNameStratId = strategyRepo.findByName(StrategySelector.LABEL_NAME).orElseThrow().id();
+        when(ollamaAdapter.generate(any()))
+                .thenReturn(fakeResponse("{\"given\":\"華\",\"surname\":\"倉木\"}"));
+
+        String now = ISO_UTC.format(Instant.now());
+        queueRepo.enqueue("倉木華", labelNameStratId, now,
+                TranslationQueueRow.STATUS_PENDING, null, null);
+
+        worker.processOne();
+
+        assertEquals(1, queueRepo.countByStatus(TranslationQueueRow.STATUS_TIER_2_PENDING));
+        assertEquals(0, queueRepo.countByStatus(TranslationQueueRow.STATUS_DONE));
+        // englishText was nulled → failure cache row, no successful (romaji) result recorded.
+        assertEquals(0, cacheRepo.countSuccessful());
+        assertEquals(1, cacheRepo.countFailed());
+        // Discriminating assertion: the escalation reason must be the NEW non_romaji path,
+        // not the pre-existing 'sanitized' / 'refused' paths. markTier2Pending writes the
+        // reason to translation_queue.last_error.
+        String reason = jdbi.withHandle(h ->
+                h.createQuery("SELECT last_error FROM translation_queue WHERE status = 'tier_2_pending'")
+                        .mapTo(String.class)
+                        .one());
+        assertEquals("non_romaji", reason);
+    }
+
+    @Test
     void processOne_cleanExplicitOutput_marksDone() {
         // Explicit JP input (中出し), output HAS explicit EN token → clean, not escalated
         when(ollamaAdapter.generate(any())).thenReturn(fakeResponse("Creampie Special with Hanano Mai"));
