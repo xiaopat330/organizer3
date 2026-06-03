@@ -8,6 +8,7 @@
 // See spec/PROPOSAL_DRAFT_MODE.md §11.2.
 
 import { esc } from './utils.js';
+import { displayPath } from './path-utils.js';
 import { openTitleDetail } from './title-detail.js';
 import * as taskCenter from './task-center.js';
 import { mountDraftView, unmountDraftView } from './title-editor-draft.js';
@@ -24,24 +25,30 @@ const pane          = document.getElementById('queue-editor-pane');
 const codeEl        = document.getElementById('queue-editor-code');
 const folderEl      = document.getElementById('queue-editor-folder');
 
-wireCodeCopy(codeEl);
-wireCodeCopy(document.getElementById('queue-draft-code'));
-
-function wireCodeCopy(el) {
-  if (!el) return;
-  el.classList.add('queue-code-copyable');
-  el.title = 'Click to copy';
-  el.addEventListener('click', () => {
-    const code = (el.textContent || '').trim();
-    if (!code) return;
-    const flash = () => {
-      el.classList.add('queue-code-copied');
-      setTimeout(() => el.classList.remove('queue-code-copied'), 900);
-    };
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(code).then(flash).catch(() => {});
-    }
-  });
+/**
+ * Render the header folder field: a "Folder" label + the full canonical NAS
+ * path (copy-clickable, OS-adjusted) when folderNasPath is present; otherwise
+ * the plain folder name with no copy affordance. Mirrors the v2 editor.
+ */
+function renderFolderField(containerEl, folderNasPath, folderName) {
+  if (!containerEl) return;
+  if (folderNasPath) {
+    containerEl.innerHTML =
+      `<span class="queue-editor-folder-key">Folder</span>` +
+      `<span class="queue-folder-path queue-code-copyable" data-path="${esc(folderNasPath)}" title="Click to copy full path">${esc(displayPath(folderNasPath))}</span>`;
+    const pathEl = containerEl.querySelector('.queue-folder-path');
+    pathEl?.addEventListener('click', () => {
+      const raw = pathEl.dataset.path || '';
+      if (!raw) return;
+      const text = displayPath(raw.startsWith('//') ? 'smb:' + raw : raw);
+      navigator.clipboard?.writeText(text).then(() => {
+        pathEl.classList.add('queue-code-copied');
+        setTimeout(() => pathEl.classList.remove('queue-code-copied'), 1100);
+      }).catch(() => {});
+    });
+  } else {
+    containerEl.innerHTML = `<span class="queue-editor-folder-key">Folder</span><span class="queue-folder-name">${esc(folderName || '')}</span>`;
+  }
 }
 
 const coverPanel    = document.getElementById('queue-cover-panel');
@@ -311,6 +318,7 @@ async function loadDetail(titleId) {
       mountDraftView(
         titleId,
         currentDetail.detail?.folderName || '',
+        currentDetail.folderNasPath,
         draft,
         tagsCatalog,
         currentDetail.directTags || [],
@@ -393,7 +401,7 @@ function renderEditor() {
   pane.style.display = 'flex';
   const d = currentDetail.detail;
   codeEl.textContent = d.code;
-  folderEl.textContent = d.folderName;
+  renderFolderField(folderEl, currentDetail.folderNasPath, d.folderName);
   descriptorInput.value = editorState.descriptor || '';
   updateDescriptorPreview();
   renderDuplicateState();

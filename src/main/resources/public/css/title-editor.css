@@ -163,7 +163,30 @@
   font-weight: 500;
 }
 .queue-editor-sep { color: #334155; }
-.queue-editor-folder { color: #64748b; font-size: 0.9rem; }
+.queue-editor-folder {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  min-width: 0;
+}
+.queue-editor-folder-key {
+  flex-shrink: 0;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: #64748b;
+}
+.queue-folder-path,
+.queue-folder-name {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  color: #64748b;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
 
 .queue-duplicate-badge {
   display: inline-flex;
