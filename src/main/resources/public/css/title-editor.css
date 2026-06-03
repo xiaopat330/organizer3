@@ -1058,6 +1058,7 @@
 /* Enrich button in no-draft header */
 .queue-enrich-btn {
   margin-left: auto;
+  text-align: center;
 }
 
 @keyframes enrich-pulse {
