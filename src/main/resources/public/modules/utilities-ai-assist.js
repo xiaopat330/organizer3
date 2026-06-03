@@ -28,6 +28,7 @@ const ACTIVITY_POLL_MS  = 2000;
 const BATCH_POLL_MS     = 1000;
 const APPLY_POLL_MS     = 1500;
 const ACTIVITY_MAX_ROWS = 200;
+const ACTIVITY_FULL_EVERY = 15;   // every Nth activity poll (~30s @ 2s) does a full refresh so post-display state changes (sweeper auto-apply) un-stale
 
 // ── State ───────────────────────────────────────────────────────────────────
 const S = {
@@ -635,7 +636,7 @@ function beginApplyPoll() {
       clearApplyPoll();
       S.applyBusy = false;
       // Refresh the dashboard so queue/recent/cards reflect the applied rows.
-      await Promise.all([loadStats(), loadQueue(), loadActivity()]);
+      await Promise.all([loadStats(), loadQueue(), loadActivity({ full: true })]);
     }
   }, APPLY_POLL_MS);
 }
@@ -695,15 +696,23 @@ async function loadBatchProgress() {
   renderQueue();
 }
 
-async function loadActivity() {
+async function loadActivity(opts) {
   if (S.paused) return;
-  const url = S.activitySince
+  const full = !!(opts && opts.full);
+  // Full mode ignores the high-water mark and replaces the feed with a fresh
+  // snapshot. Needed when an existing row mutates (apply-agreed / sweeper
+  // auto-apply flips it to applied): the incremental `since` poll can never see
+  // that because `at` (ai_suggestion_at) is unchanged and already below the mark.
+  const url = (!full && S.activitySince)
     ? `/api/enrichment/assist/recent?limit=50&since=${encodeURIComponent(S.activitySince)}`
     : `/api/enrichment/assist/recent?limit=50`;
   const events = await fetchJson(url, []);
   if (!S.active) return;
   if (!events || events.length === 0) {
-    S.lastNewIds = new Set();
+    // No rows this cycle. In full mode a transient fetch failure also lands here
+    // (fetchJson returns [] on error) — leave the current feed intact rather than
+    // blanking it; only the incremental path resets the flash set.
+    if (!full) S.lastNewIds = new Set();
     renderActivity();
     return;
   }
@@ -711,10 +720,26 @@ async function loadActivity() {
   events.sort((a, b) => (b.at || '').localeCompare(a.at || ''));
   // Advance high-water mark to the newest `at` seen.
   S.activitySince = events[0].at;
+  if (full) {
+    // Replace with the fresh snapshot; suppress flashing (these rows aren't new).
+    S.lastNewIds = new Set();
+    S.activity = events.slice(0, ACTIVITY_MAX_ROWS);
+    renderActivity();
+    return;
+  }
   // Record the freshly-prepended ids so only these rows flash this render.
   S.lastNewIds = new Set(events.map(e => e.reviewQueueId).filter(id => id != null));
   S.activity = [...events, ...S.activity].slice(0, ACTIVITY_MAX_ROWS);
   renderActivity();
+}
+
+// Activity poll wrapper: most ticks are incremental; every ACTIVITY_FULL_EVERY-th
+// tick is a full refresh so post-display state changes (e.g. sweeper auto-apply
+// after the soak window) eventually un-stale in the live feed.
+function activityTick() {
+  S.activityPollCount = (S.activityPollCount || 0) + 1;
+  const full = S.activityPollCount % ACTIVITY_FULL_EVERY === 0;
+  return loadActivity(full ? { full: true } : undefined);
 }
 
 // ── Teardown ──────────────────────────────────────────────────────────────────
@@ -765,7 +790,7 @@ export async function showAiAssistView() {
 
   S.timers.stats    = setInterval(tick(loadStats),         STATS_POLL_MS);
   S.timers.queue    = setInterval(tick(loadQueue),         QUEUE_POLL_MS);
-  S.timers.activity = setInterval(tick(loadActivity),      ACTIVITY_POLL_MS);
+  S.timers.activity = setInterval(tick(activityTick),      ACTIVITY_POLL_MS);
   S.timers.batch    = setInterval(tick(loadBatchProgress), BATCH_POLL_MS);
 }
 
