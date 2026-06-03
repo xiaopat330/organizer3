@@ -279,6 +279,39 @@ export function mountDraft(paneEl, state, {
         await _patchResolution(javdbSlug, 'unresolved', {}, idx);
       },
       onReload: () => { _reloadDraft(); },
+      onAddManual: async (resolution, extra) => {
+        if (state.currentId == null || !state.draft) return;
+        // Generate a unique synthetic slug not already present in the cast list.
+        const existingSlugs = new Set((state.draft.cast || []).map(s => s.javdbSlug));
+        let n = 1;
+        while (existingSlugs.has(`manual:${n}`)) n++;
+        const javdbSlug = `manual:${n}`;
+        _setStatus('Adding…', '');
+        const token = await _sendPatch([{
+          javdbSlug,
+          resolution,
+          linkToExistingId: extra?.linkToExistingId ?? null,
+          englishLastName:  extra?.englishLastName  ?? null,
+          englishFirstName: extra?.englishFirstName ?? null,
+        }]);
+        if (token != null) await _reloadDraft();
+      },
+      onRemove: async (javdbSlug) => {
+        if (state.currentId == null || !state.draft) return;
+        _setStatus('Removing…', '');
+        const token = await _sendPatch([{ javdbSlug, resolution: 'remove' }]);
+        if (token != null) await _reloadDraft();
+      },
+      onClearAll: async () => {
+        if (state.currentId == null || !state.draft) return;
+        const slugs = (state.draft.cast || [])
+          .map(s => s.javdbSlug)
+          .filter(Boolean);
+        if (slugs.length === 0) return;
+        _setStatus('Clearing cast…', '');
+        const token = await _sendPatch(slugs.map(javdbSlug => ({ javdbSlug, resolution: 'remove' })));
+        if (token != null) await _reloadDraft();
+      },
     });
     _castHandle.renderCast();
   }
@@ -338,24 +371,15 @@ export function mountDraft(paneEl, state, {
     }
   }
 
-  // ── PATCH cast resolution (pick / create_new / skip / sentinel:N / unresolved) ──
-  async function _patchResolution(javdbSlug, resolution, extra, idx, afterSuccess) {
-    if (state.currentId == null || !state.draft) return;
-    const isUnlink = resolution === 'unresolved';
-    _setStatus(isUnlink ? 'Unlinking…' : 'Saving…', '');
-
+  // ── Low-level PATCH helper: post castResolutions, handle 409/error ──
+  // Returns the updated token (updatedAt string) on success, null on failure.
+  async function _sendPatch(castResolutions) {
+    if (state.currentId == null || !state.draft) return null;
     const payload = {
       expectedUpdatedAt: state.draft.updatedAt,
-      castResolutions: [{
-        javdbSlug,
-        resolution,
-        linkToExistingId: extra?.linkToExistingId ?? null,
-        englishLastName:  extra?.englishLastName  ?? null,
-        englishFirstName: extra?.englishFirstName ?? null,
-      }],
+      castResolutions,
       newActresses: [],
     };
-
     try {
       const res = await fetch(`/api/drafts/${state.currentId}`, {
         method:  'PATCH',
@@ -365,40 +389,59 @@ export function mountDraft(paneEl, state, {
       if (res.status === 409) {
         _setStatus('Conflict — draft was updated elsewhere. Reloading…', 'warn');
         await _reloadDraft();
-        return;
+        return null;
       }
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         const msg = body.errors?.join(', ') || body.error || ('HTTP ' + res.status);
-        _setStatus((isUnlink ? 'Unlink' : 'Save') + ' failed: ' + msg, 'error');
-        return;
+        _setStatus('Save failed: ' + msg, 'error');
+        return null;
       }
       const data = await res.json();
       state.draft.updatedAt = data.updatedAt;
-
-      // Optimistic local update so we don't pay a round-trip.
-      const slot = state.draft.cast?.[idx];
-      if (slot) {
-        if (isUnlink) {
-          slot.resolution = 'unresolved';
-          slot.linkToExistingId = null;
-          slot.linkedActressName = null;
-          slot.linkedActressAvatarUrl = null;
-          slot.englishLastName = null;
-          slot.englishFirstName = null;
-        } else {
-          slot.resolution = resolution;
-          if (extra?.linkToExistingId != null) slot.linkToExistingId = extra.linkToExistingId;
-          if (extra?.englishLastName  != null) slot.englishLastName  = extra.englishLastName;
-          if (extra?.englishFirstName != null) slot.englishFirstName = extra.englishFirstName;
-        }
-      }
-      _renderCast();
-      _setStatus('', '');
-      if (typeof afterSuccess === 'function') afterSuccess();
+      return data.updatedAt;
     } catch (err) {
-      _setStatus((isUnlink ? 'Unlink' : 'Save') + ' error: ' + (err.message || err), 'error');
+      _setStatus('Save error: ' + (err.message || err), 'error');
+      return null;
     }
+  }
+
+  // ── PATCH cast resolution (pick / create_new / skip / sentinel:N / unresolved) ──
+  async function _patchResolution(javdbSlug, resolution, extra, idx, afterSuccess) {
+    if (state.currentId == null || !state.draft) return;
+    const isUnlink = resolution === 'unresolved';
+    _setStatus(isUnlink ? 'Unlinking…' : 'Saving…', '');
+
+    const token = await _sendPatch([{
+      javdbSlug,
+      resolution,
+      linkToExistingId: extra?.linkToExistingId ?? null,
+      englishLastName:  extra?.englishLastName  ?? null,
+      englishFirstName: extra?.englishFirstName ?? null,
+    }]);
+
+    if (token == null) return; // error already set by _sendPatch
+
+    // Optimistic local update so we don't pay a round-trip for resolve/unlink.
+    const slot = state.draft.cast?.[idx];
+    if (slot) {
+      if (isUnlink) {
+        slot.resolution = 'unresolved';
+        slot.linkToExistingId = null;
+        slot.linkedActressName = null;
+        slot.linkedActressAvatarUrl = null;
+        slot.englishLastName = null;
+        slot.englishFirstName = null;
+      } else {
+        slot.resolution = resolution;
+        if (extra?.linkToExistingId != null) slot.linkToExistingId = extra.linkToExistingId;
+        if (extra?.englishLastName  != null) slot.englishLastName  = extra.englishLastName;
+        if (extra?.englishFirstName != null) slot.englishFirstName = extra.englishFirstName;
+      }
+    }
+    _renderCast();
+    _setStatus('', '');
+    if (typeof afterSuccess === 'function') afterSuccess();
   }
 
   // ── Validate ─────────────────────────────────────────────────────────
