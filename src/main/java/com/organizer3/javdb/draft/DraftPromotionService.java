@@ -23,6 +23,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -488,6 +489,18 @@ public class DraftPromotionService {
                 .bind("primaryActressId", primaryActressId)
                 .bind("id",               canonicalTitleId)
                 .execute();
+
+        // ── Step 3b: bookmark-on-promote (additive — never clears an existing bookmark) ──
+        // bookmarked_at MUST be a LocalDateTime string (no 'Z'/offset): titles.bookmarked_at is
+        // read back via Title.ROW_MAPPER's LocalDateTime.parse (incl. the in-txn read at Step 8),
+        // and the canonical toggleBookmark path stores LocalDateTime.now().toString(). Do NOT use
+        // nowIso (Instant, trailing 'Z') here — it is unparseable and rolls the promotion back.
+        if (draft.isBookmarkOnPromote()) {
+            h.createUpdate("UPDATE titles SET bookmark = 1, bookmarked_at = :now WHERE id = :id")
+                    .bind("now", LocalDateTime.now().toString())
+                    .bind("id", canonicalTitleId)
+                    .execute();
+        }
 
         // ── Step 4: Replace title_actresses cast ─────────────────────────────────
         h.createUpdate("DELETE FROM title_actresses WHERE title_id = :id")

@@ -43,6 +43,7 @@ public class DraftTitleRepository {
                     .grade(rs.getString("grade"))
                     .gradeSource(rs.getString("grade_source"))
                     .upstreamChanged(rs.getInt("upstream_changed") == 1)
+                    .bookmarkOnPromote(rs.getBoolean("bookmark_on_promote"))
                     .lastValidationError(rs.getString("last_validation_error"))
                     .createdAt(rs.getString("created_at"))
                     .updatedAt(rs.getString("updated_at"))
@@ -146,6 +147,21 @@ public class DraftTitleRepository {
                     "draft_titles update failed for id=" + draft.getId() +
                     ": row not found or updated_at mismatch (expected " + expectedUpdatedAt + ")");
         }
+    }
+
+    /**
+     * Sets the {@code bookmark_on_promote} flag on the draft row.
+     *
+     * <p>Writes ONLY that column — it deliberately does NOT touch {@code updated_at}.
+     * That column is the optimistic-lock token the editor holds; bumping it would
+     * cause spurious 409 conflicts on the next cast PATCH or on promote.
+     */
+    public void setBookmarkOnPromote(long draftTitleId, boolean value) {
+        jdbi.useHandle(h ->
+                h.createUpdate("UPDATE draft_titles SET bookmark_on_promote = :v WHERE id = :id")
+                        .bind("v",  value ? 1 : 0)
+                        .bind("id", draftTitleId)
+                        .execute());
     }
 
     /** Deletes the draft row with the given id. Cascades to child rows. */

@@ -353,6 +353,11 @@ public class SchemaUpgrader {
             setVersion(65);
         }
 
+        if (version < 66) {
+            applyV66();
+            setVersion(66);
+        }
+
         log.info("Schema upgrade complete");
     }
 
@@ -2231,6 +2236,20 @@ public class SchemaUpgrader {
     private void applyV65() {
         log.info("Applying migration v65: curated_at on title_locations");
         jdbi.useHandle(h -> addColumnIfMissing(h, "title_locations", "curated_at", "TEXT"));
+    }
+
+    /**
+     * v66: {@code bookmark_on_promote} column on {@code draft_titles}.
+     *
+     * <p>Durable per-draft flag. When set, promoting the draft additively bookmarks the
+     * resulting canonical title (sets {@code bookmark = 1, bookmarked_at}). Defaults to
+     * {@code 0} so existing drafts retain current behavior.
+     *
+     * <p>Idempotent via {@link #addColumnIfMissing}.
+     */
+    private void applyV66() {
+        log.info("Applying migration v66: bookmark_on_promote on draft_titles");
+        jdbi.useHandle(h -> addColumnIfMissing(h, "draft_titles", "bookmark_on_promote", "INTEGER DEFAULT 0"));
     }
 
     private static String leafOf(String path) {

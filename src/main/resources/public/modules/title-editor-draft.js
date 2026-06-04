@@ -21,6 +21,7 @@ const validateBtn  = document.getElementById('queue-draft-validate-btn');
 const promoteBtn   = document.getElementById('queue-draft-promote-btn');
 const discardBtn   = document.getElementById('queue-draft-discard-btn');
 const draftSkipBtn = document.getElementById('queue-draft-skip-btn');
+const bookmarkToggle = document.getElementById('queue-draft-bookmark-toggle');
 
 const draftCoverImg        = document.getElementById('queue-draft-cover-img');
 const draftCoverPlaceholder= document.getElementById('queue-draft-cover-placeholder');
@@ -307,6 +308,7 @@ function renderDraftPane() {
   if (discardBtn)  discardBtn.disabled  = false;
   if (validateBtn) validateBtn.disabled = false;
   if (promoteBtn)  promoteBtn.disabled  = false;
+  if (bookmarkToggle) bookmarkToggle.checked = !!_draft.bookmarkOnPromote;
 
   renderUpstreamBanner();
   renderCoverPreview();
@@ -1241,6 +1243,23 @@ if (validateBtn) {
       showDraftStatus('Validate error: ' + (err.message || err), 'error');
     } finally {
       validateBtn.disabled = false;
+    }
+  });
+}
+
+if (bookmarkToggle) {
+  bookmarkToggle.addEventListener('change', async () => {
+    if (!_titleId) return;
+    const value = bookmarkToggle.checked;
+    try {
+      await fetch(`/api/drafts/${_titleId}/bookmark-on-promote`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ value }),
+      });
+      if (_draft) _draft.bookmarkOnPromote = value;
+    } catch (err) {
+      console.error('set bookmark-on-promote failed', err);
     }
   });
 }

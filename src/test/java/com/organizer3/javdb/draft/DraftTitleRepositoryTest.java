@@ -185,6 +185,40 @@ class DraftTitleRepositoryTest {
         assertDoesNotThrow(() -> repo.setUpstreamChanged(9999L, "2024-08-01T00:00:00Z"));
     }
 
+    // ── setBookmarkOnPromote ────────────────────────────────────────────────────
+
+    @Test
+    void setBookmarkOnPromote_defaultsToFalse() {
+        long id = repo.insert(sample(1));
+        assertFalse(repo.findById(id).orElseThrow().isBookmarkOnPromote(),
+                "freshly inserted draft must default bookmark_on_promote to false");
+    }
+
+    @Test
+    void setBookmarkOnPromote_persistsValue() {
+        long id = repo.insert(sample(1));
+
+        repo.setBookmarkOnPromote(id, true);
+        assertTrue(repo.findById(id).orElseThrow().isBookmarkOnPromote(),
+                "flag must round-trip as true");
+
+        repo.setBookmarkOnPromote(id, false);
+        assertFalse(repo.findById(id).orElseThrow().isBookmarkOnPromote(),
+                "flag must round-trip back to false");
+    }
+
+    @Test
+    void setBookmarkOnPromote_doesNotTouchUpdatedAt() {
+        long id = repo.insert(sample(1));
+        String before = repo.findById(id).orElseThrow().getUpdatedAt();
+
+        repo.setBookmarkOnPromote(id, true);
+
+        String after = repo.findById(id).orElseThrow().getUpdatedAt();
+        assertEquals(before, after,
+                "setBookmarkOnPromote must NOT bump updated_at (it is the optimistic-lock token)");
+    }
+
     // ── reapStale ──────────────────────────────────────────────────────────────
 
     @Test

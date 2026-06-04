@@ -559,6 +559,49 @@ class DraftRoutesTest {
         assertTrue(mapper.readTree(resp.body()).get("coverScratchPresent").asBoolean());
     }
 
+    // ── PUT /api/drafts/:titleId/bookmark-on-promote ──────────────────────────
+
+    @Test
+    void getDraft_bookmarkOnPromoteRoundTrips() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+
+        // Default: false.
+        var resp = get("/api/drafts/1");
+        assertEquals(200, resp.statusCode());
+        assertFalse(mapper.readTree(resp.body()).get("bookmarkOnPromote").asBoolean(),
+                "bookmarkOnPromote must default to false in the GET response");
+
+        // After setting true, GET reflects it.
+        draftTitleRepo.setBookmarkOnPromote(draftId, true);
+        var resp2 = get("/api/drafts/1");
+        assertTrue(mapper.readTree(resp2.body()).get("bookmarkOnPromote").asBoolean(),
+                "bookmarkOnPromote must round-trip as true in the GET response");
+    }
+
+    @Test
+    void putBookmarkOnPromote_setsFlag() throws Exception {
+        long draftId = insertDraft(1L, "TST-1");
+
+        var resp = putJson("/api/drafts/1/bookmark-on-promote", "{\"value\":true}");
+        assertEquals(200, resp.statusCode());
+        assertTrue(mapper.readTree(resp.body()).get("bookmarkOnPromote").asBoolean());
+
+        assertTrue(draftTitleRepo.findById(draftId).orElseThrow().isBookmarkOnPromote(),
+                "PUT must persist the flag on the draft row");
+
+        // And it can be turned back off.
+        var resp2 = putJson("/api/drafts/1/bookmark-on-promote", "{\"value\":false}");
+        assertEquals(200, resp2.statusCode());
+        assertFalse(mapper.readTree(resp2.body()).get("bookmarkOnPromote").asBoolean());
+        assertFalse(draftTitleRepo.findById(draftId).orElseThrow().isBookmarkOnPromote());
+    }
+
+    @Test
+    void putBookmarkOnPromote_404WhenNoDraft() throws Exception {
+        var resp = putJson("/api/drafts/999/bookmark-on-promote", "{\"value\":true}");
+        assertEquals(404, resp.statusCode());
+    }
+
     // ── PATCH /api/drafts/:titleId ────────────────────────────────────────────
 
     @Test
@@ -679,6 +722,15 @@ class DraftRoutesTest {
                 .uri(URI.create(base() + path))
                 .header("Content-Type", "application/json")
                 .method("PATCH", HttpRequest.BodyPublishers.ofString(jsonBody))
+                .build(),
+                HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> putJson(String path, String jsonBody) throws Exception {
+        return http.send(HttpRequest.newBuilder()
+                .uri(URI.create(base() + path))
+                .header("Content-Type", "application/json")
+                .method("PUT", HttpRequest.BodyPublishers.ofString(jsonBody))
                 .build(),
                 HttpResponse.BodyHandlers.ofString());
     }

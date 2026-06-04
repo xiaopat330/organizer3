@@ -133,6 +133,10 @@ export function mountDraft(paneEl, state, {
               <button class="btn btn-primary"    id="un-draft-promote"  type="button">Promote</button>
               <button class="btn btn-danger"     id="un-draft-discard"  type="button">Discard</button>
               <button class="btn btn-secondary"  id="un-draft-skip"     type="button">Skip</button>
+              <label class="un-draft-bookmark" title="When promoted, bookmark the resulting title">
+                <input type="checkbox" id="un-draft-bookmark-toggle">
+                <span>Bookmark on promote</span>
+              </label>
             </div>
           </div>
 
@@ -212,15 +216,37 @@ export function mountDraft(paneEl, state, {
     paneEl.querySelector('#un-draft-promote' )?.addEventListener('click', _onPromote);
     paneEl.querySelector('#un-draft-discard' )?.addEventListener('click', _onDiscard);
     paneEl.querySelector('#un-draft-skip'    )?.addEventListener('click', () => onSkip?.());
+
+    // ── Bookmark-on-promote toggle ─────────────────────────────────────
+    paneEl.querySelector('#un-draft-bookmark-toggle')?.addEventListener('change', async (e) => {
+      if (state.currentId == null) return;
+      const value = !!e.target.checked;
+      try {
+        await fetch(`/api/drafts/${state.currentId}/bookmark-on-promote`, {
+          method:  'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ value }),
+        });
+        if (state.draft) state.draft.bookmarkOnPromote = value;
+      } catch (err) {
+        console.error('[draft] set bookmark-on-promote failed', err);
+      }
+    });
   }
 
   function _renderAll() {
     _renderUpstreamBanner();
+    _renderBookmarkToggle();
     _renderMetadata();
     _renderCover();
     _renderCast();
     _renderTags();
     _setStatus('', '');
+  }
+
+  function _renderBookmarkToggle() {
+    const el = paneEl.querySelector('#un-draft-bookmark-toggle');
+    if (el) el.checked = !!state.draft?.bookmarkOnPromote;
   }
 
   function _renderUpstreamBanner() {
@@ -359,6 +385,7 @@ export function mountDraft(paneEl, state, {
       if (res.ok) {
         state.draft = await res.json();
         _renderUpstreamBanner();
+        _renderBookmarkToggle();
         _renderMetadata();
         _renderCover();
         _renderCast();

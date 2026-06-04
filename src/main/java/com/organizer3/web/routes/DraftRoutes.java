@@ -45,6 +45,7 @@ import java.util.Optional;
  * POST   /api/drafts/:titleId/populate      → populate a new draft from javdb
  * GET    /api/drafts/:titleId               → fetch full draft (title + actresses + enrichment)
  * PATCH  /api/drafts/:titleId               → apply cast resolution / name edits
+ * PUT    /api/drafts/:titleId/bookmark-on-promote → set the durable bookmark-on-promote flag
  * DELETE /api/drafts/:titleId               → discard draft
  * GET    /api/drafts/:titleId/cover         → fetch the scratch cover image
  * POST   /api/drafts/:titleId/cover         → set the scratch cover from an uploaded file or URL
@@ -140,6 +141,7 @@ public final class DraftRoutes {
         registerListDrafts(app);
         registerGetDraft(app);
         registerPatchDraft(app);
+        registerSetBookmarkOnPromote(app);
         registerDeleteDraft(app);
 
         // ── POST /api/drafts/:titleId/populate ────────────────────────────────
@@ -631,6 +633,7 @@ public final class DraftRoutes {
             resp.put("code",               dt.getCode());
             resp.put("updatedAt",          dt.getUpdatedAt());
             resp.put("upstreamChanged",    dt.isUpstreamChanged());
+            resp.put("bookmarkOnPromote",  dt.isBookmarkOnPromote());
             resp.put("createdAt",          dt.getCreatedAt());
             resp.put("titleOriginal",      dt.getTitleOriginal());
             resp.put("releaseDate",        dt.getReleaseDate());
@@ -732,6 +735,39 @@ public final class DraftRoutes {
                 LOG.error("PATCH draft: unexpected error for titleId={}", titleId, e);
                 ctx.status(500).json(Map.of("error", "internal error during patch"));
             }
+        });
+    }
+
+    /**
+     * {@code PUT /api/drafts/:titleId/bookmark-on-promote} — set the durable
+     * bookmark-on-promote flag on the active draft.
+     *
+     * <p>Body: {@code { "value": <bool> }}. Persists ONLY the flag (does not bump
+     * the draft's {@code updated_at} optimistic-lock token). Returns 200 +
+     * {@code { bookmarkOnPromote: <bool> }}, 404 if no active draft.
+     */
+    void registerSetBookmarkOnPromote(Javalin app) {
+        app.put("/api/drafts/{titleId}/bookmark-on-promote", ctx -> {
+            long titleId = parseTitleId(ctx);
+            if (titleId < 0) return;
+
+            JsonNode body;
+            try {
+                body = json.readTree(ctx.body());
+            } catch (Exception e) {
+                ctx.status(400).json(Map.of("error", "invalid JSON body"));
+                return;
+            }
+            boolean value = body != null && body.has("value") && body.get("value").asBoolean(false);
+
+            var draft = draftTitleRepo.findByTitleId(titleId);
+            if (draft.isEmpty()) {
+                ctx.status(404).json(Map.of("error", "no active draft for this title"));
+                return;
+            }
+
+            draftTitleRepo.setBookmarkOnPromote(draft.get().getId(), value);
+            ctx.status(200).json(Map.of("bookmarkOnPromote", value));
         });
     }
 
