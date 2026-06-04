@@ -1136,6 +1136,15 @@ public class Application {
                         draftTitleRepo, draftActressRepo, draftCoverStore, draftMaxAgeDays);
         com.organizer3.javdb.draft.DraftGcScheduler draftGcScheduler =
                 new com.organizer3.javdb.draft.DraftGcScheduler(draftGcService, draftGcHourUtc);
+        // Self-healing reconciler for promotion folder renames that hard-failed post-commit.
+        com.organizer3.javdb.draft.PromotionFolderRenameReconciler promotionRenameReconciler =
+                new com.organizer3.javdb.draft.PromotionFolderRenameReconciler(
+                        jdbi, titleFolderRenamer, UNSORTED_VOLUME_ID);
+        com.organizer3.javdb.draft.PromotionRenameReconcileScheduler promotionRenameReconcileScheduler =
+                new com.organizer3.javdb.draft.PromotionRenameReconcileScheduler(
+                        promotionRenameReconciler,
+                        com.organizer3.javdb.draft.PromotionRenameReconcileScheduler.DEFAULT_INTERVAL_SECONDS,
+                        com.organizer3.javdb.draft.PromotionRenameReconcileScheduler.DEFAULT_BATCH_LIMIT);
         com.organizer3.javdb.draft.CastValidator castValidator =
                 new com.organizer3.javdb.draft.CastValidator();
         com.organizer3.javdb.draft.DraftPromotionService draftPromotionService =
@@ -1319,6 +1328,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteEmptyFolderTool(session, jdbi, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteLooseFilesTool(session, curationLog, jdbi));
                 mcpTools.register(new com.organizer3.mcp.tools.RenameTitleFolderTool(session, titleRepo, titleLocationRepo, curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.ReconcilePromotionRenamesTool(promotionRenameReconciler));
                 mcpTools.register(new com.organizer3.mcp.tools.RenameFolderSubstringTool(session, titleLocationRepo, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.RenameActressFolderTool(session, actressRepo, jdbi, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.MoveTitleFolderTool(session, titleRepo, titleLocationRepo, actressRepo, config.libraryOrDefaults(), curationLog));
@@ -1341,6 +1351,7 @@ public class Application {
             revalidationCronScheduler.start(enrichmentConfig.revalidationCronOrDefaults().intervalHoursOrDefault());
         }
         draftGcScheduler.start();
+        promotionRenameReconcileScheduler.start();
 
         OrganizerShell shell = new OrganizerShell(session, dispatcher);
         shell.run();
@@ -1352,6 +1363,7 @@ public class Application {
         trashSweepScheduler.stop();
         revalidationCronScheduler.stop(10);
         draftGcScheduler.stop();
+        promotionRenameReconcileScheduler.stop();
         backupScheduler.stop();
         probeJobRunner.shutdown();
         thumbnailService.shutdown();

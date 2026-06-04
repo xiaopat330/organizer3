@@ -121,12 +121,8 @@ public class TitleFolderRenamer {
             return new RenameOutcome(currentPath, false);
         }
 
-        // Build target name.
-        String desc = descriptor == null ? "" : descriptor.trim();
-        String base = desc.isEmpty()
-                ? primaryActressName + " (" + code + ")"
-                : primaryActressName + " - " + desc + " (" + code + ")";
-        String targetName = sanitizeFolderName(base);
+        // Build target name (shared construction — see targetFolderName).
+        String targetName = targetFolderName(primaryActressName, descriptor, code);
 
         // No-op if already correct.
         String currentName = basename(currentPath);
@@ -192,6 +188,26 @@ public class TitleFolderRenamer {
         return prefix.substring(sep + 3).trim();
     }
 
+    /**
+     * Builds the canonical target folder basename for a title, applying {@link #sanitizeFolderName}.
+     * This is the single source of truth for target-name construction — both
+     * {@link #renameWithKnownPath} (the live rename) and the promotion reconciler
+     * ({@code PromotionFolderRenameReconciler}) use it so their no-op / needs-rename
+     * detection agrees byte-for-byte with what the rename would actually produce.
+     *
+     * @param primaryActressName canonical name of the primary actress (must be non-blank).
+     * @param descriptor         optional middle segment (e.g. "Demosaiced"); null/blank → omitted.
+     * @param code               the title code (e.g. "ABP-527").
+     * @return the sanitized target basename.
+     */
+    public static String targetFolderName(String primaryActressName, String descriptor, String code) {
+        String desc = descriptor == null ? "" : descriptor.trim();
+        String base = desc.isEmpty()
+                ? primaryActressName + " (" + code + ")"
+                : primaryActressName + " - " + desc + " (" + code + ")";
+        return sanitizeFolderName(base);
+    }
+
     // ── Static helpers (single source of truth; UnsortedEditorService delegates to these) ──
 
     /**
@@ -211,7 +227,7 @@ public class TitleFolderRenamer {
         return sb.toString().replaceAll("\\s+", " ").trim();
     }
 
-    static String basename(String path) {
+    public static String basename(String path) {
         int i = path.lastIndexOf('/');
         return i < 0 ? path : path.substring(i + 1);
     }
