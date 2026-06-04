@@ -237,6 +237,61 @@ class DraftPromotionServiceTest {
         assertTrue(draftTitleRepo.findById(draftId).isEmpty());
     }
 
+    // ── bookmark-on-promote ─────────────────────────────────────────────────────
+
+    @Test
+    void bookmarkOnPromote_flagTrue_bookmarksTitle() throws Exception {
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+        draftTitleRepo.setBookmarkOnPromote(draftId, true);
+        // Scratch cover present → Step 8 reads the titles row back through Title.ROW_MAPPER
+        // INSIDE the txn. This reproduces the production path that caught the bad-format
+        // regression: a 'Z'-suffixed bookmarked_at is unparseable by LocalDateTime.parse,
+        // throws mid-txn, and rolls the promotion back. Without the cover the read-back is
+        // skipped and the format bug goes unnoticed.
+        coverStore.write(draftId, new byte[]{1, 2, 3});
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        jdbi.useHandle(h -> {
+            var row = h.createQuery("SELECT bookmark, bookmarked_at FROM titles WHERE id = 1")
+                    .mapToMap().one();
+            assertEquals(1, ((Number) row.get("bookmark")).intValue(),
+                    "title must be bookmarked when flag is true");
+            assertNotNull(row.get("bookmarked_at"),
+                    "bookmarked_at must be stamped when flag is true");
+        });
+
+        // Read back through the Title mapper (LocalDateTime.parse) — must not throw and
+        // must surface a non-null bookmarkedAt. This is the assertion the raw-SQL check missed.
+        Title promoted = titleRepo.findById(1L).orElseThrow();
+        assertTrue(promoted.isBookmark(), "Title.bookmark must be true after a flag=true promote");
+        assertNotNull(promoted.getBookmarkedAt(),
+                "Title.bookmarkedAt must be parseable + non-null (no trailing 'Z' format)");
+    }
+
+    @Test
+    void bookmarkOnPromote_flagFalse_doesNotClearExistingBookmark() throws Exception {
+        // Title is ALREADY bookmarked via the normal toggle.
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE titles SET bookmark = 1, bookmarked_at = :ts WHERE id = 1")
+                .bind("ts", "2024-01-01T00:00:00Z")
+                .execute());
+
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+        // Flag defaults to false — promote must NOT clobber the existing bookmark.
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        jdbi.useHandle(h -> {
+            var row = h.createQuery("SELECT bookmark, bookmarked_at FROM titles WHERE id = 1")
+                    .mapToMap().one();
+            assertEquals(1, ((Number) row.get("bookmark")).intValue(),
+                    "ADDITIVE GUARD: a pre-existing bookmark must survive a flag=false promote");
+            assertEquals("2024-01-01T00:00:00Z", row.get("bookmarked_at"),
+                    "ADDITIVE GUARD: bookmarked_at must be left untouched on a flag=false promote");
+        });
+    }
+
     @Test
     void happyPath_createNewActress_insertsActressRow() throws Exception {
         long draftId = seedDraftFull(1L, castJson("New Actress"), "create_new", "slug-new",

@@ -48,6 +48,12 @@ public class DraftTitle {
      */
     String lastValidationError;
 
+    /**
+     * Durable per-draft flag. When {@code true}, promoting this draft additively
+     * bookmarks the resulting canonical title. Never clears an existing bookmark.
+     */
+    boolean bookmarkOnPromote;
+
     String createdAt;
 
     /**
