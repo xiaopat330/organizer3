@@ -22,6 +22,7 @@ import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 class TitleFolderRenamerTest {
@@ -58,6 +59,11 @@ class TitleFolderRenamerTest {
         when(smbFactory.open(VOL)).thenReturn(handle);
         when(handle.fileSystem()).thenReturn(fs);
         when(fs.exists(any())).thenReturn(false); // default: no collision
+
+        // Default withRetry stub: run the op once against the shared handle (no retry).
+        // Individual tests override this to simulate the evict+retry path.
+        when(smbFactory.withRetry(eq(VOL), any())).thenAnswer(inv ->
+                ((SmbConnectionFactory.SmbOperation<?>) inv.getArgument(1)).execute(handle));
 
         renamer = new TitleFolderRenamer(smbFactory, jdbi, VOL);
     }
@@ -175,14 +181,79 @@ class TitleFolderRenamerTest {
         String folder = "queue/Old Folder (TST-008)";
         long titleId = seedTitle("TST-008", folder, folder + "/video/a.mp4");
 
-        // Simulate: new path already exists on disk
+        // Simulate a genuine collision: BOTH the current folder AND the new path exist
+        // on disk. (curExists=true distinguishes this from the lost-ack idempotency case,
+        // where only the new path exists.)
         String newPath = "queue/New Actress (TST-008)";
+        when(fs.exists(Path.of(folder))).thenReturn(true);
         when(fs.exists(Path.of(newPath))).thenReturn(true);
         // new path != current path (not equalsIgnoreCase)
 
         assertThrows(IllegalStateException.class,
                 () -> renamer.renameIfNeeded(titleId, "New Actress", null, "TST-008"),
                 "Should throw on collision");
+    }
+
+    // ── Broken-pipe retry + idempotency (BLOCKING bug regression) ─────────
+
+    @Test
+    void retryOnBrokenPipe_succeedsOnSecondAttempt() throws IOException {
+        String oldFolder = "queue/Old Name (TST-012)";
+        long titleId = seedTitle("TST-012", oldFolder, oldFolder + "/video/a.mp4");
+
+        // Simulate the factory's evict+retry: the op is invoked, first fs.rename throws a
+        // broken-pipe-style error, the factory reconnects and re-invokes, second succeeds.
+        when(smbFactory.withRetry(eq(VOL), any())).thenAnswer(inv -> {
+            SmbConnectionFactory.SmbOperation<?> op =
+                    (SmbConnectionFactory.SmbOperation<?>) inv.getArgument(1);
+            try {
+                return op.execute(handle);
+            } catch (IOException first) {
+                return op.execute(handle); // evict+reopen happened; retry once
+            }
+        });
+        doThrow(new IOException(new java.net.SocketException("Broken pipe")))
+                .doNothing().when(fs).rename(any(), any());
+
+        TitleFolderRenamer.RenameOutcome outcome =
+                renamer.renameIfNeeded(titleId, "New Name", null, "TST-012");
+
+        assertTrue(outcome.renamed());
+        String newFolder = "queue/New Name (TST-012)";
+        assertEquals(newFolder, outcome.newPath());
+        // rename was attempted twice (first throw, second success)
+        verify(fs, times(2)).rename(any(), any());
+
+        // renameFolderInDb ran exactly once (after the withRetry block) → DB rewritten.
+        String locPath = jdbi.withHandle(h -> h.createQuery(
+                        "SELECT path FROM title_locations WHERE title_id = :id AND stale_since IS NULL")
+                .bind("id", titleId).mapTo(String.class).one());
+        assertEquals(newFolder, locPath);
+    }
+
+    @Test
+    void idempotentWhenAlreadyRenamed_noRenameButDbStillRewritten() throws IOException {
+        String oldFolder = "queue/Old Name (TST-013)";
+        long titleId = seedTitle("TST-013", oldFolder, oldFolder + "/video/a.mp4");
+        String newPath = "queue/New Name (TST-013)";
+
+        // Lost-ack case: a prior attempt already renamed on the server, but the ack was
+        // lost to the broken pipe. On retry, current no longer exists and new exists.
+        when(fs.exists(Path.of(oldFolder))).thenReturn(false);
+        when(fs.exists(Path.of(newPath))).thenReturn(true);
+
+        TitleFolderRenamer.RenameOutcome outcome =
+                renamer.renameIfNeeded(titleId, "New Name", null, "TST-013");
+
+        // Treated as success: no rename call, but renamed=true and DB rewritten.
+        assertTrue(outcome.renamed());
+        assertEquals(newPath, outcome.newPath());
+        verify(fs, never()).rename(any(), any());
+
+        String locPath = jdbi.withHandle(h -> h.createQuery(
+                        "SELECT path FROM title_locations WHERE title_id = :id AND stale_since IS NULL")
+                .bind("id", titleId).mapTo(String.class).one());
+        assertEquals(newPath, locPath);
     }
 
     // ── Stale-location scope guard ────────────────────────────────────
