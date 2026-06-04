@@ -449,24 +449,32 @@ export function mountDraft(paneEl, state, {
 
     if (token == null) return; // error already set by _sendPatch
 
-    // Optimistic local update so we don't pay a round-trip for resolve/unlink.
-    const slot = state.draft.cast?.[idx];
-    if (slot) {
-      if (isUnlink) {
-        slot.resolution = 'unresolved';
-        slot.linkToExistingId = null;
-        slot.linkedActressName = null;
-        slot.linkedActressAvatarUrl = null;
-        slot.englishLastName = null;
-        slot.englishFirstName = null;
-      } else {
-        slot.resolution = resolution;
-        if (extra?.linkToExistingId != null) slot.linkToExistingId = extra.linkToExistingId;
-        if (extra?.englishLastName  != null) slot.englishLastName  = extra.englishLastName;
-        if (extra?.englishFirstName != null) slot.englishFirstName = extra.englishFirstName;
+    if (resolution === 'pick') {
+      // 'pick' shows the linked actress's canonical name + avatar from the
+      // server-side join; the optimistic slot only has the id, which renders the
+      // unhelpful "Linked to existing actress (id:N)" fallback. Reload to fetch
+      // the display data (_reloadDraft re-renders the cast internally).
+      await _reloadDraft();
+    } else {
+      // Optimistic local update so we don't pay a round-trip for resolve/unlink.
+      const slot = state.draft.cast?.[idx];
+      if (slot) {
+        if (isUnlink) {
+          slot.resolution = 'unresolved';
+          slot.linkToExistingId = null;
+          slot.linkedActressName = null;
+          slot.linkedActressAvatarUrl = null;
+          slot.englishLastName = null;
+          slot.englishFirstName = null;
+        } else {
+          slot.resolution = resolution;
+          if (extra?.linkToExistingId != null) slot.linkToExistingId = extra.linkToExistingId;
+          if (extra?.englishLastName  != null) slot.englishLastName  = extra.englishLastName;
+          if (extra?.englishFirstName != null) slot.englishFirstName = extra.englishFirstName;
+        }
       }
+      _renderCast();
     }
-    _renderCast();
     _setStatus('', '');
     if (typeof afterSuccess === 'function') afterSuccess();
   }

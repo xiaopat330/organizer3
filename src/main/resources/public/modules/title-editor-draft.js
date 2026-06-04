@@ -1093,19 +1093,27 @@ async function patchResolution(javdbSlug, resolution, extra, idx, afterSuccess) 
     const data = await res.json();
     // Update the local draft's updated_at token.
     _draft = { ..._draft, updatedAt: data.updatedAt };
-    // Update the local cast slot optimistically.
-    if (_draft.cast && _draft.cast[idx]) {
-      const slot = _draft.cast[idx];
-      _draft.cast[idx] = {
-        ...slot,
-        resolution,
-        linkToExistingId: extra.linkToExistingId || slot.linkToExistingId,
-        englishLastName:  extra.englishLastName  || slot.englishLastName,
-        englishFirstName: extra.englishFirstName || slot.englishFirstName,
-      };
+    if (resolution === 'pick') {
+      // 'pick' shows the linked actress's canonical name + avatar from the
+      // server-side join; the optimistic slot only has the id, which renders the
+      // unhelpful "Linked to existing actress (id:N)" fallback. Reload to fetch
+      // the display data (reloadDraft re-fetches + re-renders the cast).
+      await reloadDraft();
+    } else {
+      // Update the local cast slot optimistically.
+      if (_draft.cast && _draft.cast[idx]) {
+        const slot = _draft.cast[idx];
+        _draft.cast[idx] = {
+          ...slot,
+          resolution,
+          linkToExistingId: extra.linkToExistingId || slot.linkToExistingId,
+          englishLastName:  extra.englishLastName  || slot.englishLastName,
+          englishFirstName: extra.englishFirstName || slot.englishFirstName,
+        };
+      }
+      renderCastSlots();
     }
     showDraftStatus('', '');
-    renderCastSlots();
     if (typeof afterSuccess === 'function') afterSuccess();
   } catch (err) {
     console.error('patchResolution failed', err);
