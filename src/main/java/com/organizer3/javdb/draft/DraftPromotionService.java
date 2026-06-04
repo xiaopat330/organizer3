@@ -509,7 +509,10 @@ public class DraftPromotionService {
         insertTitleActresses(h, canonicalTitleId, slots, newActressIds, draft.getCode());
 
         // ── Step 5: INSERT OR REPLACE title_javdb_enrichment ─────────────────────
-        writeCanonicalEnrichment(h, canonicalTitleId, enrichment, nowIso);
+        // Pass the draft's Japanese/English titles so the enrichment row carries title_original
+        // (the column the translation sweeper reads). See writeCanonicalEnrichment for why.
+        writeCanonicalEnrichment(h, canonicalTitleId, enrichment, nowIso,
+                draft.getTitleOriginal(), draft.getTitleEnglish());
 
         // ── Step 6: Resolve and write title_enrichment_tags ─────────────────────
         h.createUpdate("DELETE FROM title_enrichment_tags WHERE title_id = :id")
@@ -967,7 +970,19 @@ public class DraftPromotionService {
     }
 
     /** Writes the canonical title_javdb_enrichment row from draft data. */
-    private void writeCanonicalEnrichment(Handle h, long titleId, DraftEnrichment e, String nowIso) {
+    private void writeCanonicalEnrichment(Handle h, long titleId, DraftEnrichment e, String nowIso,
+                                          String titleOriginal, String titleEnglish) {
+        // The background translation sweeper (JavdbEnrichmentRepository.findTitlesAwaitingTranslation)
+        // reads title_javdb_enrichment.title_original — NOT titles.title_original — to decide what to
+        // enqueue. If we omit it here, a draft-promoted title's Japanese title only lands in
+        // titles.title_original (via Step 3) and is never picked up for translation, so it never gets
+        // an English title. We must mirror the draft's Japanese title into this column so the sweeper
+        // sees it, exactly as the direct-enrichment path does.
+        //
+        // title_original_en: if the user already typed an English title in the draft, store it so the
+        // sweeper's non-empty title_original_en guard SKIPS auto-translation (user's English wins).
+        // Otherwise leave NULL so the sweeper auto-translates, matching the direct path.
+        String titleEnglishOrNull = (titleEnglish != null && !titleEnglish.isBlank()) ? titleEnglish : null;
         h.createUpdate("DELETE FROM title_javdb_enrichment WHERE title_id = :id")
                 .bind("id", titleId)
                 .execute();
@@ -976,11 +991,13 @@ public class DraftPromotionService {
                     title_id, javdb_slug, fetched_at, release_date,
                     rating_avg, rating_count, maker, series,
                     cast_json, cover_url, resolver_source,
+                    title_original, title_original_en,
                     confidence, cast_validated
                 ) VALUES (
                     :titleId, :javdbSlug, :fetchedAt, :releaseDate,
                     :ratingAvg, :ratingCount, :maker, :series,
                     :castJson, :coverUrl, :resolverSource,
+                    :titleOriginal, :titleOriginalEn,
                     'HIGH', 1
                 )
                 """)
@@ -998,6 +1015,10 @@ public class DraftPromotionService {
                 .bind("castJson",       e.getCastJson())  // forensic preservation (§5.4)
                 .bind("coverUrl",       e.getCoverUrl())
                 .bind("resolverSource", e.getResolverSource() != null ? e.getResolverSource() : "auto_enriched")
+                // Bind title_original as-is (may be null/blank in odd cases — the sweeper's own
+                // IS NOT NULL / != '' predicate handles empties).
+                .bind("titleOriginal",   titleOriginal)
+                .bind("titleOriginalEn", titleEnglishOrNull)
                 .execute();
     }
 
