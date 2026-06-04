@@ -138,14 +138,27 @@ public class TitleFolderRenamer {
         String parent  = parentPath(currentPath);
         String newPath = parent.isEmpty() ? targetName : parent + "/" + targetName;
 
-        try (SmbConnectionFactory.SmbShareHandle handle = smbFactory.open(volumeId)) {
-            VolumeFileSystem fs = handle.fileSystem();
-            if (fs.exists(Path.of(newPath)) && !newPath.equalsIgnoreCase(currentPath)) {
-                throw new IllegalStateException("Target folder already exists: " + newPath);
-            }
-            fs.rename(Path.of(currentPath), targetName);
-            log.info("FS mutation [TitleFolderRenamer.renameFolder]: volume={} titleId={} from={} to={}",
-                    volumeId, titleId, currentPath, newPath);
+        try {
+            // Route through withRetry: on a broken-pipe/transport error mid-rename the
+            // factory evicts the stale pooled connection, reconnects, and retries the op
+            // once. The op is made idempotent below so the retry can't false-collide.
+            smbFactory.withRetry(volumeId, handle -> {
+                VolumeFileSystem fs = handle.fileSystem();
+                boolean curExists = fs.exists(Path.of(currentPath));
+                boolean newExists = fs.exists(Path.of(newPath));
+                if (!curExists && newExists) {
+                    // A prior attempt already completed the rename (ack lost to the broken
+                    // pipe). Treat as success — do NOT throw a false collision.
+                    return null;
+                }
+                if (newExists && !newPath.equalsIgnoreCase(currentPath)) {
+                    throw new IllegalStateException("Target folder already exists: " + newPath);
+                }
+                fs.rename(Path.of(currentPath), targetName);
+                log.info("FS mutation [TitleFolderRenamer.renameFolder]: volume={} titleId={} from={} to={}",
+                        volumeId, titleId, currentPath, newPath);
+                return null;
+            });
         } catch (IllegalStateException e) {
             throw e;  // collision — propagate as-is
         } catch (IOException e) {

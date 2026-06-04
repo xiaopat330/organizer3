@@ -57,11 +57,16 @@ public class CoverWriteService {
      * local cache (the caller already populated it). Logs + swallows on failure.
      */
     public void saveToNasBestEffort(String folderPath, String baseCode, byte[] bytes) {
-        try (SmbShareHandle handle = smbFactory.open(unsortedVolumeId)) {
-            VolumeFileSystem fs = handle.fileSystem();
-            Path target = Path.of(folderPath, baseCode + ".jpg");
-            fs.writeFile(target, bytes);
-            log.info("Saved cover to NAS (best-effort): {} ({} bytes)", target, bytes.length);
+        try {
+            // Route through withRetry so a broken-pipe/transport drop mid-write is retried
+            // once against a fresh connection. Still best-effort: final failure is swallowed.
+            smbFactory.withRetry(unsortedVolumeId, handle -> {
+                VolumeFileSystem fs = handle.fileSystem();
+                Path target = Path.of(folderPath, baseCode + ".jpg");
+                fs.writeFile(target, bytes);
+                log.info("Saved cover to NAS (best-effort): {} ({} bytes)", target, bytes.length);
+                return null;
+            });
         } catch (Exception e) {
             log.warn("Best-effort NAS cover write failed for {}/{}.jpg: {}", folderPath, baseCode, e.getMessage());
         }
