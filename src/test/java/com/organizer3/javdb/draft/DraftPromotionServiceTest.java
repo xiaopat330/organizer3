@@ -669,6 +669,65 @@ class DraftPromotionServiceTest {
         verify(coverWriteService, never()).saveToNasBestEffort(any(), any(), any());
     }
 
+    // ── Enrichment title_original / title_original_en (translation-sweeper feed) ──
+
+    /**
+     * Regression: a draft-promoted title's Japanese title must land in
+     * title_javdb_enrichment.title_original — the column the background translation
+     * sweeper reads (NOT titles.title_original). With an empty draft English title,
+     * title_original_en must be NULL so the sweeper picks the row up and auto-translates.
+     */
+    @Test
+    void enrichmentTitleOriginalPopulated() throws Exception {
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+        // Japanese title present, English title blank.
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE draft_titles SET title_original = :jp, title_english = :en WHERE id = :id")
+                .bind("jp", "日本語のタイトル")
+                .bind("en", "")
+                .bind("id", draftId)
+                .execute());
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        jdbi.useHandle(h -> {
+            var row = h.createQuery(
+                    "SELECT title_original, title_original_en FROM title_javdb_enrichment WHERE title_id = 1")
+                    .mapToMap().one();
+            assertEquals("日本語のタイトル", row.get("title_original"),
+                    "enrichment.title_original must carry the draft's Japanese title for the sweeper");
+            assertNull(row.get("title_original_en"),
+                    "title_original_en must be NULL so the sweeper enqueues the row for translation");
+        });
+    }
+
+    /**
+     * When the user typed an English title in the draft editor, it must be stored in
+     * title_javdb_enrichment.title_original_en so the sweeper's non-empty guard SKIPS
+     * auto-translation (no clobber of the user's English).
+     */
+    @Test
+    void userEnglishTitlePreserved() throws Exception {
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE draft_titles SET title_original = :jp, title_english = :en WHERE id = :id")
+                .bind("jp", "日本語のタイトル")
+                .bind("en", "User Supplied English")
+                .bind("id", draftId)
+                .execute());
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        jdbi.useHandle(h -> {
+            var row = h.createQuery(
+                    "SELECT title_original, title_original_en FROM title_javdb_enrichment WHERE title_id = 1")
+                    .mapToMap().one();
+            assertEquals("日本語のタイトル", row.get("title_original"));
+            assertEquals("User Supplied English", row.get("title_original_en"),
+                    "user's English title must be preserved so the sweeper skips auto-translation");
+        });
+    }
+
     // ── Draft deleted after promotion ────────────────────────────────────────
 
     @Test
