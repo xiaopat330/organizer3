@@ -85,11 +85,12 @@ volumes:
     server: pandora
     letters: [H, I, J]
 
+  # "k" also holds L-prefixed actresses — L has no dedicated volume and is folded into k by convention.
   - id: k
     smbPath: //pandora.local/jav_K
     structureType: conventional
     server: pandora
-    letters: [K]
+    letters: [K, L]
 
   # "ma" holds Ma-prefixed actresses only (most-specific match).
   # "m" holds the rest of M (Mb-Mz) — the plain "M" prefix still matches Ma-names
