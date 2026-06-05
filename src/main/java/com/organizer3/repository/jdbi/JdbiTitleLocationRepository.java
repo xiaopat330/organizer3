@@ -302,6 +302,42 @@ public class JdbiTitleLocationRepository implements TitleLocationRepository {
                                              String oldFolderPath, String newFolderPath,
                                              String newPartitionId) {
         jdbi.useTransaction(h -> {
+            // Stale-destination cleanup. By the time this runs the FS move into newFolderPath
+            // has already SUCCEEDED, and both callers only move when the destination did not
+            // physically exist (sort guards with fs.exists(); a move onto an existing dir
+            // throws). So the destination was physically empty, which means ANY pre-existing DB
+            // row still claiming (title_id, volume_id, newFolderPath) — a leftover from a prior
+            // attention routing whose folder was later removed — is provably STALE. Without this
+            // the UNIQUE(title_id, volume_id, path) constraint would make the UPDATE below throw,
+            // rolling back the DB while the folder is already moved on disk (left inconsistent).
+            //
+            // Guard on newFolderPath != oldFolderPath so an accidental no-op move can never
+            // delete our own live data. Order matters: the stale destination videos must be
+            // deleted BEFORE we repoint our own videos (still under oldFolderPath here) to the
+            // newFolderPath prefix below, otherwise the rewrite would collide with them.
+            if (!newFolderPath.equals(oldFolderPath)) {
+                h.createUpdate("""
+                        DELETE FROM videos
+                        WHERE title_id = :titleId
+                          AND volume_id = :volumeId
+                          AND substr(path, 1, length(:newPrefix)) = :newPrefix
+                        """)
+                        .bind("titleId", titleId)
+                        .bind("volumeId", volumeId)
+                        .bind("newPrefix", newFolderPath)
+                        .execute();
+                h.createUpdate("""
+                        DELETE FROM title_locations
+                        WHERE title_id = :titleId
+                          AND volume_id = :volumeId
+                          AND path = :newPath
+                          AND id <> :id""")
+                        .bind("titleId", titleId)
+                        .bind("volumeId", volumeId)
+                        .bind("newPath", newFolderPath)
+                        .bind("id", locationId)
+                        .execute();
+            }
             h.createUpdate("""
                     UPDATE title_locations
                     SET path = :newPath, partition_id = :partitionId

@@ -302,6 +302,65 @@ class JdbiTitleLocationRepositoryTest {
                 "archive video must NOT be touched");
     }
 
+    /**
+     * Regression: a stale leftover location row already claiming the destination path (from a
+     * prior attention routing whose folder was later removed) must NOT collide on the
+     * UNIQUE(title_id, volume_id, path) constraint. By the time updatePathPartitionAndVideos
+     * runs the FS move has already succeeded, so the destination was empty and the pre-existing
+     * row is provably stale — the repo deletes it (and its orphaned videos) rather than throwing.
+     * Confirmed in production on IPZ-670 and XVSR-435.
+     */
+    @Test
+    void updatePathPartitionAndVideos_clearsConflictingStaleRowAtDestination() {
+        long tid = titleRepo.save(title("A-001")).getId();
+
+        // SOURCE location + video (the one being moved).
+        TitleLocation sourceLoc = locationRepo.save(TitleLocation.builder()
+                .titleId(tid).volumeId("vol-a").partitionId("queue")
+                .path(Path.of("/queue/Foo (A-001)"))
+                .lastSeenAt(LocalDate.now()).build());
+        Video sourceVideo = videoRepo.save(Video.builder()
+                .titleId(tid).volumeId("vol-a")
+                .filename("A-001.mp4")
+                .path(Path.of("/queue/Foo (A-001)/video/A-001.mp4"))
+                .lastSeenAt(LocalDate.now()).build());
+
+        // PRE-EXISTING conflicting (stale) location + video already at the DESTINATION path.
+        TitleLocation conflictingLoc = locationRepo.save(TitleLocation.builder()
+                .titleId(tid).volumeId("vol-a").partitionId("minor")
+                .path(Path.of("/stars/minor/Foo/Foo (A-001)"))
+                .lastSeenAt(LocalDate.now())
+                .staleSince(Instant.now().minus(30, ChronoUnit.DAYS)).build());
+        Video staleVideo = videoRepo.save(Video.builder()
+                .titleId(tid).volumeId("vol-a")
+                .filename("old.mp4")
+                .path(Path.of("/stars/minor/Foo/Foo (A-001)/video/old.mp4"))
+                .lastSeenAt(LocalDate.now()).build());
+
+        // Must NOT throw despite the UNIQUE(title_id, volume_id, path) collision.
+        assertDoesNotThrow(() -> locationRepo.updatePathPartitionAndVideos(
+                sourceLoc.getId(), tid, "vol-a",
+                "/queue/Foo (A-001)", "/stars/minor/Foo/Foo (A-001)", "minor"));
+
+        // Source row is now at the destination path/partition.
+        TitleLocation movedSource = locationRepo.findById(sourceLoc.getId()).orElseThrow();
+        assertEquals("/stars/minor/Foo/Foo (A-001)", movedSource.getPath().toString());
+        assertEquals("minor", movedSource.getPartitionId());
+
+        // The conflicting stale location row is gone.
+        assertTrue(locationRepo.findById(conflictingLoc.getId()).isEmpty(),
+                "conflicting stale destination location row must be deleted");
+
+        // Source video is repointed under the destination prefix.
+        assertEquals("/stars/minor/Foo/Foo (A-001)/video/A-001.mp4",
+                videoRepo.findById(sourceVideo.getId()).orElseThrow().getPath().toString(),
+                "source video must be rewritten to the destination prefix");
+
+        // The stale destination video is gone.
+        assertTrue(videoRepo.findById(staleVideo.getId()).isEmpty(),
+                "stale destination video row must be deleted");
+    }
+
     // --- helpers ---
 
     private static Title title(String code) {
