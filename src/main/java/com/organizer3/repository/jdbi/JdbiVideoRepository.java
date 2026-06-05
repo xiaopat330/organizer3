@@ -276,6 +276,27 @@ public class JdbiVideoRepository implements VideoRepository {
     }
 
     @Override
+    public void deleteByTitleVolumeAndPathPrefix(long titleId, String volumeId, String folderPath) {
+        // Video paths are always children of the folder (never the folder itself),
+        // so match all rows whose path starts with folderPath + '/'.
+        String prefix = (folderPath.endsWith("/") ? folderPath : folderPath + "/");
+        // Escape LIKE special characters in the literal prefix before appending '%'.
+        String escapedPrefix = prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%";
+        jdbi.useHandle(h ->
+                h.createUpdate("""
+                        DELETE FROM videos
+                        WHERE title_id  = :titleId
+                          AND volume_id = :volumeId
+                          AND path LIKE :prefix ESCAPE '\\'
+                        """)
+                        .bind("titleId",  titleId)
+                        .bind("volumeId", volumeId)
+                        .bind("prefix",   escapedPrefix)
+                        .execute()
+        );
+    }
+
+    @Override
     public void deleteByVolumeAndPartition(String volumeId, String partitionId) {
         jdbi.useHandle(h ->
                 h.createUpdate("""

@@ -291,9 +291,22 @@ abstract class AbstractSyncOperation implements SyncOperation {
 
     private void saveVideosForTitle(Path titleFolder, long titleId, String volumeId,
                                     VolumeFileSystem fs) throws IOException {
+        for (Path videoFile : listVideoFiles(titleFolder, fs)) {
+            videoRepo.save(buildVideoRecord(videoFile, titleId, volumeId, fs));
+        }
+    }
+
+    /**
+     * Enumerates all video files under a title folder: direct children plus
+     * files one level deep in the {@link #VIDEO_SUBDIRECTORIES} ({@code video/} and
+     * {@code h265/}). Used by both the save path and the dry-run plan builder so
+     * both see exactly the same set of files.
+     */
+    protected List<Path> listVideoFiles(Path titleFolder, VolumeFileSystem fs) throws IOException {
+        List<Path> result = new ArrayList<>();
         for (Path child : fs.listDirectory(titleFolder)) {
             if (!fs.isDirectory(child) && MediaExtensions.isVideo(child)) {
-                videoRepo.save(buildVideoRecord(child, titleId, volumeId, fs));
+                result.add(child);
             }
         }
         for (String subdir : VIDEO_SUBDIRECTORIES) {
@@ -301,11 +314,12 @@ abstract class AbstractSyncOperation implements SyncOperation {
             if (fs.exists(videoSubdir) && fs.isDirectory(videoSubdir)) {
                 for (Path child : fs.listDirectory(videoSubdir)) {
                     if (!fs.isDirectory(child) && MediaExtensions.isVideo(child)) {
-                        videoRepo.save(buildVideoRecord(child, titleId, volumeId, fs));
+                        result.add(child);
                     }
                 }
             }
         }
+        return result;
     }
 
     private Video buildVideoRecord(Path path, long titleId, String volumeId, VolumeFileSystem fs) {
