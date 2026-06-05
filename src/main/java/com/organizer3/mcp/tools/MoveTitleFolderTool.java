@@ -220,7 +220,9 @@ public class MoveTitleFolderTool implements Tool {
             fs.move(currentPath, targetPath);
 
             String newPartitionId = derivePartitionId(destParent);
-            locationRepo.updatePathAndPartition(location.getId(), targetPath, newPartitionId);
+            locationRepo.updatePathPartitionAndVideos(
+                    location.getId(), title.getId(), mountedVolumeId,
+                    currentPath.toString(), targetPath.toString(), newPartitionId);
 
             log.info("move_title_folder volume={} from={} to={} dest={}",
                     mountedVolumeId, currentPath, targetPath, destDescription);

@@ -7,8 +7,10 @@ import com.organizer3.curation.CurationLog;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.filesystem.FileTimestamps;
 import com.organizer3.filesystem.VolumeFileSystem;
+import com.organizer3.model.Video;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
+import com.organizer3.repository.jdbi.JdbiVideoRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
 import org.jdbi.v3.core.Jdbi;
@@ -43,6 +45,7 @@ class RenameTitleFolderToolTest {
     private Jdbi jdbi;
     private JdbiTitleRepository titleRepo;
     private JdbiTitleLocationRepository locationRepo;
+    private JdbiVideoRepository videoRepo;
     private SessionContext session;
     private FakeFs fs;
     private CurationLog curationLog;
@@ -59,6 +62,7 @@ class RenameTitleFolderToolTest {
         });
         locationRepo = new JdbiTitleLocationRepository(jdbi);
         titleRepo    = new JdbiTitleRepository(jdbi, locationRepo);
+        videoRepo    = new JdbiVideoRepository(jdbi);
 
         fs          = new FakeFs();
         curationLog = new CurationLog(logDir);
@@ -302,6 +306,97 @@ class RenameTitleFolderToolTest {
         var result = (RenameTitleFolderTool.Result) tool.call(a);
         assertEquals("failed", result.status());
         assertTrue(result.error().contains("fromPath"));
+    }
+
+    // ── videos-path rebase ────────────────────────────────────────────────────
+
+    @Test
+    void renameRebasesVideoPathsUnderRenamedFolder() {
+        long titleId = jdbi.withHandle(h ->
+                h.createQuery("INSERT INTO titles (code) VALUES ('RNM-001') RETURNING id")
+                        .mapTo(Long.class).one());
+        jdbi.useHandle(h ->
+                h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/Old Name (RNM-001)', '2024-01-01')", titleId));
+        Video v = videoRepo.save(Video.builder()
+                .titleId(titleId).volumeId("s")
+                .filename("RNM-001.mp4")
+                .path(java.nio.file.Path.of("/queue/Old Name (RNM-001)/video/RNM-001.mp4"))
+                .lastSeenAt(java.time.LocalDate.now()).build());
+
+        var result = (RenameTitleFolderTool.Result) tool.call(args("RNM-001", "New Name (RNM-001)", false));
+
+        assertEquals("ok", result.status());
+        Video updated = videoRepo.findById(v.getId()).orElseThrow();
+        assertEquals("/queue/New Name (RNM-001)/video/RNM-001.mp4",
+                updated.getPath().toString(),
+                "video path must be rebased to the renamed folder");
+    }
+
+    @Test
+    void renameKeepBothRegression_onlyRebasesVideoUnderRenamedFolder() {
+        // Keep-both: one title, two folders on same volume. Renaming ONE must not touch the other.
+        long titleId = jdbi.withHandle(h ->
+                h.createQuery("INSERT INTO titles (code) VALUES ('KB-RNM-001') RETURNING id")
+                        .mapTo(Long.class).one());
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/Demosaiced (KB-RNM-001)', '2024-01-01')", titleId);
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/Bare (KB-RNM-001)', '2024-01-01')", titleId);
+        });
+        Video demsVideo = videoRepo.save(Video.builder()
+                .titleId(titleId).volumeId("s")
+                .filename("KB-RNM-001-dems.mp4")
+                .path(java.nio.file.Path.of("/queue/Demosaiced (KB-RNM-001)/video/KB-RNM-001-dems.mp4"))
+                .lastSeenAt(java.time.LocalDate.now()).build());
+        Video bareVideo = videoRepo.save(Video.builder()
+                .titleId(titleId).volumeId("s")
+                .filename("KB-RNM-001-bare.avi")
+                .path(java.nio.file.Path.of("/queue/Bare (KB-RNM-001)/video/KB-RNM-001-bare.avi"))
+                .lastSeenAt(java.time.LocalDate.now()).build());
+
+        // Rename only the Demosaiced folder; use fromPath to disambiguate
+        ObjectNode a = args("KB-RNM-001", "Renamed Demosaiced (KB-RNM-001)", false);
+        a.put("fromPath", "/queue/Demosaiced (KB-RNM-001)");
+        var result = (RenameTitleFolderTool.Result) tool.call(a);
+
+        assertEquals("ok", result.status());
+        assertEquals("/queue/Renamed Demosaiced (KB-RNM-001)/video/KB-RNM-001-dems.mp4",
+                videoRepo.findById(demsVideo.getId()).orElseThrow().getPath().toString(),
+                "renamed folder's video must be rebased");
+        assertEquals("/queue/Bare (KB-RNM-001)/video/KB-RNM-001-bare.avi",
+                videoRepo.findById(bareVideo.getId()).orElseThrow().getPath().toString(),
+                "sibling folder's video must NOT be touched");
+    }
+
+    @Test
+    void renameMultiVolumeTitle_onlyRebasesVideosOnMountedVolume() {
+        // Title on two volumes; rename on 's' must not touch 'r' videos.
+        long titleId = jdbi.withHandle(h ->
+                h.createQuery("INSERT INTO titles (code) VALUES ('MV-RNM-001') RETURNING id")
+                        .mapTo(Long.class).one());
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/Foo (MV-RNM-001)', '2024-01-01')", titleId);
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 'r', 'queue', '/queue/Foo (MV-RNM-001)', '2024-01-01')", titleId);
+        });
+        Video sVideo = videoRepo.save(Video.builder()
+                .titleId(titleId).volumeId("s")
+                .filename("MV-RNM-001.mp4")
+                .path(java.nio.file.Path.of("/queue/Foo (MV-RNM-001)/video/MV-RNM-001.mp4"))
+                .lastSeenAt(java.time.LocalDate.now()).build());
+        Video rVideo = videoRepo.save(Video.builder()
+                .titleId(titleId).volumeId("r")
+                .filename("MV-RNM-001.mp4")
+                .path(java.nio.file.Path.of("/queue/Foo (MV-RNM-001)/video/MV-RNM-001.mp4"))
+                .lastSeenAt(java.time.LocalDate.now()).build());
+
+        var result = (RenameTitleFolderTool.Result) tool.call(args("MV-RNM-001", "Bar (MV-RNM-001)", false));
+
+        assertEquals("ok", result.status());
+        assertEquals("/queue/Bar (MV-RNM-001)/video/MV-RNM-001.mp4",
+                videoRepo.findById(sVideo.getId()).orElseThrow().getPath().toString(),
+                "mounted-volume video must be rebased");
+        assertEquals("/queue/Foo (MV-RNM-001)/video/MV-RNM-001.mp4",
+                videoRepo.findById(rVideo.getId()).orElseThrow().getPath().toString(),
+                "other-volume video must NOT be touched");
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

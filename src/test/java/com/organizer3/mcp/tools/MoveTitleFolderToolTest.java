@@ -9,9 +9,11 @@ import com.organizer3.db.SchemaInitializer;
 import com.organizer3.filesystem.FileTimestamps;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Actress;
+import com.organizer3.model.Video;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
+import com.organizer3.repository.jdbi.JdbiVideoRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
 import org.jdbi.v3.core.Jdbi;
@@ -47,6 +49,7 @@ class MoveTitleFolderToolTest {
     private JdbiTitleRepository titleRepo;
     private JdbiTitleLocationRepository locationRepo;
     private JdbiActressRepository actressRepo;
+    private JdbiVideoRepository videoRepo;
     private SessionContext session;
     private FakeFs fs;
     private CurationLog curationLog;
@@ -67,6 +70,7 @@ class MoveTitleFolderToolTest {
         locationRepo = new JdbiTitleLocationRepository(jdbi);
         titleRepo    = new JdbiTitleRepository(jdbi, locationRepo);
         actressRepo  = new JdbiActressRepository(jdbi);
+        videoRepo    = new JdbiVideoRepository(jdbi);
 
         fs          = new FakeFs();
         curationLog = new CurationLog(logDir);
@@ -342,6 +346,101 @@ class MoveTitleFolderToolTest {
         var result = (MoveTitleFolderTool.Result) tool.call(a);
         assertEquals("failed", result.status());
         assertTrue(result.error().contains("fromPath"));
+    }
+
+    // ── videos-path rebase ────────────────────────────────────────────────────
+
+    @Test
+    void moveRebasesVideoPathsUnderMovedFolder() {
+        long titleId = jdbi.withHandle(h ->
+                h.createQuery("INSERT INTO titles (code) VALUES ('REBASE-001') RETURNING id")
+                        .mapTo(Long.class).one());
+        jdbi.useHandle(h ->
+                h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/Foo (REBASE-001)', '2024-01-01')", titleId));
+        Video v = videoRepo.save(Video.builder()
+                .titleId(titleId).volumeId("s")
+                .filename("REBASE-001.mp4")
+                .path(java.nio.file.Path.of("/queue/Foo (REBASE-001)/video/REBASE-001.mp4"))
+                .lastSeenAt(java.time.LocalDate.now()).build());
+
+        var result = (MoveTitleFolderTool.Result) tool.call(argsAbsPath("REBASE-001", "/attention/Review", false));
+
+        assertEquals("ok", result.status());
+        Video updated = videoRepo.findById(v.getId()).orElseThrow();
+        assertEquals("/attention/Review/Foo (REBASE-001)/video/REBASE-001.mp4",
+                updated.getPath().toString(),
+                "video path must be rebased to the new folder");
+    }
+
+    @Test
+    void moveKeepBothRegression_onlyRebasesVideoUnderMovedFolder() {
+        // Keep-both: one title, two folders on the same volume (e.g. Demosaiced + Bare copy).
+        // Moving ONE folder must rebase only that folder's video; the sibling is untouched.
+        long titleId = jdbi.withHandle(h ->
+                h.createQuery("INSERT INTO titles (code) VALUES ('KB-001') RETURNING id")
+                        .mapTo(Long.class).one());
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/Demosaiced (KB-001)', '2024-01-01')", titleId);
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/Bare (KB-001)', '2024-01-01')", titleId);
+        });
+        Video demsVideo = videoRepo.save(Video.builder()
+                .titleId(titleId).volumeId("s")
+                .filename("KB-001-dems.mp4")
+                .path(java.nio.file.Path.of("/queue/Demosaiced (KB-001)/video/KB-001-dems.mp4"))
+                .lastSeenAt(java.time.LocalDate.now()).build());
+        Video bareVideo = videoRepo.save(Video.builder()
+                .titleId(titleId).volumeId("s")
+                .filename("KB-001-bare.avi")
+                .path(java.nio.file.Path.of("/queue/Bare (KB-001)/video/KB-001-bare.avi"))
+                .lastSeenAt(java.time.LocalDate.now()).build());
+
+        // Move only the Demosaiced folder; disambiguate with fromPath
+        ObjectNode a = argsAbsPath("KB-001", "/attention/Review", false);
+        a.put("fromPath", "/queue/Demosaiced (KB-001)");
+        var result = (MoveTitleFolderTool.Result) tool.call(a);
+
+        assertEquals("ok", result.status());
+        assertEquals("/attention/Review/Demosaiced (KB-001)/video/KB-001-dems.mp4",
+                videoRepo.findById(demsVideo.getId()).orElseThrow().getPath().toString(),
+                "moved folder's video must be rebased");
+        assertEquals("/queue/Bare (KB-001)/video/KB-001-bare.avi",
+                videoRepo.findById(bareVideo.getId()).orElseThrow().getPath().toString(),
+                "sibling folder's video must NOT be touched");
+    }
+
+    @Test
+    void moveMultiVolumeTitle_onlyRebasesVideosOnMountedVolume() {
+        // Title on two volumes; moving on 's' must not touch 'r' videos.
+        long titleId = jdbi.withHandle(h ->
+                h.createQuery("INSERT INTO titles (code) VALUES ('MV-001') RETURNING id")
+                        .mapTo(Long.class).one());
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 's', 'queue', '/queue/Foo (MV-001)', '2024-01-01')", titleId);
+            h.execute("INSERT INTO title_locations (title_id, volume_id, partition_id, path, last_seen_at) VALUES (?, 'r', 'queue', '/queue/Foo (MV-001)', '2024-01-01')", titleId);
+        });
+        Video sVideo = videoRepo.save(Video.builder()
+                .titleId(titleId).volumeId("s")
+                .filename("MV-001.mp4")
+                .path(java.nio.file.Path.of("/queue/Foo (MV-001)/video/MV-001.mp4"))
+                .lastSeenAt(java.time.LocalDate.now()).build());
+        Video rVideo = videoRepo.save(Video.builder()
+                .titleId(titleId).volumeId("r")
+                .filename("MV-001.mp4")
+                .path(java.nio.file.Path.of("/queue/Foo (MV-001)/video/MV-001.mp4"))
+                .lastSeenAt(java.time.LocalDate.now()).build());
+
+        // Move on 's' (mounted); disambiguate with fromPath
+        ObjectNode a = argsAbsPath("MV-001", "/attention/Review", false);
+        a.put("fromPath", "/queue/Foo (MV-001)");
+        var result = (MoveTitleFolderTool.Result) tool.call(a);
+
+        assertEquals("ok", result.status());
+        assertEquals("/attention/Review/Foo (MV-001)/video/MV-001.mp4",
+                videoRepo.findById(sVideo.getId()).orElseThrow().getPath().toString(),
+                "mounted-volume video must be rebased");
+        assertEquals("/queue/Foo (MV-001)/video/MV-001.mp4",
+                videoRepo.findById(rVideo.getId()).orElseThrow().getPath().toString(),
+                "other-volume video must NOT be touched");
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────

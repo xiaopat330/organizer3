@@ -188,7 +188,9 @@ public class RenameTitleFolderTool implements Tool {
         // ── Execute ─────────────────────────────────────────────────────────
         try {
             fs.rename(currentPath, newFolderName);
-            locationRepo.updatePathAndPartition(location.getId(), newPath, location.getPartitionId());
+            locationRepo.updatePathPartitionAndVideos(
+                    location.getId(), title.getId(), mountedVolumeId,
+                    currentPath.toString(), newPath.toString(), location.getPartitionId());
 
             log.info("rename_title_folder volume={} from={} to={}", mountedVolumeId, currentPath, newPath);
             CurationLogRecord rec = new CurationLogRecord(
