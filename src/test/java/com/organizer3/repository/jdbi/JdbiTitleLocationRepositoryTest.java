@@ -3,6 +3,7 @@ package com.organizer3.repository.jdbi;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
+import com.organizer3.model.Video;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,13 +29,15 @@ import static org.junit.jupiter.api.Assertions.*;
 class JdbiTitleLocationRepositoryTest {
 
     private Connection connection;
+    private Jdbi jdbi;
     private JdbiTitleRepository titleRepo;
     private JdbiTitleLocationRepository locationRepo;
+    private JdbiVideoRepository videoRepo;
 
     @BeforeEach
     void setUp() throws Exception {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
-        Jdbi jdbi = Jdbi.create(connection);
+        jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
         jdbi.useHandle(h -> {
             h.execute("INSERT INTO volumes (id, structure_type) VALUES ('vol-a', 'conventional')");
@@ -42,6 +45,7 @@ class JdbiTitleLocationRepositoryTest {
         });
         locationRepo = new JdbiTitleLocationRepository(jdbi);
         titleRepo = new JdbiTitleRepository(jdbi, locationRepo);
+        videoRepo = new JdbiVideoRepository(jdbi);
     }
 
     @AfterEach
@@ -215,6 +219,87 @@ class JdbiTitleLocationRepositoryTest {
 
         assertEquals(1, stale.size(), "Row past grace must appear in findStaleOlderThan");
         assertEquals(saved.getId(), stale.get(0).getId());
+    }
+
+    // --- updatePathPartitionAndVideos ---
+
+    @Test
+    void updatePathPartitionAndVideos_updatesLocationPathAndPartition() {
+        long tid = titleRepo.save(title("A-001")).getId();
+        TitleLocation loc = locationRepo.save(TitleLocation.builder()
+                .titleId(tid).volumeId("vol-a").partitionId("queue")
+                .path(Path.of("/queue/Foo (A-001)"))
+                .lastSeenAt(LocalDate.now()).build());
+
+        locationRepo.updatePathPartitionAndVideos(
+                loc.getId(), tid, "vol-a",
+                "/queue/Foo (A-001)", "/stars/minor/Foo/Foo (A-001)", "minor");
+
+        TitleLocation updated = locationRepo.findById(loc.getId()).orElseThrow();
+        assertEquals("/stars/minor/Foo/Foo (A-001)", updated.getPath().toString());
+        assertEquals("minor", updated.getPartitionId());
+    }
+
+    @Test
+    void updatePathPartitionAndVideos_rewritesVideoPathsUnderOldFolder() {
+        long tid = titleRepo.save(title("A-001")).getId();
+        TitleLocation loc = locationRepo.save(TitleLocation.builder()
+                .titleId(tid).volumeId("vol-a").partitionId("queue")
+                .path(Path.of("/queue/Foo (A-001)"))
+                .lastSeenAt(LocalDate.now()).build());
+
+        Video v = videoRepo.save(Video.builder()
+                .titleId(tid).volumeId("vol-a")
+                .filename("A-001.mp4")
+                .path(Path.of("/queue/Foo (A-001)/video/A-001.mp4"))
+                .lastSeenAt(LocalDate.now()).build());
+
+        locationRepo.updatePathPartitionAndVideos(
+                loc.getId(), tid, "vol-a",
+                "/queue/Foo (A-001)", "/stars/minor/Foo/Foo (A-001)", "minor");
+
+        Video updated = videoRepo.findById(v.getId()).orElseThrow();
+        assertEquals("/stars/minor/Foo/Foo (A-001)/video/A-001.mp4",
+                updated.getPath().toString());
+    }
+
+    @Test
+    void updatePathPartitionAndVideos_doesNotTouchVideoUnderDifferentFolder() {
+        long tid = titleRepo.save(title("A-001")).getId();
+        // Two location rows: queue (being moved) and archive (must not be touched)
+        TitleLocation queueLoc = locationRepo.save(TitleLocation.builder()
+                .titleId(tid).volumeId("vol-a").partitionId("queue")
+                .path(Path.of("/queue/Foo (A-001)"))
+                .lastSeenAt(LocalDate.now()).build());
+        locationRepo.save(TitleLocation.builder()
+                .titleId(tid).volumeId("vol-a").partitionId("archive")
+                .path(Path.of("/archive/Foo (A-001)"))
+                .lastSeenAt(LocalDate.now()).build());
+
+        // Video under the queue folder (will be rewritten)
+        Video queueVideo = videoRepo.save(Video.builder()
+                .titleId(tid).volumeId("vol-a")
+                .filename("A-001.mp4")
+                .path(Path.of("/queue/Foo (A-001)/video/A-001.mp4"))
+                .lastSeenAt(LocalDate.now()).build());
+
+        // Video under the archive folder (must NOT be rewritten)
+        Video archiveVideo = videoRepo.save(Video.builder()
+                .titleId(tid).volumeId("vol-a")
+                .filename("A-001.mp4")
+                .path(Path.of("/archive/Foo (A-001)/video/A-001.mp4"))
+                .lastSeenAt(LocalDate.now()).build());
+
+        locationRepo.updatePathPartitionAndVideos(
+                queueLoc.getId(), tid, "vol-a",
+                "/queue/Foo (A-001)", "/stars/minor/Foo/Foo (A-001)", "minor");
+
+        assertEquals("/stars/minor/Foo/Foo (A-001)/video/A-001.mp4",
+                videoRepo.findById(queueVideo.getId()).orElseThrow().getPath().toString(),
+                "queue video must be rewritten");
+        assertEquals("/archive/Foo (A-001)/video/A-001.mp4",
+                videoRepo.findById(archiveVideo.getId()).orElseThrow().getPath().toString(),
+                "archive video must NOT be touched");
     }
 
     // --- helpers ---
