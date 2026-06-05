@@ -651,6 +651,12 @@ public class Application {
                 new com.organizer3.sync.SyncIdentityMatcher(jdbi, enrichmentReviewQueueRepo,
                         titlePathHistoryRepo);
 
+        com.organizer3.sync.FolderRegistrar folderRegistrar =
+                new com.organizer3.sync.FolderRegistrar(titleRepo, videoRepo, actressRepo,
+                        volumeRepo, titleLocationRepo, titleActressRepo, indexLoader,
+                        titleEffectiveTagsService, actressCompaniesService, coverPath,
+                        revalidationPendingRepo, syncIdentityMatcher, titlePathHistoryRepo);
+
         Command syncAllCommand = null;
         for (Map.Entry<String, SyncCommandDef> entry : defByTerm.entrySet()) {
             String term = entry.getKey();
@@ -1333,6 +1339,7 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.RenameFolderSubstringTool(session, titleLocationRepo, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.RenameActressFolderTool(session, actressRepo, jdbi, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.MoveTitleFolderTool(session, titleRepo, titleLocationRepo, actressRepo, config.libraryOrDefaults(), curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.RegisterFolderTool(session, folderRegistrar));
                 mcpTools.register(new com.organizer3.mcp.tools.MoveVideoFileTool(session, titleRepo, titleLocationRepo, jdbi, curationLog));
                 log.info("MCP file-op tools enabled");
             }

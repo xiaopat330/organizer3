@@ -66,6 +66,13 @@ public interface VideoRepository {
     void deleteByVolume(String volumeId);
 
     /**
+     * Remove all video records for a specific title on a specific volume whose path
+     * starts with {@code folderPath} (i.e., videos within one title folder).
+     * Used by {@code register_folder} for idempotent re-registration of a single folder.
+     */
+    void deleteByTitleVolumeAndPathPrefix(long titleId, String volumeId, String folderPath);
+
+    /**
      * Remove all video records whose titles belong to the given volume and partition
      * (used before a partition-scoped re-sync).
      */
