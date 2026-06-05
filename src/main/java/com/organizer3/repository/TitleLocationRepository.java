@@ -150,6 +150,28 @@ public interface TitleLocationRepository {
      */
     void updatePathAndPartition(long locationId, java.nio.file.Path newPath, String newPartitionId);
 
+    /**
+     * Atomically update a {@code title_locations} row's {@code path} and {@code partition_id}
+     * AND rewrite every {@code videos} row whose path is prefixed by {@code oldFolderPath},
+     * replacing that prefix with {@code newFolderPath}. The prefix-scoped rewrite ensures only
+     * videos under the folder being moved are touched — a second physical copy of the same title
+     * on a different path on the same volume is left untouched.
+     *
+     * <p>Both updates run inside a single SQLite transaction. Call this instead of
+     * {@link #updatePathAndPartition} whenever a title folder is physically moved (e.g.
+     * sort-phase moves from {@code /queue} to {@code /stars/{tier}/{actress}}).
+     *
+     * @param locationId    the {@code title_locations} primary key to update
+     * @param titleId       the title's database id (used to scope the videos rewrite)
+     * @param volumeId      the volume id (used to scope the videos rewrite)
+     * @param oldFolderPath the current folder path string (e.g. {@code /queue/Foo (ABC-123)})
+     * @param newFolderPath the new folder path string (e.g. {@code /stars/minor/Foo/Foo (ABC-123)})
+     * @param newPartitionId the new partition id to set on the location row (e.g. {@code minor})
+     */
+    void updatePathPartitionAndVideos(long locationId, long titleId, String volumeId,
+                                      String oldFolderPath, String newFolderPath,
+                                      String newPartitionId);
+
     /** Update path only within an existing handle/transaction (for use inside recode transactions). */
     void updatePath(long locationId, Path newPath, Handle h);
 

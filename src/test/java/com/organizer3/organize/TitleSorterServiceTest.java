@@ -9,10 +9,12 @@ import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.model.TitleLocation;
+import com.organizer3.model.Video;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
+import com.organizer3.repository.jdbi.JdbiVideoRepository;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -47,6 +49,7 @@ class TitleSorterServiceTest {
     private JdbiTitleRepository titleRepo;
     private JdbiTitleActressRepository titleActressRepo;
     private JdbiTitleLocationRepository locationRepo;
+    private JdbiVideoRepository videoRepo;
     private TitleSorterService svc;
     private RebasingFS fs;
     private AttentionRouter attentionRouter;
@@ -61,6 +64,7 @@ class TitleSorterServiceTest {
         locationRepo = new JdbiTitleLocationRepository(jdbi);
         titleRepo = new JdbiTitleRepository(jdbi, locationRepo);
         titleActressRepo = new JdbiTitleActressRepository(jdbi);
+        videoRepo = new JdbiVideoRepository(jdbi);
 
         fs = new RebasingFS(tempDir);
         Clock fixed = Clock.fixed(Instant.parse("2026-04-17T00:00:00Z"), ZoneOffset.UTC);
@@ -145,6 +149,38 @@ class TitleSorterServiceTest {
     }
 
     @Test
+    void attentionRoute_rewritesVideoPathsUnderMovedFolder() throws Exception {
+        // Letter-mismatch: actress starts with N, volume A only covers A
+        long aid = actressRepo.save(mkActress("Nami Aino")).getId();
+        Title t = titleRepo.save(mkTitle("SDNM-176", aid));
+        for (int i = 2; i <= 5; i++) titleRepo.save(mkTitle("SDNM-17" + i, aid));
+
+        String oldFolder = "/queue/Nami Aino (SDNM-176)";
+        createTitleFolder(oldFolder);
+        saveLocation(t.getId(), oldFolder, "queue");
+
+        // Seed a video row under the queue folder
+        Video v = videoRepo.save(Video.builder()
+                .titleId(t.getId()).volumeId("a")
+                .filename("SDNM-176.mp4")
+                .path(Path.of(oldFolder + "/video/SDNM-176.mp4"))
+                .lastSeenAt(LocalDate.of(2024, 1, 2))
+                .build());
+
+        var r = svc.sort(fs, volumeA(), attentionRouter, jdbi, "SDNM-176", false);
+
+        assertEquals(TitleSorterService.Outcome.ROUTED_TO_ATTENTION, r.outcome());
+        assertEquals("actress-letter-mismatch", r.reason());
+
+        // Video path must be rewritten from /queue/... to /attention/...
+        Video updated = videoRepo.findById(v.getId()).orElseThrow();
+        assertTrue(updated.getPath().toString().startsWith("/attention/"),
+                "video path must be rewritten to attention folder, was: " + updated.getPath());
+        assertTrue(updated.getPath().toString().endsWith("/video/SDNM-176.mp4"),
+                "video filename suffix must be preserved, was: " + updated.getPath());
+    }
+
+    @Test
     void collisionAtTarget_routesToAttention() throws Exception {
         long aid = actressRepo.save(mkActress("Ai Haneda")).getId();
         Title t = titleRepo.save(mkTitle("ABP-001", aid));
@@ -220,6 +256,68 @@ class TitleSorterServiceTest {
 
         assertThrows(IllegalArgumentException.class,
                 () -> svc.sort(fs, volumeA(), attentionRouter, jdbi, "ABP-001", true));
+    }
+
+    // ── video path rewrite ──────────────────────────────────────────────────
+
+    @Test
+    void sort_rewritesVideoPathsUnderMovedFolder() throws Exception {
+        long aid = actressRepo.save(mkActress("Ai Haneda")).getId();
+        Title t = titleRepo.save(mkTitle("ABP-001", aid));
+        for (int i = 2; i <= 5; i++) titleRepo.save(mkTitle("ABP-00" + i, aid));
+
+        String oldFolder = "/queue/Ai Haneda (ABP-001)";
+        String newFolder = "/stars/minor/Ai Haneda/Ai Haneda (ABP-001)";
+
+        createTitleFolder(oldFolder);
+        saveLocation(t.getId(), oldFolder, "queue");
+
+        // Seed a video row under the queue folder
+        Video v = videoRepo.save(Video.builder()
+                .titleId(t.getId()).volumeId("a")
+                .filename("ABP-001.mp4")
+                .path(Path.of(oldFolder + "/video/ABP-001.mp4"))
+                .lastSeenAt(LocalDate.of(2024, 1, 2))
+                .build());
+
+        svc.sort(fs, volumeA(), attentionRouter, jdbi, "ABP-001", false);
+
+        Video updated = videoRepo.findById(v.getId()).orElseThrow();
+        assertEquals(newFolder + "/video/ABP-001.mp4", updated.getPath().toString(),
+                "video path must be rewritten to new folder");
+    }
+
+    @Test
+    void sort_rewritesMultiPartVideoPaths() throws Exception {
+        long aid = actressRepo.save(mkActress("Ai Haneda")).getId();
+        Title t = titleRepo.save(mkTitle("ABP-002", aid));
+        for (int i = 3; i <= 6; i++) titleRepo.save(mkTitle("ABP-00" + i, aid));
+
+        String oldFolder = "/queue/Ai Haneda (ABP-002)";
+        String newFolder = "/stars/minor/Ai Haneda/Ai Haneda (ABP-002)";
+
+        createTitleFolder(oldFolder);
+        saveLocation(t.getId(), oldFolder, "queue");
+
+        Video v1 = videoRepo.save(Video.builder()
+                .titleId(t.getId()).volumeId("a")
+                .filename("ABP-002-1.mp4")
+                .path(Path.of(oldFolder + "/video/ABP-002-1.mp4"))
+                .lastSeenAt(LocalDate.of(2024, 1, 2))
+                .build());
+        Video v2 = videoRepo.save(Video.builder()
+                .titleId(t.getId()).volumeId("a")
+                .filename("ABP-002-2.mp4")
+                .path(Path.of(oldFolder + "/video/ABP-002-2.mp4"))
+                .lastSeenAt(LocalDate.of(2024, 1, 2))
+                .build());
+
+        svc.sort(fs, volumeA(), attentionRouter, jdbi, "ABP-002", false);
+
+        assertEquals(newFolder + "/video/ABP-002-1.mp4",
+                videoRepo.findById(v1.getId()).orElseThrow().getPath().toString());
+        assertEquals(newFolder + "/video/ABP-002-2.mp4",
+                videoRepo.findById(v2.getId()).orElseThrow().getPath().toString());
     }
 
     // ── fixtures ────────────────────────────────────────────────────────────

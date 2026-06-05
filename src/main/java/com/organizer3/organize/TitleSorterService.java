@@ -100,7 +100,7 @@ public class TitleSorterService {
                     Map.of("title-code", titleCode),
                     "Title has no filing actress in the DB (titles.actress_id is null). "
                             + "Attribute it manually via attribute_title, then re-run sort.",
-                    title, current, dryRun);
+                    title, current, volumeId, dryRun);
         }
 
         // 2. Multi-actress
@@ -120,7 +120,7 @@ public class TitleSorterService {
                     "Title's filing actress '" + name + "' does not match the letter prefixes "
                             + "[" + expected + "] covered by volume '" + volumeId + "'. "
                             + "Move this title folder manually to the correct volume.",
-                    title, current, dryRun);
+                    title, current, volumeId, dryRun);
         }
 
         // 4. Below threshold
@@ -145,7 +145,7 @@ public class TitleSorterService {
                     Map.of("target", target.toString(), "actress", name, "tier", tier),
                     "Sort target already exists on disk. Manual review needed — could be a "
                             + "legitimate duplicate (merge?) or a same-name conflict.",
-                    title, current, dryRun);
+                    title, current, volumeId, dryRun);
         }
 
         if (dryRun) {
@@ -158,7 +158,9 @@ public class TitleSorterService {
             jdbi.useTransaction(h -> {
                 fs.createDirectories(targetParent);
                 fs.move(currentFolder, target);
-                titleLocationRepo.updatePathAndPartition(current.getId(), target, tier);
+                titleLocationRepo.updatePathPartitionAndVideos(
+                        current.getId(), title.getId(), volumeId,
+                        currentFolder.toString(), target.toString(), tier);
             });
             log.info("FS mutation [TitleSorter.sort]: moved title folder — volume={} code={} actress=\"{}\" tier={} from={} to={}",
                     volumeId, titleCode, name, tier, currentFolder, target);
@@ -193,6 +195,7 @@ public class TitleSorterService {
                                    String body,
                                    Title title,
                                    TitleLocation current,
+                                   String volumeId,
                                    boolean dryRun) {
         Path attentionTarget = Path.of("/", "attention").resolve(currentFolder.getFileName().toString());
         if (dryRun) {
@@ -202,7 +205,9 @@ public class TitleSorterService {
         }
         try {
             AttentionRouter.Result r = router.route(currentFolder, reasonCode, headers, body);
-            titleLocationRepo.updatePathAndPartition(current.getId(), Path.of(r.attentionPath()), "attention");
+            titleLocationRepo.updatePathPartitionAndVideos(
+                    current.getId(), title.getId(), volumeId,
+                    currentFolder.toString(), r.attentionPath(), "attention");
             return new Result(false, Outcome.ROUTED_TO_ATTENTION,
                     currentFolder.toString(), r.attentionPath(),
                     reasonCode, r.sidecarPath(), null);
