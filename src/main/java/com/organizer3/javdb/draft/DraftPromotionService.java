@@ -13,6 +13,7 @@ import com.organizer3.repository.TitleRepository;
 import com.organizer3.translation.NameComposer;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.web.CoverWriteService;
+import com.organizer3.web.StagingCastHelper;
 import com.organizer3.web.TitleFolderRenamer;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Handle;
@@ -359,19 +360,20 @@ public class DraftPromotionService {
         }
 
         // Post-commit Step 10: best-effort folder rename (Phase 2).
+        // Build the ordered multi-name list from canonical DB state (post-commit) so the
+        // folder name includes ALL credited cast, with the filing actress first.
         boolean folderRenamed = false;
         if (primaryHolder[0] != null && renamer != null) {
             try {
-                String primaryName = actressRepo.findById(primaryHolder[0])
-                        .map(a -> a.getCanonicalName())
-                        .orElse(null);
-                if (primaryName != null) {
+                java.util.List<String> castNames =
+                        StagingCastHelper.orderedNamesForTitle(jdbi, titleId);
+                if (!castNames.isEmpty()) {
                     TitleFolderRenamer.RenameOutcome outcome =
-                            renamer.renamePreservingDescriptor(titleId, primaryName, draftCheck.getCode());
+                            renamer.renamePreservingDescriptor(titleId, castNames, draftCheck.getCode());
                     folderRenamed = outcome.renamed();
                 } else {
-                    log.warn("promote: actress id={} not found for rename (titleId={}, code={}); skipping rename",
-                            primaryHolder[0], titleId, draftCheck.getCode());
+                    log.warn("promote: no cast names found for rename (titleId={}, code={}); skipping rename",
+                            titleId, draftCheck.getCode());
                 }
             } catch (IllegalStateException e) {
                 log.warn("promote: folder rename skipped — collision (titleId={}, code={}): {}",

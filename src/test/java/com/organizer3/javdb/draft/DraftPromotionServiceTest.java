@@ -115,7 +115,7 @@ class DraftPromotionServiceTest {
         // Phase 2: mock renamer — default to no-op (renamed=false) so all existing tests
         // that promote a resolvable actress don't NPE on the outcome.
         renamer = Mockito.mock(TitleFolderRenamer.class);
-        when(renamer.renamePreservingDescriptor(anyLong(), any(), any()))
+        when(renamer.renamePreservingDescriptor(anyLong(), anyList(), any()))
                 .thenReturn(new TitleFolderRenamer.RenameOutcome(null, false));
 
         // Mock NAS cover writer — verified in the NAS-write tests; no-op elsewhere.
@@ -1286,8 +1286,8 @@ class DraftPromotionServiceTest {
         long draftId = seedDraftFull(1L, "[]", "sentinel:99", "sentinel-slug",
                 null, null, null, "[]", "2024-06-01T00:00:00Z");
 
-        // Stub renamer to return renamed=true when called
-        when(renamer.renamePreservingDescriptor(eq(1L), eq("Amateur"), eq("TST-1")))
+        // Stub renamer to return renamed=true when called (List-based overload)
+        when(renamer.renamePreservingDescriptor(eq(1L), eq(java.util.List.of("Amateur")), eq("TST-1")))
                 .thenReturn(new TitleFolderRenamer.RenameOutcome("/path/Amateur (TST-1)", true));
 
         var result = service.promote(draftId, "2024-06-01T00:00:00Z");
@@ -1298,8 +1298,8 @@ class DraftPromotionServiceTest {
                         .mapTo(Long.class).one());
         assertEquals(99L, actressId, "sentinel-only: actress_id should be the sentinel actress id");
 
-        // renamer called with sentinel canonical name
-        verify(renamer).renamePreservingDescriptor(1L, "Amateur", "TST-1");
+        // renamer called with ordered cast list (List-based overload)
+        verify(renamer).renamePreservingDescriptor(1L, java.util.List.of("Amateur"), "TST-1");
         assertTrue(result.folderRenamed(), "folderRenamed should be true when renamer returns renamed=true");
     }
 
@@ -1339,18 +1339,18 @@ class DraftPromotionServiceTest {
     }
 
     /**
-     * Promote calls renamer.renamePreservingDescriptor with correct args (titleId, canonical name, code).
+     * Promote calls renamer.renamePreservingDescriptor with the ordered cast list (List-based overload).
      */
     @Test
     void phase2_promoteCallsRenamerWithCorrectArgs() throws Exception {
         long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
 
-        when(renamer.renamePreservingDescriptor(eq(1L), eq("Mana Sakura"), eq("TST-1")))
+        when(renamer.renamePreservingDescriptor(eq(1L), eq(java.util.List.of("Mana Sakura")), eq("TST-1")))
                 .thenReturn(new TitleFolderRenamer.RenameOutcome("/new/Mana Sakura (TST-1)", true));
 
         var result = service.promote(draftId, "2024-06-01T00:00:00Z");
 
-        verify(renamer).renamePreservingDescriptor(1L, "Mana Sakura", "TST-1");
+        verify(renamer).renamePreservingDescriptor(1L, java.util.List.of("Mana Sakura"), "TST-1");
         assertTrue(result.folderRenamed());
     }
 
@@ -1362,7 +1362,7 @@ class DraftPromotionServiceTest {
     void phase2_renameCollision_promotionSucceedsWithFolderRenamedFalse() throws Exception {
         long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
 
-        when(renamer.renamePreservingDescriptor(anyLong(), any(), any()))
+        when(renamer.renamePreservingDescriptor(anyLong(), anyList(), any()))
                 .thenThrow(new IllegalStateException("Target folder already exists: /some/path"));
 
         var result = service.promote(draftId, "2024-06-01T00:00:00Z");
@@ -1391,7 +1391,7 @@ class DraftPromotionServiceTest {
     void phase2_renameRuntimeException_promotionSucceedsWithFolderRenamedFalse() throws Exception {
         long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
 
-        when(renamer.renamePreservingDescriptor(anyLong(), any(), any()))
+        when(renamer.renamePreservingDescriptor(anyLong(), anyList(), any()))
                 .thenThrow(new RuntimeException("SMB connection lost"));
 
         var result = service.promote(draftId, "2024-06-01T00:00:00Z");
@@ -1413,12 +1413,64 @@ class DraftPromotionServiceTest {
     void phase2_folderRenamedTrueWhenRenamerReturnsTrue() throws Exception {
         long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
 
-        when(renamer.renamePreservingDescriptor(anyLong(), any(), any()))
+        when(renamer.renamePreservingDescriptor(anyLong(), anyList(), any()))
                 .thenReturn(new TitleFolderRenamer.RenameOutcome("/path/Mana Sakura (TST-1)", true));
 
         var result = service.promote(draftId, "2024-06-01T00:00:00Z");
 
         assertTrue(result.folderRenamed(), "folderRenamed must be true when renamer returns renamed=true");
+    }
+
+    /**
+     * 2-cast draft: renamer called with ordered list [filing, co-credit] via the List-based overload.
+     * Mirrors DAZD-287 where the filing actress is NOT the lowest rowid in title_actresses.
+     */
+    @Test
+    void phase2_twoCastDraft_renamerCalledWithMultiNameList() throws Exception {
+        // Actress 11 = Miyu Aizawa (co-credit, exists in DB already)
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO actresses(id, canonical_name, tier, first_seen_at) "
+                + "VALUES (11,'Miyu Aizawa','LIBRARY','2024-01-01')"));
+
+        // Draft title 1: two pick slots — Miyu Aizawa (slug-miyu→id=11) and Mana Sakura (slug-mana→id=10).
+        DraftTitle dt = DraftTitle.builder()
+                .titleId(1L).code("TST-1")
+                .titleOriginal("Two Cast Test").titleEnglish("Two Cast Test")
+                .releaseDate("2024-06-01").grade("A").gradeSource("enrichment")
+                .upstreamChanged(false)
+                .createdAt("2024-06-01T00:00:00Z").updatedAt("2024-06-01T00:00:00Z")
+                .build();
+        long draftId = draftTitleRepo.insert(dt);
+        draftEnrichRepo.upsert(draftId, DraftEnrichment.builder()
+                .draftTitleId(draftId).javdbSlug("slug-1")
+                .castJson("[]").tagsJson("[]").resolverSource("auto_enriched")
+                .updatedAt("2024-06-01T00:00:00Z").build());
+
+        // Create draft_actress rows for both
+        draftActressRepo.upsertBySlug(DraftActress.builder()
+                .javdbSlug("slug-mana").stageName("真名").linkToExistingId(10L)
+                .createdAt("2024-06-01T00:00:00Z").updatedAt("2024-06-01T00:00:00Z").build());
+        draftActressRepo.upsertBySlug(DraftActress.builder()
+                .javdbSlug("slug-miyu").stageName("みゆ").linkToExistingId(11L)
+                .createdAt("2024-06-01T00:00:00Z").updatedAt("2024-06-01T00:00:00Z").build());
+
+        // Mana Sakura first slot (pick, rowid 1) → becomes filing actress
+        // Miyu Aizawa second slot (pick, rowid 2) → co-credit
+        draftCastRepo.replaceForDraft(draftId, List.of(
+                new DraftTitleActress(draftId, "slug-mana", "pick"),
+                new DraftTitleActress(draftId, "slug-miyu", "pick")));
+
+        // Stub renamer to return renamed=true for the expected 2-name list
+        when(renamer.renamePreservingDescriptor(
+                eq(1L), eq(java.util.List.of("Mana Sakura", "Miyu Aizawa")), eq("TST-1")))
+                .thenReturn(new TitleFolderRenamer.RenameOutcome("/q/Mana Sakura, Miyu Aizawa (TST-1)", true));
+
+        var result = service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        assertTrue(result.folderRenamed());
+        // Verify the renamer was called with the full ordered list (List-based overload, not String).
+        verify(renamer).renamePreservingDescriptor(
+                1L, java.util.List.of("Mana Sakura", "Miyu Aizawa"), "TST-1");
     }
 
     // ── Manual slug / sentinel guard (Phase 1 new rules) ─────────────────────

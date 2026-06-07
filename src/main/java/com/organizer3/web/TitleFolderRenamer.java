@@ -8,6 +8,7 @@ import org.jdbi.v3.core.Jdbi;
 
 import java.io.IOException;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -74,6 +75,25 @@ public class TitleFolderRenamer {
     }
 
     /**
+     * Multi-name overload of {@link #renameIfNeeded}: renames the staging folder using ALL
+     * supplied ordered actress names. An empty list is a no-op.
+     *
+     * @param titleId    the title to rename.
+     * @param names      ordered actress names (filing actress first); empty → no-op.
+     * @param descriptor optional middle segment; null/blank → omitted.
+     * @param code       the title code.
+     * @return the outcome, including the effective path and whether an actual rename occurred.
+     */
+    public RenameOutcome renameIfNeeded(long titleId, List<String> names,
+                                        String descriptor, String code) {
+        Optional<String> currentPathOpt = repo.findStagingPath(titleId, volumeId);
+        if (currentPathOpt.isEmpty()) {
+            return new RenameOutcome(null, false);
+        }
+        return renameWithKnownPath(titleId, names, descriptor, code, currentPathOpt.get());
+    }
+
+    /**
      * Renames the title's staging folder while preserving whatever descriptor is already
      * embedded in the current folder name (e.g. "Demosaiced").
      *
@@ -93,6 +113,24 @@ public class TitleFolderRenamer {
      */
     public RenameOutcome renamePreservingDescriptor(long titleId, String primaryActressName,
                                                     String code) {
+        List<String> names = (primaryActressName == null || primaryActressName.isBlank())
+                ? List.of() : List.of(primaryActressName);
+        return renamePreservingDescriptor(titleId, names, code);
+    }
+
+    /**
+     * Multi-name overload of {@link #renamePreservingDescriptor}: renames the staging folder
+     * using ALL supplied ordered actress names (joined by ", ") while preserving any descriptor
+     * already embedded in the current folder name.
+     *
+     * <p>An empty list is a no-op ({@code renamed=false, newPath=currentPath}).
+     *
+     * @param titleId the title to rename.
+     * @param names   ordered actress names (filing actress first); must be non-empty to rename.
+     * @param code    the title code (e.g. "ADN-778").
+     * @return the outcome, including the effective path and whether an actual rename occurred.
+     */
+    public RenameOutcome renamePreservingDescriptor(long titleId, List<String> names, String code) {
         // Resolve the live staging path.
         Optional<String> currentPathOpt = repo.findStagingPath(titleId, volumeId);
         if (currentPathOpt.isEmpty()) {
@@ -105,8 +143,7 @@ public class TitleFolderRenamer {
 
         // Delegate to the core rename logic (path already resolved — avoid a second DB call
         // by inlining the logic so we can reuse the currentPath we already have).
-        return renameWithKnownPath(titleId, primaryActressName, descriptor, code,
-                currentPath);
+        return renameWithKnownPath(titleId, names, descriptor, code, currentPath);
     }
 
     /**
@@ -116,13 +153,26 @@ public class TitleFolderRenamer {
     private RenameOutcome renameWithKnownPath(long titleId, String primaryActressName,
                                               String descriptor, String code,
                                               String currentPath) {
-        // Require a primary name.
-        if (primaryActressName == null || primaryActressName.isBlank()) {
+        List<String> names = (primaryActressName == null || primaryActressName.isBlank())
+                ? List.of() : List.of(primaryActressName);
+        return renameWithKnownPath(titleId, names, descriptor, code, currentPath);
+    }
+
+    /**
+     * Core rename logic (list-based) that accepts an already-resolved {@code currentPath}.
+     * Called by callers that supply the full ordered cast list (for multi-name staging folders).
+     * An empty list is a no-op ({@code renamed=false, newPath=currentPath}).
+     */
+    private RenameOutcome renameWithKnownPath(long titleId, List<String> names,
+                                              String descriptor, String code,
+                                              String currentPath) {
+        // Require at least one name.
+        if (names == null || names.isEmpty()) {
             return new RenameOutcome(currentPath, false);
         }
 
         // Build target name (shared construction — see targetFolderName).
-        String targetName = targetFolderName(primaryActressName, descriptor, code);
+        String targetName = targetFolderName(names, descriptor, code);
 
         // No-op if already correct.
         String currentName = basename(currentPath);
@@ -188,24 +238,59 @@ public class TitleFolderRenamer {
         return prefix.substring(sep + 3).trim();
     }
 
+    /** Maximum basename length before the {@code Various (CODE)} overflow form is used. */
+    public static final int MAX_FOLDER_NAME_LEN = 200;
+
+    public static String targetFolderName(String primaryActressName, String descriptor, String code) {
+        return targetFolderName(List.of(primaryActressName), descriptor, code);
+    }
+
     /**
-     * Builds the canonical target folder basename for a title, applying {@link #sanitizeFolderName}.
-     * This is the single source of truth for target-name construction — both
-     * {@link #renameWithKnownPath} (the live rename) and the promotion reconciler
-     * ({@code PromotionFolderRenameReconciler}) use it so their no-op / needs-rename
-     * detection agrees byte-for-byte with what the rename would actually produce.
+     * Builds the canonical target folder basename from an ordered list of actress names,
+     * applying {@link #sanitizeFolderName}.
      *
-     * @param primaryActressName canonical name of the primary actress (must be non-blank).
-     * @param descriptor         optional middle segment (e.g. "Demosaiced"); null/blank → omitted.
-     * @param code               the title code (e.g. "ABP-527").
+     * <p>Names are joined with {@code ", "}. If the assembled basename (pre-sanitize) would exceed
+     * {@link #MAX_FOLDER_NAME_LEN} characters, the overflow form {@code "Various (CODE)"} (or
+     * {@code "Various - Desc (CODE)"} when descriptor is non-blank) is used instead.
+     *
+     * <p>Single-name input produces output byte-identical to
+     * {@link #targetFolderName(String, String, String)}.
+     *
+     * @param names      ordered actress names; must be non-empty (caller guards this).
+     * @param descriptor optional middle segment (e.g. "Demosaiced"); null/blank → omitted.
+     * @param code       the title code (e.g. "ADN-778").
      * @return the sanitized target basename.
      */
-    public static String targetFolderName(String primaryActressName, String descriptor, String code) {
+    public static String targetFolderName(List<String> names, String descriptor, String code) {
         String desc = descriptor == null ? "" : descriptor.trim();
+        String joined = String.join(", ", names);
         String base = desc.isEmpty()
-                ? primaryActressName + " (" + code + ")"
-                : primaryActressName + " - " + desc + " (" + code + ")";
+                ? joined + " (" + code + ")"
+                : joined + " - " + desc + " (" + code + ")";
+        if (base.length() > MAX_FOLDER_NAME_LEN) {
+            // Overflow: use "Various (CODE)" or "Various - Desc (CODE)"
+            String overflow = desc.isEmpty()
+                    ? "Various (" + code + ")"
+                    : "Various - " + desc + " (" + code + ")";
+            return sanitizeFolderName(overflow);
+        }
         return sanitizeFolderName(base);
+    }
+
+    /**
+     * Returns {@code true} when the given volume structure type uses multi-name staging folders
+     * (i.e. all credited cast appear in the folder name). Currently only {@code "queue"} (the
+     * staging/unsorted volume) uses multi-name naming; all other structure types use single-name.
+     *
+     * <p>Callers consult this predicate to decide whether to pass a multi-name list or a
+     * single-name list to {@link #targetFolderName(List, String, String)}.
+     *
+     * @param structureType the {@code volumes.structure_type} value (e.g. {@code "queue"},
+     *                      {@code "conventional"}, {@code "collections"}).
+     * @return {@code true} for {@code "queue"} structure types; {@code false} for all others.
+     */
+    public static boolean usesMultiNameFolders(String structureType) {
+        return "queue".equals(structureType);
     }
 
     // ── Static helpers (single source of truth; UnsortedEditorService delegates to these) ──

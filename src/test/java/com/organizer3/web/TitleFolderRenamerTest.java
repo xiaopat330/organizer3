@@ -19,6 +19,7 @@ import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -143,7 +144,7 @@ class TitleFolderRenamerTest {
         long titleId = seedTitle("TST-005", folder, folder + "/video/a.mp4");
 
         TitleFolderRenamer.RenameOutcome outcome =
-                renamer.renameIfNeeded(titleId, null, null, "TST-005");
+                renamer.renameIfNeeded(titleId, (String) null, null, "TST-005");
         assertFalse(outcome.renamed());
         assertEquals(folder, outcome.newPath());
         verifyNoInteractions(smbFactory);
@@ -335,6 +336,96 @@ class TitleFolderRenamerTest {
         assertEquals("A B (X-1)",      TitleFolderRenamer.sanitizeFolderName("A/B (X-1)"));
         assertEquals("Foo Bar (Y-2)",  TitleFolderRenamer.sanitizeFolderName("Foo:Bar (Y-2)"));
         assertEquals("Who (Z-3)",      TitleFolderRenamer.sanitizeFolderName("Who?  (Z-3)"));
+    }
+
+    // ── targetFolderName(List) ────────────────────────────────────────
+
+    @Test
+    void targetFolderName_list_single_byteIdenticalToStringOverload() {
+        // Single-name list must produce the same output as the legacy String overload.
+        String viaString = TitleFolderRenamer.targetFolderName("Mana Sakura", null, "ABP-527");
+        String viaList   = TitleFolderRenamer.targetFolderName(List.of("Mana Sakura"), null, "ABP-527");
+        assertEquals(viaString, viaList, "single-name list must be byte-identical to string overload");
+    }
+
+    @Test
+    void targetFolderName_list_twoNames_joinsWithComma() {
+        String result = TitleFolderRenamer.targetFolderName(
+                List.of("Waka Misono", "Miyu Aizawa"), null, "ADN-778");
+        assertEquals("Waka Misono, Miyu Aizawa (ADN-778)", result);
+    }
+
+    @Test
+    void targetFolderName_list_namesAndDescriptor() {
+        String result = TitleFolderRenamer.targetFolderName(
+                List.of("Aika", "Koharu Suzuki"), "Demosaiced", "AVOP-212");
+        assertEquals("Aika, Koharu Suzuki - Demosaiced (AVOP-212)", result);
+    }
+
+    @Test
+    void targetFolderName_list_overflowBeyond200_producesVarious() {
+        // Build a name long enough to exceed MAX_FOLDER_NAME_LEN (200) after assembly.
+        // "A".repeat(195) + " (X-1)" = 201 chars → overflow.
+        String longName = "A".repeat(195);
+        String result = TitleFolderRenamer.targetFolderName(List.of(longName), null, "X-1");
+        assertEquals("Various (X-1)", result,
+                "basename > 200 chars (no desc) must produce 'Various (CODE)'");
+    }
+
+    @Test
+    void targetFolderName_list_overflowWithDescriptor_producesVariousWithDesc() {
+        String longName = "A".repeat(190);
+        String result = TitleFolderRenamer.targetFolderName(List.of(longName), "Demosaiced", "X-2");
+        assertEquals("Various - Demosaiced (X-2)", result,
+                "basename > 200 chars with desc must produce 'Various - Desc (CODE)'");
+    }
+
+    @Test
+    void targetFolderName_list_exactlyAtLimit_noOverflow() {
+        // "A" + " (" + "B-1" + ")" = 8 chars; at 200 exactly no overflow.
+        // Construct a name that makes the assembled basename == 200 chars.
+        // basename = name + " (" + code + ")" ; code = "X-1" (3 chars) → " (X-1)" = 6 chars
+        // name length = 200 - 6 = 194
+        String name194 = "A".repeat(194);
+        String result = TitleFolderRenamer.targetFolderName(List.of(name194), null, "X-1");
+        assertEquals(name194 + " (X-1)", result,
+                "basename == 200 chars must NOT overflow");
+        assertEquals(200, result.length());
+    }
+
+    @Test
+    void targetFolderName_list_sanitizesSpecialChars() {
+        // Commas in names are kept (they're the join separator and are safe); colons are replaced.
+        String result = TitleFolderRenamer.targetFolderName(
+                List.of("Name:One", "Name/Two"), null, "TST-99");
+        assertEquals("Name One, Name Two (TST-99)", result);
+    }
+
+    // ── usesMultiNameFolders ─────────────────────────────────────────────
+
+    @Test
+    void usesMultiNameFolders_queueIsTrue() {
+        assertTrue(TitleFolderRenamer.usesMultiNameFolders("queue"),
+                "staging/queue volumes must use multi-name folders");
+    }
+
+    @Test
+    void usesMultiNameFolders_conventionalIsFalse() {
+        assertFalse(TitleFolderRenamer.usesMultiNameFolders("conventional"));
+    }
+
+    @Test
+    void usesMultiNameFolders_otherTypesAreFalse() {
+        for (String type : List.of("collections", "exhibition", "sort_pool", "avstars")) {
+            assertFalse(TitleFolderRenamer.usesMultiNameFolders(type),
+                    "structure type '" + type + "' must NOT use multi-name folders");
+        }
+    }
+
+    @Test
+    void usesMultiNameFolders_nullAndBlankAreFalse() {
+        assertFalse(TitleFolderRenamer.usesMultiNameFolders(null));
+        assertFalse(TitleFolderRenamer.usesMultiNameFolders(""));
     }
 
     // ── helpers ──────────────────────────────────────────────────────
