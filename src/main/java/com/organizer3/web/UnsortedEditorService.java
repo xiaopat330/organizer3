@@ -10,6 +10,7 @@ import com.organizer3.repository.UnsortedEditorRepository.EligibleTitle;
 import com.organizer3.repository.UnsortedEditorRepository.TitleDetail;
 import com.organizer3.smb.SmbConnectionFactory;
 import lombok.extern.slf4j.Slf4j;
+import org.jdbi.v3.core.Jdbi;
 
 import java.io.IOException;
 import java.time.Instant;
@@ -42,12 +43,22 @@ public class UnsortedEditorService {
     private final String unsortedSmbBasePath;
     private final Map<String, String> volumeSmbPaths;
     private final TitleFolderRenamer renamer;
+    private final Jdbi jdbi;
 
     public UnsortedEditorService(UnsortedEditorRepository repo, ActressRepository actressRepo,
                                  CoverPath coverPath, SmbConnectionFactory smbFactory,
                                  String unsortedVolumeId, String unsortedSmbBasePath,
                                  Map<String, String> volumeSmbPaths,
                                  TitleFolderRenamer renamer) {
+        this(repo, actressRepo, coverPath, smbFactory, unsortedVolumeId, unsortedSmbBasePath,
+                volumeSmbPaths, renamer, null);
+    }
+
+    public UnsortedEditorService(UnsortedEditorRepository repo, ActressRepository actressRepo,
+                                 CoverPath coverPath, SmbConnectionFactory smbFactory,
+                                 String unsortedVolumeId, String unsortedSmbBasePath,
+                                 Map<String, String> volumeSmbPaths,
+                                 TitleFolderRenamer renamer, Jdbi jdbi) {
         this.repo = repo;
         this.actressRepo = actressRepo;
         this.coverPath = coverPath;
@@ -56,6 +67,7 @@ public class UnsortedEditorService {
         this.unsortedSmbBasePath = unsortedSmbBasePath;
         this.volumeSmbPaths = volumeSmbPaths;
         this.renamer = renamer;
+        this.jdbi = jdbi;
     }
 
     public String volumeId() {
@@ -407,10 +419,25 @@ public class UnsortedEditorService {
         var detail = repo.findEligibleById(titleId, unsortedVolumeId).orElse(null);
         if (detail == null) return committed;  // race — can't rename
 
-        String primaryName = repo.findActressCanonicalName(committed.primaryActressId()).orElse(null);
+        TitleFolderRenamer.RenameOutcome outcome;
+        if (jdbi != null) {
+            // Multi-name: derive the ordered cast list from canonical DB state (post-commit)
+            // so the folder name includes ALL credited cast and agrees byte-for-byte with the
+            // reconciler.
+            java.util.List<String> names = StagingCastHelper.orderedNamesForTitle(jdbi, titleId);
+            if (names.isEmpty()) {
+                // NULL filing actress — fall back to single-name (legacy path)
+                String primaryName = repo.findActressCanonicalName(committed.primaryActressId()).orElse(null);
+                outcome = renamer.renameIfNeeded(titleId, primaryName, descriptor, detail.code());
+            } else {
+                outcome = renamer.renameIfNeeded(titleId, names, descriptor, detail.code());
+            }
+        } else {
+            // Legacy path (jdbi not wired — e.g. old callers / tests that use the short ctor).
+            String primaryName = repo.findActressCanonicalName(committed.primaryActressId()).orElse(null);
+            outcome = renamer.renameIfNeeded(titleId, primaryName, descriptor, detail.code());
+        }
 
-        TitleFolderRenamer.RenameOutcome outcome =
-                renamer.renameIfNeeded(titleId, primaryName, descriptor, detail.code());
         String effectivePath = outcome.newPath() != null ? outcome.newPath()
                 : detail.folderPath();
         return new SaveResult(committed.actressIds(), committed.primaryActressId(),
