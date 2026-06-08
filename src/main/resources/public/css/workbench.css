@@ -4049,8 +4049,8 @@
 }
 .aca-subtab:hover:not(.active) { color: var(--text-dim); }
 .aca-subtab.active {
-  color: var(--accent, #d946ef);
-  border-bottom-color: var(--accent, #d946ef);
+  color: var(--accent-fg);
+  border-bottom-color: var(--accent);
 }
 .aca-subnav-spacer { flex: 1; }
 .aca-subnav-actions { display: flex; gap: 8px; align-items: center; }
