@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Koizumi
+    given_name: Hinata
+    stage_name: 小泉ひなた
+    reading: こいずみ ひなた
+    alternate_names:
+    - name: こーひーちゃん
+      note: 'Nickname (愛称) coined by co-performer 本庄鈴 on a streaming show'
+  date_of_birth: 1999-05-16
+  birthplace: Niigata City, Niigata Prefecture, Japan
+  blood_type: O
+  height_cm: 158
+  measurements:
+    bust: 90
+    waist: 58
+    hip: 88
+  cup: G
+  active_from: 2018-10-25
+  active_to: 2021-01-07
+  retirement_announced: 2020-12-08
+  biography: "Hinata Koizumi (小泉ひなた) is a Japanese former AV actress and gravure model born 16 May 1999 in Niigata City, Niigata Prefecture. She debuted on 25 October 2018 under the SOD Create KimiHore (君に惚れた) sub-label while enrolled as a first-year nursing student, citing a desire to fund her and her younger sister's tuition fees as the stated reason. In February 2019 she was promoted to the SOD Star flagship label and released a string of titles before graduating from SOD Star in December 2019. From February 2020 she held dual exclusive contracts with Attackers and Honnaka, working in drama and NTR-themed productions. On 8 December 2020 she announced her retirement from AV on Twitter; her retirement commemorative work was released by Attackers in January 2021. She subsequently appeared in the mainstream film 'あ・く・あ～ふたりだけの部屋～' (May 2021) before withdrawing from public life."
+  primary_studios:
+  - name: SOD Create (KimiHore / SOD Star)
+    company: SOD Create
+    from: 2018-10-25
+    to: 2019-12-26
+    role: 'Exclusive contract actress: KimiHore sub-label (Oct 2018 – Jan 2019), then SOD Star flagship (Feb – Dec 2019)'
+  - name: Attackers
+    company: Attackers
+    from: 2020-02-07
+    to: 2021-01-07
+    role: 'Exclusive contract actress'
+  - name: Honnaka
+    company: Honnaka
+    from: 2020-02-25
+    to: 2020-11-30
+    role: 'Exclusive contract actress (concurrent with Attackers)'
+  awards: null
+  legacy: 'A notable SOD Star exclusive of 2019 known for a large-bust (G-cup) figure and an earnest, self-described otaku persona; transitioned to mainstream film after her AV retirement in December 2020.'
+
+meta:
+  total_owned_titles: 37
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 1108 holds 37 owned titles (top labels STARS 13, HND 7, KMHR 4, ATID 2, RBD 2).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (小泉ひなた) — high confidence on DOB, birthplace, blood type, height, measurements (公称 2018), cup, debut/retirement dates, studio affiliations. Identity confirmed via studio-match heuristic: DB top labels map cleanly to her Wikipedia contracts — STARS = SOD Star (SOD Create), HND = Honnaka (concurrent Honnaka exclusive 2020), ATID = In Mad/Attackers (Attackers exclusive 2020), RBD = Ryubaku (Attackers sub-label), MUDR = Muku (freelance/guest post-SOD), PPPD = OPPAI (freelance guest), JUL = Madonna (freelance guest); all match Wikipedia freelance/guest activity post-SOD-Star graduation. KMHR (KimiHore/君に惚れた) and PRDB/SSHN not in labels.yaml — labeled Unknown. javdb slug bb0B confirmed from cast_json across SDAB-087, STARS-067, STARS-120, STARS-160 (kanji name 小泉ひなた consistent across all). verify_actress_titles_via_javdb timed out; slug taken from cast_json enrichment rows instead. DB stage_name was null (not yet set).'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/小泉ひなた
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1108 (canonical "Hinata Koizumi", stage_name null, 37 titles, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  - 'javdb cast_json slug bb0B (小泉ひなた) confirmed from enriched titles'
+  portfolio_listed: 0

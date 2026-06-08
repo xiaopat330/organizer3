@@ -71,7 +71,7 @@ public class JdbiStageNameLookupRepository implements StageNameLookupRepository 
             h.execute("DELETE FROM stage_name_lookup");
             for (StageNameLookupRow row : rows) {
                 h.createUpdate("""
-                        INSERT INTO stage_name_lookup (kanji_form, romanized_form, actress_slug, source, seeded_at)
+                        INSERT OR IGNORE INTO stage_name_lookup (kanji_form, romanized_form, actress_slug, source, seeded_at)
                         VALUES (:kanjiForm, :romanizedForm, :actressSlug, :source, :seededAt)
                         """)
                         .bind("kanjiForm", row.kanjiForm())

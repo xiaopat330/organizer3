@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Ayuha
+    given_name: Ami
+    stage_name: 阿由葉あみ
+    reading: あゆは あみ
+    alternate_names:
+    - name: あみぽん
+      note: 'Nickname (愛称), not a stage name'
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: 165
+  measurements:
+    bust: 89
+    waist: 56
+    hip: 85
+  cup: null
+  active_from: 2018-04-13
+  active_to: null
+  biography: "Ami Ayuha (阿由葉あみ) is a Japanese AV actress affiliated with the Mines (マインズ) talent agency. She debuted on April 13, 2018 as an exclusive actress for S1 No.1 Style, releasing her debut title SSNI-176 (新人 NO.1 STYLE 阿由葉あみ AVデビュー). In July 2018 she left the S1 exclusive contract and became a freelance single-title (企画単体) actress, working across multiple labels including MOODYZ, DOC, Wands, and various smaller producers. Her publicly stated measurements (as of 2018) are 165 cm tall with a 89-56-85 cm figure; her birth year has not been publicly disclosed. She has cited Yua Mikami (三上悠亜) and Moe Tenshi (天使もえ) as major personal favorites."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: 'WILL Co., Ltd.'
+    from: 2018-04-13
+    to: 2018-07-19
+    role: 'Debut-era exclusive contract actress (codes SSNI)'
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 17
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 786 holds 17 owned titles (top labels SSNI 4, OFJE 4, plus single titles across WANZ, PRED, ONEZ, DOCP, MDTM, MIAE, RBK, SUPA, TUS).'
+  confidence: 'Kanji stage name 阿由葉あみ and javdb slug mxaY confirmed from enrichment cast_json across multiple titles (DOCP-092, OFJE-171, OFJE-175, OFJE-291). Identity confirmed via studio-match: DB top label SSNI maps to S1 No.1 Style (WILL Co.), consistent with Wikipedia article explicitly listing エスワン (S1) exclusive debut. Wikipedia article title is 阿由葉あみ — matches kanji. DB has 17 titles vs Wikipedia filmography showing 30+ entries for 2018-2019 (ratio within ballpark for a short-tenure actress). DOB year not publicly disclosed (Wikipedia only states 12月22日). Blood type, birthplace, cup size not present in Wikipedia article — all set null. Measurements (89-56-85) are 2018 公称 figures per Wikipedia (週刊実話 citation). active_to set null as Wikipedia shows ongoing activity (no retirement announced). Stage name: Wikipedia infobox shows 阿由葉 あみ with space; article title and DB cast_json show 阿由葉あみ without space — using the no-space form as that is the javdb canonical and DB cast representation.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E9%98%BF%E7%94%B1%E8%91%89%E3%81%82%E3%81%BF
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=786 (canonical "Ami Ayuha", stage_name null, 17 titles, tier MINOR)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  - 'javdb cast_json slug mxaY confirmed across DOCP-092, OFJE-171, OFJE-175, OFJE-291'
+  portfolio_listed: 0

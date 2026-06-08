@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Suzuki
+    given_name: Satomi
+    stage_name: 鈴木さとみ
+    reading: すずき さとみ
+    alternate_names:
+    - name: 浅田真美
+      note: 'Listed alias in Wikipedia (別名). Speculative agent-added aliases まお and みさと were removed — みさと collided with another actress in stage_name_lookup (and is not a valid reading of Satomi); まお was an unverified 2-char kana with high collision risk.'
+  date_of_birth: 1988-09-09
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 151
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 82
+  cup: F
+  active_from: 2007-02-17
+  active_to: null
+  retirement_announced: null
+  biography: "Satomi Suzuki (鈴木さとみ) is a Japanese AV actress affiliated with LINX talent agency. Born 9 September 1988 in Tokyo, she debuted in adult video in early 2007 under both her own name and the alias \"まお,\" appearing across numerous independent labels before establishing herself as a recognizable multi-label performer. Known for her F-cup figure (publicly cited measurements 85-58-82 cm, 151 cm tall, blood type A), she built a prolific career spanning multiple genres including domestic drama, taboo-family, and femdom titles. Her most consistent association has been with the Venus (Crystal-Eizou) label, where she appeared in numerous mature-woman dramatic works from the early 2010s onward. She has remained continuously active into the mid-2020s with no announced retirement, working across a wide range of independent production companies. Her agency affiliation shifted to LINX around 2018."
+  primary_studios:
+  - name: Venus
+    company: Crystal-Eizou
+    from: 2011-02-01
+    to: null
+    role: 'Recurring non-exclusive actress (domestic drama / mature-woman genre)'
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 133
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 189 holds 133 owned titles across many labels (top: VENU 5, WNZS 3, VAGU 3, TBTB 3, OKAD 3, HBAD 3, CARIB 3). Most labels are small independents not present in labels.yaml. DB release dates range 2010-10-25 to 2020-11-25 (partial — many titles lack release_date).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (鈴木さとみ). Identity: PASS — Wikipedia stage name (鈴木さとみ) exactly matches DB canonical name romanization; DOB 1988-09-09 is consistent; studio-match PASS — DB top label VENU maps to Venus/Crystal-Eizou which appears prominently in the Wikipedia filmography (2011 onward). DB owns 133 titles vs. a very large Wikipedia filmography (200+ titles), well within ballpark. Alias "Satomo Suzuki" in DB is a romanization variant. Measurements: infobox shows 85-58-82 / F-cup; body text gives conflicting figures (B87/90 cm, G-cup at various points in career); infobox values used per schema rules. Height: infobox shows 151 cm; body text also mentions 148 cm — 151 cm used as it is the official public profile figure in the infobox. VAGU, WNZS, TBTB, TIKP, CARIB labels not found in labels.yaml. active_from set to earliest Wikipedia release date 2007-02-17 (チェリーズ). active_to is null — actress is still active as of 2024 per Wikipedia filmography; no retirement announced.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/鈴木さとみ
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=189 (canonical "Satomi Suzuki", 133 titles)'
+  - 'src/main/resources/labels.yaml — label/company mapping (VENU = Venus / Crystal-Eizou)'
+  - 'mcp__organizer3__verify_actress_titles_via_javdb — timed out; kanji identity established via Wikipedia direct match instead'
+  portfolio_listed: 0

@@ -138,6 +138,36 @@ class StageNameSeederTest {
     }
 
     @Test
+    void seed_deduplicatesSameKanjiFormAcrossActresses_firstWins() throws Exception {
+        // Both actresses share the normalized form "みさと" — first slug (alphabetically) keeps it.
+        ActressYaml first = makeYaml("Misato", "A", "みさと",
+                List.of());
+        ActressYaml second = makeYaml("Misato", "B", "みさと",
+                List.of());
+        when(yamlLoader.listSlugs()).thenReturn(List.of("misato_a", "misato_b"));
+        when(yamlLoader.peek("misato_a")).thenReturn(first);
+        when(yamlLoader.peek("misato_b")).thenReturn(second);
+
+        // Must not throw; only one row for "みさと"
+        assertDoesNotThrow(() -> seeder.seed());
+        assertEquals(1L, lookupRepo.countAll());
+        // First slug wins
+        assertEquals(Optional.of("A Misato"), lookupRepo.findRomanizedFor("みさと"));
+    }
+
+    @Test
+    void seed_deduplicatesSameKanjiFormWithinSingleActress_alternateNames() throws Exception {
+        // stage_name and one alternate_name normalize to the same form
+        ActressYaml yaml = makeYaml("Aoi", "Sora", "みさと",
+                List.of(new ActressYaml.AlternateName("みさと", "duplicate alternate")));
+        when(yamlLoader.listSlugs()).thenReturn(List.of("misato_dup"));
+        when(yamlLoader.peek("misato_dup")).thenReturn(yaml);
+
+        assertDoesNotThrow(() -> seeder.seed());
+        assertEquals(1L, lookupRepo.countAll());
+    }
+
+    @Test
     void seed_toleratesParseExceptionOnOneSlugs() throws Exception {
         ActressYaml aika = makeYaml(null, "Aika", "愛佳", List.of());
         when(yamlLoader.listSlugs()).thenReturn(List.of("aika", "bad_slug"));

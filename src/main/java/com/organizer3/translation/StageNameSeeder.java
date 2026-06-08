@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -47,7 +49,9 @@ public class StageNameSeeder {
             log.error("StageNameSeeder: failed to list actress slugs — stage-name table not seeded", e);
             return;
         }
-        List<StageNameLookupRow> rows = new ArrayList<>();
+        // Use a LinkedHashMap keyed on normalized kanji_form to de-dupe before seeding.
+        // Slugs are processed in sorted order (as returned by listSlugs), so first-wins is deterministic.
+        Map<String, StageNameLookupRow> rowsByForm = new LinkedHashMap<>();
 
         for (String slug : slugs) {
             try {
@@ -65,7 +69,11 @@ public class StageNameSeeder {
                 String stageName = name.stageName();
                 if (stageName != null && containsJapanese(stageName)) {
                     String normalized = TranslationNormalization.normalize(stageName);
-                    rows.add(new StageNameLookupRow(0, normalized, canonicalName, slug, "yaml_seed", ""));
+                    StageNameLookupRow row = new StageNameLookupRow(0, normalized, canonicalName, slug, "yaml_seed", "");
+                    if (rowsByForm.putIfAbsent(normalized, row) != null) {
+                        log.warn("StageNameSeeder: duplicate kanji_form '{}' — keeping slug '{}', dropping slug '{}'",
+                                normalized, rowsByForm.get(normalized).actressSlug(), slug);
+                    }
                 }
 
                 // Alternate names that contain Japanese characters
@@ -73,7 +81,11 @@ public class StageNameSeeder {
                     for (ActressYaml.AlternateName alt : name.alternateNames()) {
                         if (alt.name() != null && containsJapanese(alt.name())) {
                             String normalized = TranslationNormalization.normalize(alt.name());
-                            rows.add(new StageNameLookupRow(0, normalized, canonicalName, slug, "yaml_seed", ""));
+                            StageNameLookupRow row = new StageNameLookupRow(0, normalized, canonicalName, slug, "yaml_seed", "");
+                            if (rowsByForm.putIfAbsent(normalized, row) != null) {
+                                log.warn("StageNameSeeder: duplicate kanji_form '{}' — keeping slug '{}', dropping slug '{}'",
+                                        normalized, rowsByForm.get(normalized).actressSlug(), slug);
+                            }
                         }
                     }
                 }
@@ -82,6 +94,7 @@ public class StageNameSeeder {
             }
         }
 
+        List<StageNameLookupRow> rows = new ArrayList<>(rowsByForm.values());
         lookupRepo.clearAndSeed(rows);
         log.info("StageNameSeeder: seeded {} entries from {} actress YAMLs", rows.size(), slugs.size());
     }

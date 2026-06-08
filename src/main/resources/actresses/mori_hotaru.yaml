@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Mori
+    given_name: Hotaru
+    stage_name: 森ほたる
+    reading: もり ほたる
+    alternate_names:
+    - name: Hotaru Umino
+      note: 'Post-Madonna freelance name; listed in DB as alias. Active as 海埜ほたる (Umino Hotaru) under Lynx from approx. 2023.'
+    - name: 海埜ほたる
+      note: 'Current kanji stage name under Lynx talent agency (from approx. 2023)'
+  date_of_birth: 1987-10-03
+  birthplace: Nagano Prefecture, Japan
+  blood_type: A
+  height_cm: 151
+  measurements:
+    bust: 100
+    waist: 60
+    hip: 92
+  cup: H
+  active_from: 2018-02-07
+  active_to: null
+  retirement_announced: null
+  biography: "Hotaru Mori (森ほたる) is a Japanese AV actress born on 3 October 1987 in Nagano Prefecture. She debuted as a Madonna exclusive actress in February 2018, with her debut title released on 7 February 2018 as a high-profile busty newcomer (H-cup, 100cm bust). She remained a Madonna exclusive through approximately July 2018, after which she transitioned to freelance work appearing across multiple labels. As of 2023 she has been active under the name 海埜ほたる (Hotaru Umino) affiliated with Lynx talent agency. Her hobbies include horse riding and travel."
+  primary_studios:
+  - name: Madonna
+    company: WILL Co.
+    from: 2018-02-07
+    to: 2018-07-31
+    role: 'Exclusive contract actress (debut era; codes JUY/JUFD)'
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 18
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. No portfolio researched. DB holds 18 owned titles across 12 labels — top label JUY (5, Madonna), then single titles across JUFD, VEC, NACR, SUPA, SOAN, PPPD, KRAY, HUNTA, HDKA, EYAN, URMC. Freelance era titles span many labels.'
+  confidence: 'Identity PASS. Kanji stage_name 森ほたる confirmed from javdb cast_json (slug g1Q on KRAY-030). Wikipedia article at ja.wikipedia.org/wiki/森ほたる matches: (1) Studio-match — JUY/JUFD = Madonna confirmed as exclusive debut studio in Wikipedia; (2) Name match — Wikipedia article title is 森ほたる; (3) Title-count ballpark — Wikipedia lists extensive 2018-2019+ filmography consistent with a 18+ owned title set for a prolific freelance actress. active_to set null as actress is still active (2023 Lynx activity confirmed in Wikipedia). Measurements (100-60-92, H cup) sourced from Wikipedia infobox, qualifying note "2018年時点". family_name/given_name fields set so "{given_name} {family_name}" = "Hotaru Mori" per spec. True Hepburn romanization of 森ほたる would be "Mori Hotaru" (same). DB alias "Hotaru Umino" corresponds to freelance/later-career name 海埜ほたる.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/森ほたる'
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1160 (canonical "Hotaru Mori", stage_name null, tier MINOR, 18 owned titles)'
+  - 'javdb cast_json: KRAY-030 cast includes slug g1Q name 森ほたる'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  portfolio_listed: 0

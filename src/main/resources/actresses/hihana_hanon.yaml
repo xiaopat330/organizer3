@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Hihana
+    given_name: Hanon
+    stage_name: 日菜々はのん
+    reading: ひなな はのん
+    alternate_names:
+    - name: ひなのん
+      note: 'Nickname (愛称)'
+  date_of_birth: 1996-09-16
+  birthplace: null
+  blood_type: null
+  height_cm: 155
+  measurements:
+    bust: 86
+    waist: 58
+    hip: 88
+  cup: F
+  active_from: 2017-06-19
+  active_to: 2019-03-07
+  retirement_announced: 2019-04-02
+  biography: "Hanon Hihana (日菜々はのん, reading: ひなな はのん) is a Japanese AV actress who debuted in June 2017 as an S1 No.1 Style exclusive. She was affiliated with the talent agency Guilife at debut before transferring to Mines in July 2018. In June 2018 she joined the entertainment variety group Ebisu Muscats 1.5 as a trainee, becoming a full member in August 2018 when the group was renamed Ebisu Muscats. Following a health-related hiatus, she graduated from the group on 2 April 2019, marking the end of her active AV career. Her hobbies and special skills include dance, walking, and cheerleading."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: S1 No.1 Style
+    from: 2017-06-19
+    to: 2019-03-07
+    role: 'Exclusive contract actress (codes SNIS/SSNI/OFJE)'
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 28
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB id 1009 holds 28 owned titles (top labels SSNI 13, OFJE 7, SNIS 3, WAAA 2, DASS 2, HMN 1). WAAA/DASS/HMN titles are likely multi-actress compilation guest appearances from post-S1 period.'
+  confidence: 'High confidence on core profile fields (DOB, height, measurements, cup, active period, studio) — all sourced from Japanese Wikipedia (日菜々はのん). Birthplace and blood type not stated in Wikipedia article; set null. Identity confirmed: (1) Name match — javdb cast_json consistently shows 日菜々はのん with slug 58DY across all enriched titles; Wikipedia article title is 日菜々はのん. (2) Studio match — DB top labels SSNI/SNIS = S1 No.1 Style; Wikipedia confirms S1 exclusive 2017–2019. (3) Title count ballpark — DB has 28 titles (including multi-cast guest appearances), Wikipedia solo filmography lists ~17 S1 solo works plus compilations; within expected range given multi-cast co-appearances in OFJE compilations and WAAA/DASS/HMN planning titles. Name note: canonical_name "Hanon Hihana" uses "Hihana" as family_name per DB spelling; the stage name hiragana is ひなな はのん (Hinana Hanon) where 日菜々 romanizes more closely as Hinana — "Hihana" is a variant romanization in the DB; family_name/given_name set to match DB canonical exactly per spec instructions. Retirement: active_to = last solo S1 release 2019-03-07 (OFJE-277); retirement_announced = 2019-04-02 (Ebisu Muscats graduation announcement date per Wikipedia).'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/日菜々はのん
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1009 (canonical "Hanon Hihana", 28 titles, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (SSNI/SNIS/OFJE = S1 No.1 Style, WAAA = Wands/WANZ Factory, DASS = Das!, HMN = Honnaka)'
+  - 'javdb cast_json — slug 58DY = 日菜々はのん (consistent across 6 sampled enriched titles)'
+  portfolio_listed: 0
