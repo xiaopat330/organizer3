@@ -135,6 +135,7 @@ function buildGridUrl(state, offset, limit) {
 export function mountActresses(rootEl) {
   // ── Render shell HTML ──────────────────────────────────────────────────
   rootEl.innerHTML = `
+    <div class="aca-page-header"><h1 class="lib-page-title">Actresses</h1></div>
     <div class="aca-page-tabs tabs" id="aca-page-tabs">
       <button class="tab aca-page-tab" data-page-tab="browse">Browse</button>
       <button class="tab aca-page-tab" data-page-tab="admin">Admin</button>
