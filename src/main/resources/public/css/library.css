@@ -1468,7 +1468,7 @@ button.ad-alias-badge.ad-alias-link:hover { color: var(--accent); border-color: 
               border-color var(--dur-fast) var(--ease-out);
 }
 .act-subnav-btn:hover { color: var(--text); border-color: var(--border-strong); background: var(--bg-hover); }
-.act-subnav-btn.on { background: var(--bg-active); color: var(--text); border-color: var(--border-strong); font-weight: 600; }
+.act-subnav-btn.on { color: var(--accent); border-color: var(--accent); background: var(--accent-bg); }
 
 /* ── Tier chip row ──────────────────────────────────────────────────── */
 .act-tier-row {

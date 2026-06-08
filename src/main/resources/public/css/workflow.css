@@ -12,6 +12,12 @@
   margin-bottom: 1rem;
 }
 
+.wf-header-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text);
+}
+
 .wf-header-kpis {
   display: flex;
   gap: 1.25rem;

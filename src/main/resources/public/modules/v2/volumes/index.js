@@ -422,6 +422,7 @@ function wireVolRows(parentEl) {
 function buildPageHTML() {
   return `
     <div class="wb-page vol-wb">
+      <h1 class="wb-page-title">Volumes</h1>
       <div class="vol-layout">
         <!-- Left: volume picker -->
         <aside class="vol-sidebar">

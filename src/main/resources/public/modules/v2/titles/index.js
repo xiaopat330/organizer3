@@ -140,6 +140,7 @@ function applyGridCols(gridEl, cols) {
 export function mountTitles(rootEl) {
   rootEl.innerHTML = `
     <div class="lib-page tit-page">
+      <h1 class="lib-page-title">Titles</h1>
       <!-- Mode tab strip -->
       <div class="tit-mode-bar" id="tit-mode-bar">
         <button class="tit-mode-btn on" data-mode="dashboard">Dashboard</button>

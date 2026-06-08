@@ -52,8 +52,8 @@ export async function mountDuplicates(rootEl) {
   rootEl.innerHTML = `
     <div class="dup-wb">
       <div class="dup-wb-head">
-        <h1 class="dup-wb-title">Duplicate Triage</h1>
-        <div class="dup-wb-subtitle">Titles with more than one location. Decide per-copy; nothing is destroyed until you Execute.</div>
+        <h1 class="wb-page-title">Duplicate Triage</h1>
+        <div class="wb-page-subtitle">Titles with more than one location. Decide per-copy; nothing is destroyed until you Execute.</div>
       </div>
 
       <div class="dup-toolbar">

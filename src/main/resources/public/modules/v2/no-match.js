@@ -362,8 +362,8 @@ function buildPageHTML() {
   return `
     <div class="wb-page nm-wb">
       <div class="nm-wb-head">
-        <h1 class="nm-wb-title">No-Match Triage</h1>
-        <div class="nm-wb-subtitle">
+        <h1 class="wb-page-title">No-Match Triage</h1>
+        <div class="wb-page-subtitle">
           Titles whose JavDB enrichment returned no match in filmography.
           Resolve each via a candidate actress, a manual slug, or mark as unresolvable.
         </div>
