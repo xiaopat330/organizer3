@@ -4,7 +4,9 @@ profile:
     given_name: Sakura
     stage_name: 水卜さくら
     reading: みうら さくら
-    alternate_names: null
+    alternate_names:
+    - name: ミトちゃん
+      note: 'Nickname (愛称, "Mito-chan"), not a stage name'
   date_of_birth: 1997-11-30
   birthplace: Tokyo, Japan
   blood_type: O

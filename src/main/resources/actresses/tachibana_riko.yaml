@@ -1,0 +1,59 @@
+profile:
+  name:
+    family_name: Tachibana
+    given_name: Riko
+    stage_name: 立花里子
+    reading: たちばな りこ
+    alternate_names:
+    - name: 立花理子
+      note: 'Same reading (たちばな りこ); a kanji variant used on some Dogma and GLAY''z releases. Same person.'
+    - name: リコピン
+      note: 'Nickname (愛称, "Rikopin"), not a stage name'
+  date_of_birth: 1984-11-10
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 169
+  measurements:
+    bust: 83
+    waist: 60
+    hip: 83
+  cup: D
+  active_from: 2004-04-29
+  active_to: 2008-03-17
+  retirement_announced: 2008-03-17
+  biography: "Riko Tachibana (立花里子) is a retired Japanese AV actress active from 2004 to 2008. A tall (169 cm), athletic onee-san-type kikatan (planning-solo) performer with no single exclusive contract, she worked prolifically across many makers — Dogma, GLAY'z, MOODYZ, Idea Pocket, Aienergy, Takara and others — and specialized in femdom (痴女) and lesbian content. Renowned for her trained abs, stamina and technique, she was nicknamed the \"strongest femdom\" (最強の痴女) and an \"iron-woman of lesbian\" (レズの鉄人), and after Shoko Mikami's retirement was regarded as her successor and a reigning \"lesbian queen.\" She made her directorial debut in June 2006 with a GLAY'z lesbian title and won the Most-Appearances Actress award at the 2007 Japan Adult Broadcasting Awards. Born 10 November 1984 in Tokyo, she retired on 17 March 2008 with the Real Works release 「地獄痴女スペシャル 引退・立花里子」."
+  primary_studios:
+  - name: GLAY'z
+    company: GLAY'z
+    from: 2004-01-01
+    to: 2008-03-17
+    role: 'Frequent femdom/lesbian maker; venue of her June 2006 directorial debut (no exclusive contract — kikatan)'
+  - name: MOODYZ / Dogma / Idea Pocket / Aienergy (various)
+    company: Multiple
+    from: 2004-04-29
+    to: 2008-03-17
+    role: 'Planning-solo (kikatan) actress — appeared across many makers with no exclusive contract; managed by DINO (名東)'
+  - name: Real Works
+    company: Real Works
+    from: 2008-03-17
+    to: 2008-03-17
+    role: 'Maker of her retirement work 「地獄痴女スペシャル 引退・立花里子」'
+  awards:
+  - event: 日本アダルト放送大賞 (Japan Adult Broadcasting Awards)
+    year: 2007
+    category: 最多出演女優大賞 (Most-Appearances Actress Award)
+  legacy: 'One of the most prolific femdom/lesbian kikatan actresses of the mid-2000s, dubbed the "strongest femdom" and a "lesbian queen"; a 169 cm onee-san specialist who also directed, and won the 2007 Most-Appearances Actress award before retiring in 2008.'
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 3590 holds a fragmented sample of her catalog (top labels IESP 5, TRP/IDOL/FSET 2 each, plus ~16 single-title makers) — characteristic of a kikatan with no exclusive label.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (立花里子). The article carries an AV女優 infobox — measurements (83-60-83), cup (D from D70), height 169, weight 56 kg taken from it (no date qualifier in source, marked いつ?). High confidence on DOB, birthplace, blood type, height, active period, retirement, award. Identity confirmed: DB romanizes her as "Riko Tachibana" (not Satoko); the highly fragmented DB label spread (IESP/TRP/IDOL/FSET + many 1-off makers, no dominant studio) matches the article''s description of a キカタン (planning-solo) actress with no exclusive contract who appeared across Dogma/GLAY''z/MOODYZ/Idea Pocket/Aienergy/Takara/etc. primary_studios is approximate: she had NO exclusive deal, so entries capture her most-associated makers and roles rather than contract periods — GLAY''z (directorial debut), the multi-maker kikatan body of work (agency DINO/名東), and Real Works (retirement). Kanji variant 立花理子 (same reading) used on some Dogma/GLAY''z works recorded as an alternate_name. active_from = first listed 2004 release (2004-04-29); active_to/retirement = 2008-03-17 retirement release. total_owned_titles left null (not counted in this profile-only pass). Tier POPULAR in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/立花里子
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3590 (canonical "Riko Tachibana", stage_name 立花里子, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company reference'
+  portfolio_listed: 0

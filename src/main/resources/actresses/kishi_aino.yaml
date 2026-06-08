@@ -1,0 +1,63 @@
+profile:
+  name:
+    family_name: Kishi
+    given_name: Aino
+    stage_name: 希志あいの
+    reading: きし あいの
+    alternate_names:
+    - name: きっしー
+      note: 'Nickname (愛称), not a stage name'
+    - name: きしお
+      note: 'Nickname (愛称); also used as the male-persona character キシオ君 in 2012 events'
+    - name: きー坊
+      note: 'Nickname (愛称), not a stage name'
+    - name: きっしゃん
+      note: 'Nickname (愛称), not a stage name'
+  date_of_birth: 1988-02-01
+  birthplace: Tokyo, Japan
+  blood_type: AB
+  height_cm: 157
+  measurements:
+    bust: 85
+    waist: 57
+    hip: 83
+  cup: C
+  active_from: 2008-02-22
+  active_to: 2015-12-19
+  retirement_announced: 2015-05-04
+  biography: "Aino Kishi (希志あいの) is a Japanese talent and retired AV actress and gravure idol, one of the marquee Idea Pocket performers of the late-2000s/early-2010s. She debuted as a gravure model in March 2007 (Young Gangan) and, unusually quickly, moved to adult video less than a year later — debuting on 22 February 2008 as a dual-exclusive actress for Japan Home Video and MAX-A (released through Alice JAPAN), billed around her membership in the idol unit Half Moon. From February 2010 she became an Idea Pocket cell-debut exclusive and remained their flagship actress through retirement, while also appearing in S1 crossover specials. A regular on TV Tokyo's Onee-Mas / Ebisu Muscats franchise, she served as the third-generation leader of the Ebisu Muscats from 2012. Born 1 February 1988 in Tokyo (AB blood type, 157 cm, C-cup), she announced her retirement at the May 2015 DMM Adult Award and retired in December 2015, receiving the DMM Adult Award 2015 Special Award."
+  primary_studios:
+  - name: Alice JAPAN
+    company: Alice JAPAN
+    from: 2008-02-22
+    to: 2010-01-31
+    role: 'Debut-era exclusive (dual-exclusive with MAX-A; debut work released via Alice JAPAN, code DV)'
+  - name: MAX-A
+    company: MAX-A
+    from: 2008-02-22
+    to: 2010-01-31
+    role: 'Debut-era dual-exclusive contract actress (code XV)'
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2010-02-01
+    to: 2015-12-19
+    role: 'Flagship exclusive contract actress from cell debut to retirement (codes IPTD / IPZ)'
+  awards:
+  - event: DMMアダルトアワード (DMM Adult Award)
+    year: 2015
+    category: 特別賞 (Special Award)
+  legacy: 'A defining Idea Pocket exclusive and Ebisu Muscats (3rd-generation leader) personality of the early 2010s; a gravure-to-AV crossover star known for her boyish "Kishio" persona who retired in December 2015 after roughly eight years.'
+
+meta:
+  total_owned_titles: 103
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 449 holds 103 owned titles (top labels IPZ 35, IPTD 20, XV 15, DV 12, SOE 10).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (希志あいの) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut/retirement, studios, award. Measurements (85-57-83) are the 2008-10 公称 figures; cup C derived from bra size C65. Identity confirmed via studio-match heuristic: DB top labels all map to her Wikipedia exclusive contracts — IPZ/IPTD/IPSD = Idea Pocket (2010 onward), XV = MAX-A, DV = Alice JAPAN, SOE = S1 (her documented エスワン crossover specials). DB owns 103 titles vs a large Wikipedia filmography (well within ballpark). active_from = AV debut 2008-02-22 (gravure debut was 2007); active_to = final regular release 2015-12-19; retirement_announced = 2015-05-04 (announced at the DMM Adult Award; she also appears in a 2019 title as part of Jessica Kizaki''s retirement work, not counted as active period). Company groupings per src/main/resources/labels.yaml. Tier GODDESS in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/希志あいの
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=449 (canonical "Aino Kishi", stage_name 希志あいの, 103 titles, tier GODDESS)'
+  - 'src/main/resources/labels.yaml — label/company mapping (IPZ/IPTD = Idea Pocket, XV = MAX-A, DV = Alice JAPAN, SOE = S1)'
+  portfolio_listed: 0

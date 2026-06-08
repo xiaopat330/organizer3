@@ -1,0 +1,63 @@
+profile:
+  name:
+    family_name: Ogawa
+    given_name: Asami
+    stage_name: 小川あさ美
+    reading: おがわ あさみ
+    alternate_names:
+    - name: あさみん
+      note: 'Her current name/artist name (and long-standing nickname); the Japanese Wikipedia article is now titled あさみん, listing 小川あさ美 as the 旧名義 (former AV-era name). Same person — 小川あさ美 is the name under which her AV catalog is filed.'
+  date_of_birth: 1985-04-11
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 167
+  measurements:
+    bust: 87
+    waist: 59
+    hip: 89
+  cup: E
+  active_from: 2005-09-01
+  active_to: 2015-02-25
+  retirement_announced: 2015-02-25
+  biography: "Asami Ogawa (小川あさ美) is a retired Japanese AV actress and talent from Tokyo, known as one of the industry's top-class tall, long-legged performers who stayed on the front line for over a decade. She debuted in September 2005 with MAX-A (「スター誕生。」), made an S1 cell debut in November 2006, then moved to MOODYZ in 2008, and across her career worked with many leading makers including Idea Pocket, Das!, Attackers and PREMIUM (Glamorous). From April 2008 to April 2013 she was a first-generation member of the Ebisu Muscats idol unit and a regular on the Onee-Mas TV franchise. She held a PREMIUM exclusive through 2014 and a final Bi (美) contract into 2015, retiring on 25 February 2015 with 「電撃引退！THE LAST STAGE」. Born 11 April 1985 (A blood type, 167 cm, E-cup), she was managed by Sun Pro then T-Powers and now works as an artist under the name あさみん."
+  primary_studios:
+  - name: MAX-A
+    company: MAX-A
+    from: 2005-09-01
+    to: 2006-10-31
+    role: 'Debut maker (debut work 「スター誕生。」, code XV)'
+  - name: S1 (S1 No.1 Style)
+    company: S1 (Hokuto group)
+    from: 2006-11-07
+    to: 2008-10-31
+    role: 'Cell-debut exclusive (codes ONED / SOE)'
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2008-11-01
+    to: 2009-12-31
+    role: 'Exclusive after 2008 transfer (codes MIDD / MIRD)'
+  - name: PREMIUM (Glamorous)
+    company: PREMIUM (WILL group)
+    from: 2010-01-01
+    to: 2014-12-31
+    role: 'Long-time exclusive contract actress (Glamorous line, code PGD)'
+  - name: Bi (美)
+    company: CA
+    from: 2014-01-01
+    to: 2015-02-25
+    role: 'Final exclusive contract through to retirement'
+  legacy: 'A tall, long-legged SUPERSTAR-tier actress with a rare decade-long front-line career (2005-2015) spanning MAX-A, S1, MOODYZ, Idea Pocket, Das! and PREMIUM/Glamorous, and a founding (1st-generation) Ebisu Muscats idol member who later became an artist as あさみん.'
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 1876 top labels PGD 23 = Glamorous/PREMIUM, ONED 17 + SOE 3 = S1, XV 12 = MAX-A, plus Idea Pocket (IPTD), Das! (DASD) and MOODYZ (MIDD/MIRD).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (article now titled あさみん; 小川あさ美 = 旧名義). High confidence on DOB, birthplace, blood type, height, measurements, cup, debut, retirement. Measurements (87-59-89) and cup (E) are the 2012 公称 figures. Identity confirmed via studio-match heuristic: DB labels PGD = Glamorous/PREMIUM (her ～2014 exclusive), ONED/SOE = S1 (2006 cell debut), XV = MAX-A (2005 debut), MIDD/MIRD = MOODYZ (2008 move), DASD = Das!, IPTD = Idea Pocket — all match the article. NAME: profiled under 小川あさ美 (the DB / AV-era name); current artist name あさみん recorded as an alternate_name. primary_studios periods are APPROXIMATE — the infobox only lists her final two 専属契約 (PREMIUM ～2014, Bi 2014-2015); the earlier MAX-A/S1/MOODYZ boundaries are derived from the 略歴 timeline and filmography, not stated contract dates, and her catalog is spread across many makers (kikatan-like in the middle years). active_from = Sept 2005 debut (set to month start); active_to/retirement = 2015-02-25 「電撃引退！THE LAST STAGE」. No AV awards found in the fetched portion. Ebisu Muscats 1st-gen (2008-04 to 2013-04); agency Sun Pro → T-Powers. Company groupings per src/main/resources/labels.yaml (PGD = Glamorous/PREMIUM). Tier SUPERSTAR in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/小川あさ美
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1876 (canonical "Asami Ogawa", stage_name 小川あさ美, tier SUPERSTAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (PGD = Glamorous/PREMIUM, ONED/SOE = S1, XV = MAX-A, MIDD/MIRD = MOODYZ, DASD = Das!, IPTD = Idea Pocket)'
+  portfolio_listed: 0

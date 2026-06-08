@@ -1,0 +1,58 @@
+profile:
+  name:
+    family_name: Hoshino
+    given_name: Miyu
+    stage_name: ほしのみゆ
+    reading: ほしの みゆ
+    alternate_names:
+    - name: みゅどん
+      note: 'Nickname (愛称), not a stage name'
+    - name: みゅこりん
+      note: 'Nickname (愛称), not a stage name'
+  date_of_birth: 1987-05-05
+  birthplace: Aomori Prefecture, Japan
+  blood_type: A
+  height_cm: 155
+  measurements:
+    bust: 84
+    waist: 57
+    hip: 84
+  cup: E
+  active_from: 2006-09-30
+  active_to: 2011-09-07
+  retirement_announced: 2011-09-07
+  biography: "Hoshino Miyu (ほしのみゆ) is a retired Japanese AV actress active from 2006 to 2011. She began as a prolific kikaku-tanpai (planning-solo) actress appearing across many makers, became an exclusive actress for Max-A in August 2008, then moved to PREMIUM (its Glamorous line) in April 2009. Petite at 155 cm with an E-cup, she was a fixture of the idol photo-session circuit — nicknamed the Photo-Session Queen (撮影会女王) for her near-monthly studio events — and was nominated for Best Actress at the 2009 SKY PerfecTV! Adult Broadcasting Awards. She retired with her final PREMIUM release on 7 September 2011. She was born 5 May 1987 in Aomori Prefecture."
+  primary_studios:
+  - name: Max-A
+    company: Max-A
+    from: 2008-08-01
+    to: 2009-03-31
+    role: Exclusive contract actress
+  - name: PREMIUM
+    company: PREMIUM (WILL group)
+    from: 2009-04-01
+    to: 2011-09-07
+    role: 'Exclusive contract actress (Glamorous line, code PGD) until retirement'
+  awards:
+  - event: スカパー!アダルト放送大賞 (SKY PerfecTV! Adult Broadcasting Awards)
+    year: 2009
+    category: 女優賞 (Best Actress — nominated)
+  - event: 撮影会イベント「Precious!」一周年記念 (Precious! photo-session 1st anniversary)
+    year: 2010
+    category: 最多出演女優賞 (Most-Appearances Actress Award)
+  legacy: 'A late-2000s planning-solo, idol-genre actress nicknamed the Photo-Session Queen (撮影会女王) for her near-monthly studio photo events; held a Max-A then PREMIUM/Glamorous exclusive contract before retiring in 2011.'
+
+meta:
+  total_owned_titles: 80
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 1771 holds 80 owned titles.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (ほしのみゆ) — high confidence on DOB, birthplace, blood type, height, cup, debut/retirement. Measurements (84-57-84) are the 2006 TOKYO GAL''S infobox figures (early-career). Identity confirmed: javdb slug meXY = ほしのみゆ matches the Wikipedia article; DB top label PGD = Glamorous/PREMIUM (her 2009-2011 exclusive maker per labels.yaml and Wikipedia), with HODV (h.m.p) and Max-A titles also present in the article. SKY PerfecTV! 2009 Best Actress was a nomination, not a win. PGD label/company mapping (Glamorous label, PREMIUM/WILL company) per src/main/resources/labels.yaml.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/ほしのみゆ
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1771 (canonical "Miyu Hoshino", 80 titles)'
+  - 'javdb verification via verify_actress_titles_via_javdb(1771): primary slug meXY (ほしのみゆ), 5/6 sampled'
+  - 'src/main/resources/labels.yaml — label/company mapping (PGD = Glamorous / PREMIUM)'
+  portfolio_listed: 0

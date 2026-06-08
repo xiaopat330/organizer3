@@ -1,0 +1,58 @@
+profile:
+  name:
+    family_name: Kasumi
+    given_name: Risa
+    stage_name: かすみりさ
+    reading: かすみ りさ
+    alternate_names:
+    - name: りさぴょん
+      note: 'Nickname (愛称), not a stage name'
+    - name: リサリサ
+      note: 'Nickname (愛称), not a stage name'
+  date_of_birth: 1984-05-31
+  birthplace: Hokkaido, Japan
+  blood_type: O
+  height_cm: 170
+  measurements:
+    bust: 90
+    waist: 58
+    hip: 85
+  cup: G
+  active_from: 2007-06-19
+  active_to: null
+  biography: "Risa Kasumi (かすみりさ) is a Japanese actress and AV actress, a tall (170 cm), G-cup big-bust performer from Hokkaido. She debuted in June 2007 as an S1 exclusive with 「新人×ギリギリモザイク NO.1 STYLE」 and released roughly monthly for S1 through November 2010, becoming widely known as a member of the Ebisu Muscats idol unit and a fixture of the Onee-Mas / Muscats TV franchise (2008-2011). After leaving S1 she had brief exclusive stints with Attackers (Dec 2010 - Jan 2011) and SOD Create / SOD ACE (Jul 2011 - Jan 2012), winning the Excellent Actress award at the 2011 SOD Awards. Managed by Testa Inc. (T-Powers), she increasingly moved into mainstream talent work — TV, drama, radio and film. Born 31 May 1984, she has not issued a formal retirement and as of the mid-2020s focuses on talent work, with no newly-shot AV for several years."
+  primary_studios:
+  - name: S1 (S1 No.1 Style)
+    company: S1 (Hokuto group)
+    from: 2007-06-19
+    to: 2010-11-30
+    role: 'Debut exclusive contract actress (codes SOE / ONED); released roughly monthly'
+  - name: Attackers
+    company: Attackers
+    from: 2010-12-01
+    to: 2011-01-31
+    role: 'Brief exclusive contract actress (code RBD)'
+  - name: SOD Create / SOD ACE
+    company: SOD Create (Soft On Demand)
+    from: 2011-07-01
+    to: 2012-01-31
+    role: 'Exclusive contract actress (SOD ACE)'
+  awards:
+  - event: SOD大賞 (SOD Awards)
+    year: 2011
+    category: 優秀女優賞 (Excellent Actress)
+  legacy: 'A tall G-cup S1 debut star of the late 2000s and Ebisu Muscats idol-unit member who moved through S1, Attackers and SOD Create exclusives, won a 2011 SOD Award, and transitioned into mainstream talent work without a formal AV retirement.'
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 554 top labels SOE 18 + ONED 4 = S1, RBD 3 = Attackers, plus MOODYZ/Madonna/Wanz guest appearances.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (かすみりさ) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut, studio contracts, award. Measurements (90-58-85) and cup (G) are the 2008 公称 figures. Identity confirmed via studio-match heuristic: DB top labels SOE/ONED = S1 (her 2007-2010 debut exclusive) and RBD = Attackers (her brief 2010-11 contract) both match the article''s 専属契約 list; remaining MOODYZ/Madonna/Wanz labels are guest/compilation appearances. active_from = first S1 release 2007-06-19. active_to LEFT NULL: she has issued NO formal retirement work or declaration (出演期間 shown open-ended as "2007 -"); per the article she has not shot new AV for several years and works mainly as a talent — so an end date would be fabricated. SOD contract was under the SOD ACE label (2011-07 to 2012-01). Ebisu Muscats member, graduated July 2011; agency Testa Inc. / T-Powers. Company groupings per src/main/resources/labels.yaml. Tier POPULAR in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/かすみりさ
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=554 (canonical "Risa Kasumi", stage_name かすみりさ, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (SOE/ONED = S1, RBD = Attackers)'
+  portfolio_listed: 0
