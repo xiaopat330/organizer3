@@ -24,7 +24,7 @@ export async function mountWorkflow(rootEl) {
   rootEl.innerHTML = `
     <div class="wf-page wb-page">
       <div class="wf-header">
-        <span class="wf-header-title wb-section-title">Enrichment Workflow</span>
+        <span class="wf-header-title">Enrichment Workflow</span>
         <div class="wf-header-kpis" id="wf-kpis"></div>
         <button type="button" class="btn sm" id="wf-bulk-btn" disabled>Queue all ambiguous</button>
         <button type="button" class="btn sm" id="wf-apply-agreed-btn" disabled>Apply all agreed</button>

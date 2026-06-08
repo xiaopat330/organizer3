@@ -593,7 +593,7 @@ function buildPageHTML() {
       <!-- Page heading row -->
       <div class="bk-page-head">
         <div class="bk-page-title-group">
-          <h1 class="bk-page-title">Backup</h1>
+          <h1 class="wb-page-title">Backup</h1>
           <div class="dis-kpi-strip" id="bk-kpi">Loading…</div>
         </div>
         <div class="bk-page-actions">
