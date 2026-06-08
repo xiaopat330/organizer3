@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Miyuki
+    given_name: Arisu
+    stage_name: 美雪ありす
+    reading: みゆき ありす
+    alternate_names:
+    - name: Miyuki Alice
+      note: 'Alternate romanization she uses herself (Instagram @miyuki_alice0425, X CITY listing). Same person, same stage name 美雪ありす.'
+  date_of_birth: 1987-04-25
+  birthplace: Hokkaido, Japan
+  blood_type: A
+  height_cm: 167
+  measurements:
+    bust: 86
+    waist: 56
+    hip: 85
+  cup: E
+  active_from: 2010-12-10
+  active_to: 2015-12-01
+  retirement_announced: 2015-07-31
+  biography: "Arisu Miyuki (美雪ありす) is a retired Japanese AV actress from Hokkaido, born 25 April 1987 (A blood type, 167 cm tall, E-cup). Before AV she worked five years as a local Hokkaido model, with a three-and-a-half-year regular slot on an information TV program plus CM and corporate-poster work (including the 「白い恋人」 confection). She made her AV debut in December 2010 with Alice Japan's 『White Love』, becoming the first actress Alice Japan signed exclusively to carry the company's own 'Alice' name. In November 2012 she transferred to Idea Pocket as an exclusive actress, where she spent the rest of her career. She announced her retirement on her personal blog on 31 July 2015, with final releases running through late 2015, and is affiliated with the Fantasista agency."
+  primary_studios:
+  - name: Alice Japan (アリスJAPAN)
+    company: Alice Japan
+    from: 2010-12-10
+    to: 2012-08-31
+    role: 'Exclusive contract actress (debut work 『White Love』, DV codes); first actress signed to carry the company-name "Alice"'
+  - name: Idea Pocket (アイデアポケット)
+    company: Idea Pocket
+    from: 2012-11-01
+    to: 2015-12-01
+    role: 'Exclusive contract actress for the remainder of her career (IPZ / IPTD / IPSD / IDBD / SUPD codes)'
+  awards: []
+  legacy: 'A tall (167 cm) Hokkaido-born "talento"-type actress of the early 2010s, notable as the first performer Alice Japan signed exclusively under the company''s own "Alice" name (Dec 2010), who then moved to Idea Pocket (Nov 2012) before retiring in 2015.'
+
+meta:
+  total_owned_titles: 52
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not researched (no DMM scrape / title enumeration). DB record id 1083 holds 52 owned titles: DV 19 (Alice Japan) + IPZ 27 plus IPTD/IPSD/IDBD/SUPD (all Idea Pocket) — distribution matches the two-studio career exactly.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (美雪ありす) — high confidence on DOB (1987-04-25), Hokkaido birthplace, blood type A, height 167 cm, measurements 86-56-85 (2010年12月時点 公称), E-cup, debut, transfer, and retirement. Identity heuristics ALL PASS: (1) studio match — article confirms アリスJAPAN exclusive from Dec 2010 then アイデアポケット from Nov 2012, exactly matching DB labels DV=Alice Japan + IPZ/IPTD/IPSD/IDBD/SUPD=Idea Pocket; (2) title-count ballpark — Wikipedia lists ~52 AV entries vs DB 52 (ratio ~1.0); (3) name match — article title 美雪ありす matches exactly. This record was previously conflated with 月乃ルナ (Runa Tsukino, b.1995, a different person, Maxing/Moodyz) and has been split; nothing in the Wikipedia article references 月乃ルナ/Tsukino/Maxing/Moodyz — confirming the split was correct. active_from = 2010-12-10 (『White Love』 release); active_to = 2015-12-01 (last dated release 美雪ありす 180分本指名, 12月1日); retirement_announced = 2015-07-31 (blog). awards: none found (article lists no awards). UNVERIFIED DB ALIASES: "Alice Miyuki" is just the Miyuki Alice romanization (consistent). "Aki Suzuki" (鈴木あき?) and "Rika Shimazaki" (島崎里香?) are NOT mentioned anywhere in the Japanese Wikipedia article as former stage names — neither confirmed nor denied; left out of alternate_names to avoid polluting the stage_name lookup. agency Fantasista. NOTE: task brief said debut "~2009" but the primary source (Wikipedia infobox + body) states December 2010 — followed Wikipedia.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/美雪ありす
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1083 (canonical "Arisu Miyuki", stage_name 美雪ありす, slug 9Dw6, 52 titles)'
+  - 'src/main/resources/labels.yaml — label/company mapping (DV = Alice Japan; IPZ/IPTD/IPSD/IDBD/SUPD = Idea Pocket)'
+  portfolio_listed: 0

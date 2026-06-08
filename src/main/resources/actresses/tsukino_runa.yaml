@@ -1,0 +1,60 @@
+profile:
+  name:
+    family_name: Tsukino
+    given_name: Runa
+    stage_name: 月乃ルナ
+    reading: つきの るな
+    alternate_names:
+    - name: Luna Tsukino
+      note: 'Alternate romanization of 月乃ルナ (ルナ is commonly romanized Luna or Runa; DB canonical_name uses Runa to match on-disk folders)'
+    - name: 月乃露娜
+      note: 'Simplified-Chinese name variant used on javdb'
+  date_of_birth: 1995-10-01
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 163
+  measurements:
+    bust: 82
+    waist: 58
+    hip: 86
+  cup: C
+  active_from: 2019-02-16
+  active_to: null
+  retirement_announced: null
+  biography: "Runa Tsukino (月乃ルナ; also romanized Luna Tsukino), born 1 October 1995 in Tokyo, is a Japanese AV actress and gravure idol who debuted in February 2019 at MAXING under the marketing hook of resembling idol Moga Mogami. She achieved early mainstream recognition in 2021–2022, ranking in FANZA, FLASH, and Asahi Geino popularity polls, and broke through to wider fame with a MOODYZ collaboration title that topped FANZA rankings. From August 2022 she held a simultaneous dual exclusive contract with Attackers and Honnaka, before joining the DAHLIA label (a FALENO affiliate) as an exclusive in April 2026. Alongside her AV career she has been active as a singer — founding the music unit 'JC + The Mechanics' in 2018 — and as a gravure model, publishing the photobook 'Tsuki no Mahō' (月の魔法) and appearing on the cover of motorcycle magazine VIBES in 2024. She is managed by SO MODEL AGENT (formerly Eightman Production) as of mid-2025."
+  primary_studios:
+  - name: MAXING
+    company: MAXING
+    from: 2019-02-16
+    to: 2022-07-31
+    role: 'Exclusive contract actress (debut through mid-2022)'
+  - name: Attackers
+    company: Attackers
+    from: 2022-08-01
+    to: null
+    role: 'Dual exclusive contract actress (simultaneously with Honnaka)'
+  - name: Honnaka
+    company: Honnaka
+    from: 2022-08-01
+    to: null
+    role: 'Dual exclusive contract actress (simultaneously with Attackers)'
+  - name: DAHLIA
+    company: FALENO
+    from: 2026-04-01
+    to: null
+    role: 'Exclusive contract actress'
+  awards: null
+  legacy: 'A prolific mid-2020s exclusive known for her cool, slender-beauty image and multiple-studio contract history; one of the more active FANZA-charting actresses of the 2021–2025 generation.'
+
+meta:
+  total_owned_titles: 95
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id=7322 (created 2026-06-08) holds 95 owned titles, all from her 2019+ career — MIAA/MIAB (MOODYZ), HMN (Honnaka), WAAA, PRED/PRTD (Premium), MXGS/MXSPS/MXDLP (MAXING, her debut label), MEYD (Madonna), SAME/ADN (Attackers), DLDSS (DAHLIA), CAWD/PFES (kawaii), BLK (kira kira), and assorted singles. javdb slug eJmE (630 titles listed there).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (月乃ルナ). DOB 1995-10-01 confirmed. Blood type A and birthplace Tokyo are marked 要出典 (citation needed) in Wikipedia — treat as low confidence. Measurements (82-58-86 C) from the 2025 agency profile per the Wikipedia infobox. Active studios (MAXING, Attackers+Honnaka dual, DAHLIA 2026) are directly stated in Wikipedia. IDENTITY: this record (id 7322) was split out on 2026-06-08 from a conflated record (old id 1083 "Arisu Miyuki") that had glued together two different people — the 2009–2014 Alice Japan / Idea Pocket star 美雪ありす (DOB math: she would have been 14 in 2009) and this 2019+ actress 月乃ルナ. Bucketed by javdb slug (eJmE for 月乃ルナ on the 13 enriched titles + collection folder names reading "Runa Tsukino") and by label/era (all 2019+ labels → 月乃ルナ). The Alice Japan (DV) + Idea Pocket (IPZ/IPTD/IPSD/IDBD/SUPD) titles were moved to 美雪ありす (id 1083). canonical_name "Runa Tsukino" chosen to match on-disk folders and the former DB alias.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/月乃ルナ
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=7322 (canonical "Runa Tsukino", stage_name 月乃ルナ, tier SUPERSTAR, 95 titles, javdb slug eJmE)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  portfolio_listed: 0
