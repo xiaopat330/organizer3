@@ -30,6 +30,25 @@ function esc(s) {
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+function ageAtDate(dobIso, eventIso) {
+  if (!dobIso || !eventIso) return null;
+  const dob = new Date(dobIso);
+  const ev  = new Date(eventIso);
+  if (isNaN(dob) || isNaN(ev)) return null;
+  let age = ev.getFullYear() - dob.getFullYear();
+  const m = ev.getMonth() - dob.getMonth();
+  if (m < 0 || (m === 0 && ev.getDate() < dob.getDate())) age--;
+  if (age < 10 || age > 80) return null;
+  return age;
+}
+
+function agePillTier(age) {
+  if (age < 20) return 'gold';
+  if (age < 25) return 'silver';
+  if (age < 30) return 'bronze';
+  return 'grey';
+}
+
 function coverUrl(t) {
   const code = t.code || '';
   return t.coverUrl
@@ -113,10 +132,17 @@ export function renderTitleCard(t, opts = {}) {
       </div>
     `;
   } else {
+    const cardAge = (t.actresses && t.actresses.length > 1)
+      ? null
+      : ageAtDate(t.actressDateOfBirth, t.releaseDate);
+    const ageHtml = cardAge != null
+      ? `<div class="tcv2-age" data-age-tier="${agePillTier(cardAge)}">${cardAge}</div>`
+      : '';
     el.innerHTML = `
       <div class="tcv2-cover${cover ? '' : ' tcv2-cover--empty'}"
            style="${cover ? `background-image:url('${esc(cover)}');background-size:cover;background-position:right center` : ''}">
         ${gradeHtml ? `<div class="tcv2-status">${gradeHtml}</div>` : ''}
+        ${ageHtml}
         ${watchedHtml}
       </div>
       <div class="tcv2-code">${esc(code)}</div>
