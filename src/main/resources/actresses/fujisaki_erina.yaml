@@ -1,0 +1,60 @@
+profile:
+  name:
+    family_name: Fujisaki
+    given_name: Erina
+    stage_name: 藤崎エリナ
+    reading: ふじさき えりな
+    alternate_names:
+    - name: 喜多嶋未来
+      note: 'Debut stage name (2008–2011); romaji Kitajima Mirai'
+    - name: 北島みらい
+      note: 'Transitional stage name (2012)'
+    - name: 本上まさみ
+      note: 'Transitional stage name (2012)'
+    - name: 本城雅美
+      note: 'Listed former stage name; context unclear'
+  date_of_birth: 1988-05-16
+  birthplace: Shizuoka Prefecture, Japan
+  blood_type: O
+  height_cm: 163
+  measurements:
+    bust: 89
+    waist: 57
+    hip: 84
+  cup: F
+  active_from: 2008-10-13
+  active_to: null
+  retirement_announced: null
+  biography: "Erina Fujisaki (藤崎エリナ) is a Japanese AV actress from Shizuoka Prefecture, born 16 May 1988. She debuted in October 2008 under the stage name 喜多嶋未来 (Kitajima Mirai) with Aurora Project, working for smaller labels including Big Morkal and Aroma Kikaku through 2011. In 2012 she transitioned through the names 北島みらい and 本上まさみ before settling on her current stage name 藤崎エリナ. Under the Fujisaki Erina name she became an exclusive contract actress for Idea Pocket from early 2013, appearing in their flagship IPZ line, and subsequently worked extensively with Attackers (RBD and ATID labels) in drama and SM-adjacent productions. She has also appeared for Madonna (JUX) and HMGL (Glamour). As of the available record she has not announced retirement (active_to left null; last known activity circa 2015 per Wikipedia filmography)."
+  primary_studios:
+  - name: Aurora Project
+    company: Aurora Project
+    from: 2008-10-13
+    to: 2011-09-19
+    role: 'Debut-era actress under 喜多嶋未来 name'
+  - name: IDEA POCKET
+    company: Idea Pocket
+    from: 2013-03-01
+    to: null
+    role: 'Exclusive contract actress (IPZ line)'
+  - name: Attackers
+    company: Attackers
+    from: 2013-12-07
+    to: 2014-04-07
+    role: 'Contract actress (RBD and ATID lines)'
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 13
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB id 4059 holds 13 owned titles (IPZ 7, RBD 2, VDD 1, JUX 1, HMGL 1, ATID 1). Alias in DB: "Erina Fujsaki" (typo variant).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (藤崎エリナ) — high confidence on DOB (1988-05-16), birthplace (Shizuoka), blood type (O), height (163 cm), measurements (89-57-84, F cup). Measurements noted as 2014年時点 (as of 2014). Identity confirmed via studio-match heuristic: DB top label IPZ maps to Idea Pocket, confirmed present in Wikipedia filmography; RBD/ATID map to Attackers, confirmed in Wikipedia; JUX maps to Madonna, confirmed in Wikipedia (夫の上司 2014-07-25); HMGL (Glamour) confirmed in Wikipedia (2014 and 2015 entries). DB owns 13 titles vs ~25 entries in Wikipedia Fujisaki-name section — ratio consistent with partial ownership. Name confirmed: Wikipedia article title 藤崎エリナ matches DB stage_name. VDD not found in labels.yaml — marked Unknown in portfolio (not yet built). active_to left null as Wikipedia article shows no retirement announcement. The four alternate_names are all documented former stage names (別名義) per the Wikipedia infobox; 本城雅美 context is unclear but listed in the infobox without further explanation.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/藤崎エリナ
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=4059 (canonical "Erina Fujisaki", stage_name 藤崎エリナ, 13 titles, alias "Erina Fujsaki")'
+  - 'src/main/resources/labels.yaml — label/company mapping (IPZ = IDEA POCKET / Idea Pocket, RBD/ATID = Attackers In Mad/Ryubaku, JUX = Madonna, HMGL = Glamour)'
+  portfolio_listed: 0

@@ -1,0 +1,65 @@
+profile:
+  name:
+    family_name: Kusanagi
+    given_name: Jun
+    stage_name: 草凪純
+    reading: くさなぎ じゅん
+    alternate_names:
+    - name: 加納瑞穂
+      note: 'Debut-era stage name (1996–1999); used for AV titles under Karen/Alice JAPAN labels'
+    - name: 浅海成亜
+      note: 'Gravure stage name used in 1997, parallel to AV debut era'
+    - name: JUNE
+      note: 'Stage name used c.2000 for nude modelling, US market attempt'
+    - name: 純名きりん
+      note: 'Actress stage name used 2001–2002 for V-cinema and theatrical work (derived from 樹木希林)'
+  date_of_birth: 1978-06-05
+  birthplace: Tochigi Prefecture, Japan
+  blood_type: O
+  height_cm: 166
+  measurements:
+    bust: 92
+    waist: 52
+    hip: 85
+  cup: G
+  active_from: 1996-10-25
+  active_to: null
+  retirement_announced: null
+  biography: "Jun Kusanagi (草凪純) is a Japanese AV actress, nude model, actress, and talent born 5 June 1978 in Tochigi Prefecture. She debuted in AV in October 1996 under the name 加納瑞穂 (Kano Mizuho) with her first release on the Karen label, then moved to Alice JAPAN; she briefly retired from AV in 1997 before returning in 1998, accumulating nearly 30 titles before retiring again in 1999. Alongside her AV work, she gained mainstream recognition as 草凪純 from 1998 onward — her signature waist-and-underbreast physique earned her the nickname 'くびれ女王' (Queen of the Defined Waist), and she appeared on multiple national TV programs including Gilgamesh Night (TV Tokyo), Tonight 2 (TV Asahi), and Super Jockey (NTV). After her first AV retirement she continued as a gravure model, Vシネマ actress, and strip performer, and participated in FMW and WEW pro-wrestling events (2000–2003) as a manager and occasional wrestler. She staged an AV comeback in January 2006 under her established 草凪純 name, signing with GRACE/Crystal Eizo before moving to Madonna, Moodyz, Gloria Quest, Attackers, and dogma; she was recognised as one of the defining busty actresses of the 1990s at the 2012 AV30 thirtieth-anniversary retrospective."
+  primary_studios:
+  - name: Alice JAPAN
+    company: Alice JAPAN
+    from: 1996-11-01
+    to: 1999-07-31
+    role: 'Debut-era contract actress (加納瑞穂 name); multiple releases 1996–1999'
+  - name: Madonna
+    company: Madonna
+    from: 2006-10-25
+    to: null
+    role: 'Comeback-era contract actress (JUKD codes)'
+  - name: Moodyz
+    company: Moodyz
+    from: 2006-09-13
+    to: null
+    role: 'Multi-title contributor (MIGD codes)'
+  - name: Attackers
+    company: Attackers
+    from: 2007-04-07
+    to: null
+    role: 'Featured actress (SHKD codes)'
+  awards: null
+  legacy: "A pioneering 1990s G-cup gravure crossover star renowned as the 「くびれ女王」 (Queen of the Defined Waist), whose 1996–1999 debut era on Alice JAPAN and 2006 comeback across Madonna, Moodyz, and Attackers cemented her as one of the defining busty actresses of two generations; selected as one of the 1990s representative busty AV actresses at the AV30 thirtieth-anniversary retrospective in 2012."
+
+meta:
+  total_owned_titles: 8
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 3585 holds 8 owned titles (labels: JUKD x2, SHKD x2, PB x1, NADE x1, MIGD x1, DDB x1); all are 2006+ comeback era. No title_javdb_enrichment cast_json rows present for this actress — kanji resolved via Japanese Wikipedia identity match.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (草凪純) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut history. Measurements (92-52-85, G-cup) are the 公称 figures as of 2006 per Wikipedia infobox qualifier "2006年時点". Identity confirmed via studio-match: DB labels map to Wikipedia comeback-era studios — JUKD=Madonna, SHKD=Attackers (shark label), MIGD=Moodyz value, DDB=dogma; all appear in Wikipedia filmography. DB title count (8) is a small owned subset consistent with a minor-tier entry spanning multiple studios. active_from set to first AV release date per Wikipedia (1996-10-25 加納瑞穂 debut); active_to=null as Wikipedia shows no retirement announcement. NADE and PB codes not found in src/main/resources/labels.yaml — labeled Unknown. Tier MINOR in DB. Alternate names are documented former stage names only per Wikipedia 別名 field.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/草凪純
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3585 (canonical "Jun Kusanagi", stage_name null, 8 titles, tier MINOR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (JUKD=Madonna, SHKD=shark/Attackers, MIGD=Moodyz value, DDB=dogma)'
+  portfolio_listed: 0

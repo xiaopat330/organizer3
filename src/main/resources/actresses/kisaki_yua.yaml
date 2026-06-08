@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Kisaki
+    given_name: Yua
+    stage_name: 妃悠愛
+    reading: きさき ゆあ
+    alternate_names:
+    - name: 水原里香
+      note: 'Early pseudonym used in 2009 debut-era titles (character/pseudonym name; Rika Mizuhara)'
+    - name: 木崎祐子
+      note: 'Early pseudonym used in 2009 debut-era titles (character/pseudonym name; Yuko Kizaki)'
+    - name: 長澤杏奈
+      note: 'Pseudonym used in some later titles (Anna Nagasawa); basis for javdb cast_json entry'
+  date_of_birth: 1980-12-01
+  birthplace: Tokyo, Japan
+  blood_type: B
+  height_cm: 154
+  measurements:
+    bust: 74
+    waist: 54
+    hip: 72
+  cup: C
+  active_from: 2009-04-22
+  active_to: 2011-09-23
+  retirement_announced: 2011-08-01
+  biography: "Yua Kisaki (妃悠愛) is a Japanese retired AV actress born on 1 December 1980 in Tokyo. She made her debut in April 2009 across multiple labels under various pseudonyms before settling on her primary stage name 妃悠愛 later that year. From September 2010 she held an exclusive contract with TMA (Total Media Agency / トータル・メディア・エージェンシー), for whom she produced a concentrated body of work in 2010–2011 including cosplay, creampie, and housewife-themed titles. She announced her retirement on her official blog on 1 August 2011, with her final regular release — 「麗しのパンスト人妻の誘惑 妃悠愛」 — issued on 23 September 2011; the blog was closed on 5 November 2011. In the AV30 anniversary popularity poll (January–February 2012) she ranked 71st. A compilation best was released posthumously by TMA in September 2013."
+  primary_studios:
+  - name: TMA (Total Media Agency)
+    company: TMA (Total Media Agency)
+    from: 2010-09-01
+    to: 2011-09-23
+    role: 'Exclusive contract actress (code T28, HITMA)'
+  awards: null
+  legacy: 'A mid-tier TMA exclusive of the early 2010s whose concentrated 2010–2011 output established her housewife/cosplay niche; ranked 71st in the AV30 industry popularity poll.'
+
+meta:
+  total_owned_titles: 15
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 5570 holds 15 owned titles across mixed labels (T28 x2, XV x1, WNZ x1, VDD x1, RKI x1, MILD x1, MIGD x1, JUFD x1, JUC x1, HITMA x1, FTA x1, EZD x1, AOZ x1, ERH x1). Label spread suggests multi-studio pre-exclusive era + later compilations/reissues.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (妃悠愛) — high confidence on DOB (1980-12-01), birthplace (Tokyo), blood type (B), height (154 cm), measurements (74-54-72 C-cup), debut/retirement, TMA exclusive contract period. Identity confirmed: stage name 妃悠愛 matches canonical_name Yua Kisaki (きさき ゆあ); TMA label (T28, HITMA) in DB matches Wikipedia TMA exclusive contract (September 2010 onward). DB stage_name 長澤杏奈 is a documented pseudonym used in some titles (confirmed via javdb cast_json slug O79y = 長澤杏奈); primary stage name is 妃悠愛. Aliases 水原里香 and 木崎祐子 appear as character/pseudonym names in 2009 Wikipedia filmography — treating as debut-era pseudonyms, not independent stage names; flagged as uncertain. DB tier MINOR consistent with single-studio mid-tier 2009–2011 active window. Measurements are 公称 figures per Wikipedia infobox (no date qualifier given).'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/妃悠愛
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=5570 (canonical "Yua Kisaki", stage_name 長澤杏奈, 15 titles, tier MINOR)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  - https://www.minnano-av.com/actress158277.html
+  portfolio_listed: 0

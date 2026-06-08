@@ -1,0 +1,56 @@
+profile:
+  name:
+    family_name: Sakamoto
+    given_name: Aimi
+    stage_name: 坂本愛海
+    reading: さかもと あいみ
+    alternate_names:
+    - name: 池上あい
+      note: 'Former stage name (別名義)'
+    - name: 坂西真由美
+      note: 'Former stage name (別名義)'
+    - name: あいみ
+      note: 'Single-name alias used on some releases'
+    - name: 愛海
+      note: 'Single-name alias used on some releases'
+  date_of_birth: 1989-01-18
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 148
+  measurements:
+    bust: 86
+    waist: null
+    hip: null
+  cup: E
+  active_from: 2007-10-04
+  active_to: 2014-01-24
+  retirement_announced: null
+  biography: "Aimi Sakamoto (坂本愛海, born 18 January 1989 in Tokyo) is a Japanese AV actress who debuted in October 2007 across multiple labels simultaneously, quickly becoming a prolific performer through 2008–2009. Standing 148 cm with an E-cup bust (later described as F/G-cup in multi-actress compilation titles), she appeared in a wide range of productions from kawaii*, E-BODY, Natural High, and many other labels during her active period. She retired around 2011 but returned to adult video in December 2013, notably appearing while ten months pregnant — a fact highlighted in her comeback title. Her post-comeback appearances concluded in early 2014."
+  primary_studios:
+  - name: kawaii*
+    company: WILL Co., Ltd.
+    from: null
+    to: null
+    role: 'Non-exclusive appearance (KAWD code)'
+  - name: E-BODY
+    company: WILL Co., Ltd.
+    from: null
+    to: null
+    role: 'Non-exclusive appearance (EBOD code)'
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 13
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 3586 holds 13 owned titles spanning 13 different labels (each label contributes exactly 1 title: ALB, AME, DVDPS, EBOD, IBW, KAWD, MUKD, MVFD, NHDT, NWF, PMH, PNA, YSN). No javdb enrichment, no cast_json available. Wikipedia filmography lists well over 100 titles (2007–2014).'
+  confidence: 'Kanji 坂本愛海 confirmed via Amazon JP listing for KAWD-122 (kawaii* girl 17 坂本愛海) + Wikipedia article title match. DOB 1989-01-18, birthplace Tokyo, blood type A, height 148cm sourced from Japanese Wikipedia infobox (ja.wikipedia.org/wiki/坂本愛海). Bust 86cm + cup E sourced from Wikipedia debut-era title "86cmEcup 奇跡の美乳でヤリまくるHな7シチュエーション" (2007); waist/hip not stated in Wikipedia infobox — set to null rather than guessed. Active period: Wikipedia states 2007–2011 with comeback 2013–2014; active_from=first film 2007-10-04, active_to=last known title 2014-01-24. Alternate names (池上あい, 坂西真由美, あいみ, 愛海) sourced from Wikipedia infobox 別名 field. Identity confirmed: DB label KAWD matches kawaii* (Wikipedia lists kawaii* girl 17 = KAWD-122); EBOD matches E-BODY (Wikipedia lists E-BODY 2008); MUKD matches Muku (無垢) which Wikipedia confirms (December 2007 "あい" release on 無垢). Studio contract dates unknown — she was non-exclusive across many labels. No awards found. No Wikipedia article gap — article exists at ja.wikipedia.org/wiki/坂本愛海.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/坂本愛海'
+  - 'https://www.amazon.co.jp/kawaii-girl-17-%E5%9D%82%E6%9C%AC%E6%84%9B%E6%B5%B7-DVD/dp/B00167ZS9E'
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3586 (canonical "Aimi Sakamoto", stage_name null, 13 titles, tier MINOR)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  portfolio_listed: 0

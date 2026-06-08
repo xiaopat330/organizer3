@@ -1,0 +1,50 @@
+profile:
+  name:
+    family_name: Wakana
+    given_name: Hikaru
+    stage_name: 若菜ひかる
+    reading: わかな ひかる
+  date_of_birth: 1985-03-06
+  birthplace: Kanagawa, Japan
+  blood_type: O
+  height_cm: 159
+  measurements:
+    bust: 91
+    waist: 58
+    hip: 85
+  cup: F
+  active_from: 2006-02-24
+  active_to: 2008-09-01
+  biography: "Hikaru Wakana (若菜ひかる) is a Japanese former AV actress, gravure idol, and talent born on 6 March 1985 in Kanagawa Prefecture. Before her adult video debut she was active as a general talent, and in February 2006 she debuted in AV with the film 'Shine' (シャイン) as a dual exclusive for Alice JAPAN and MAX-A. In August 2007 she moved to a cell-debut exclusive contract with kawaii*, releasing several solo titles under that label. In mid-2008 she appeared in two titles for MOODYZ (淫らな女教師 and チンポを鍛える大人の励まし淫語トレーニング), marking her last new solo works. Alongside her AV career she appeared in television programmes and non-adult films, including a lead role in the Hong Kong–Japanese co-production 金瓶梅 (2010). She has since focused primarily on mainstream acting work."
+  primary_studios:
+  - name: Alice JAPAN
+    company: Alice JAPAN
+    from: 2006-02-24
+    to: 2007-08-24
+    role: 'Debut-era dual exclusive (with MAX-A; codes DV / NDV)'
+  - name: MAX-A
+    company: MAX-A
+    from: 2006-02-24
+    to: 2007-08-24
+    role: 'Debut-era dual exclusive contract actress (codes XV / SRXV / PXV)'
+  - name: 'kawaii*'
+    company: 'kawaii*'
+    from: 2007-08-25
+    to: 2008-01-25
+    role: 'Cell-debut exclusive contract actress (code KAWD)'
+  legacy: null
+
+meta:
+  total_owned_titles: 15
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 1873 holds 15 owned titles (top labels SRXV 4, NDV 3, KA 2, and singles for DV, XV, KAWD, MIDD, PXV, SFLB). No aliases in DB.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (若菜ひかる) — high confidence on DOB, birthplace (Kanagawa), blood type O, height 159 cm, measurements 91-58-85, cup F, studios, and active period. Identity confirmed via studio-match heuristic: DB top codes all map to her Wikipedia exclusive contracts — DV/NDV = Alice JAPAN, XV/SRXV/PXV = MAX-A (WILL/JHV Group), KAWD = kawaii*, MIDD = Moodyz (2008 appearance confirmed in Wikipedia filmography). DB owns 15 titles against a Wikipedia filmography of ~30+ entries (within ballpark for partial ownership of a short 2006–2008 career). active_from set to AV debut date 2006-02-24 (シャイン, Alice JAPAN); active_to is approximate (last MOODYZ title circa August 2008 based on Wikipedia listing). KA codes likely CVD label — not covered in Wikipedia filmography, possibly post-career compilations or reissues. SFLB-040 not found in labels.yaml — noted as Unknown. stage_name null in DB; resolved via cast_json entry in title_javdb_enrichment for PXV-015 (若菜ひかる, slug P1p0). verify_actress_titles_via_javdb timed out; kanji resolved via cast_json fallback.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/若菜ひかる'
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1873 (canonical "Hikaru Wakana", stage_name null, tier MINOR, 15 titles)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  - 'title_javdb_enrichment.cast_json for PXV-015 — kanji name resolution (若菜ひかる, slug P1p0)'
+  portfolio_listed: 0

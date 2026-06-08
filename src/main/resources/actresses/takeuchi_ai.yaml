@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Takeuchi
+    given_name: Ai
+    stage_name: 竹内あい
+    reading: たけうち あい
+  date_of_birth: 1985-11-19
+  birthplace: Kanagawa, Japan
+  blood_type: O
+  height_cm: 162
+  measurements:
+    bust: 88
+    waist: 58
+    hip: 86
+  cup: F
+  active_from: 2006-07-21
+  active_to: 2011-09-01
+  retirement_announced: null
+  biography: "Ai Takeuchi (竹内あい) is a Japanese retired AV actress represented by Tea Powers (ティーパワーズ), known for her large bust (F-cup, 88 cm) and high-volume output under MOODYZ. She debuted on 21 July 2006 with the h.m.p exclusive title 『メロメロいちご恋乳』 and transitioned to cell-video with a MOODYZ debut on 1 September 2007 (『初セルの女神さま』), where she remained the primary exclusive for the following four years. Over her career she appeared in several dozen MOODYZ titles spanning solo and multi-actress productions, as well as sporadic releases on Attackers, E-BODY, h.m.p, and minor labels. She retired on 1 September 2011 with the MOODYZ graduation title 『ムーディーズ卒業24時間』, having built a reputation for glamorous-body (美巨乳) content. Her hobbies are travel and reading; special skills include aromatherapy and basketball."
+  primary_studios:
+  - name: h.m.p
+    company: h.m.p
+    from: 2006-07-21
+    to: 2007-08-21
+    role: Debut-era exclusive contract actress
+  - name: Moodyz
+    company: Moodyz
+    from: 2007-09-01
+    to: 2011-09-01
+    role: Exclusive contract actress (cell debut to retirement)
+  awards: null
+  legacy: 'A MOODYZ exclusive of the late-2000s known for glamorous-body (美巨乳) productions; debuted via h.m.p in 2006 and retired with a MOODYZ graduation title in September 2011 after roughly five years.'
+
+meta:
+  total_owned_titles: 18
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 942 holds 18 owned titles (top labels MIDD 4, HODV 4, MKCK 2, MIRD 2, MIGD 2, RBD 1, MIDI 1, MIBD 1, EZD 1).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (竹内あい) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut/retirement, studios. Measurements (88-58-86, cup F) are the 2010年時点 公称 figures per infobox. Identity confirmed via studio-match: DB top labels HODV=h.m.p and MIDD/MIRD/MIBD/MIGD=Moodyz map exactly to her documented exclusive contracts. MIDI not found in labels.yaml (listed as Unknown). No aliases in DB. No awards listed on Wikipedia. Stage_name 竹内あい confirmed via javdb cast_json (slug Bgda) on MKCK-041, MKCK-063, MIRD-076, RBD-254.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/竹内あい
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=942 (canonical "Ai Takeuchi", stage_name 竹内あい, tier MINOR, 18 titles)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  portfolio_listed: 0

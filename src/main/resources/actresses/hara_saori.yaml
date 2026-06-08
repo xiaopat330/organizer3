@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Hara
+    given_name: Saori
+    stage_name: 原紗央莉
+    reading: はら さおり
+    alternate_names:
+    - name: 七海 まい
+      note: 'Former stage name (別名義); used as idol/gravure name 2004–2008'
+    - name: 松野井 雅
+      note: 'Current stage name (別名義, 別名義); adopted April 2014 for mainstream acting career'
+  date_of_birth: 1988-01-01
+  birthplace: Hiroshima City, Hiroshima Prefecture, Japan
+  blood_type: O
+  height_cm: 165
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 85
+  cup: E
+  active_from: 2009-01-22
+  active_to: 2011-03-10
+  retirement_announced: null
+  biography: "Saori Hara (原紗央莉) is a Japanese actress, former gravure idol, and retired AV actress who debuted as idol 七海まい (Nanaumi Mai) in April 2004. Born 1 January 1988 in Hiroshima City, she moved to Tokyo in junior high school, graduated from Horikoshi High School, and re-debuted under the name 原紗央莉 before entering AV with SOD Create on 22 January 2009. Her debut work 『芸能人 原紗央莉 奇跡のAVデビュー』 became an industry-wide hit, selling over 100,000 copies and topping AV rankings nationally. She was an exclusive SOD Star actress throughout her AV career (2009–2011), winning the SOD Grand Prize for Best Actress in 2009 and the SKY PerfecTV! Adult Broadcasting Award for Best Actress in 2010. In March 2011 she terminated her SOD contract for health and personal reasons following the Tohoku earthquake, and in April 2014 re-emerged as actress 松野井雅 (Matsunoi Miyabi) under talent agency Geiei, subsequently appearing in mainstream TV dramas and films. She married in October 2012 and gave birth to twin daughters in February 2023."
+  primary_studios:
+  - name: SOD Star
+    company: SOD Create
+    from: 2009-01-22
+    to: 2011-03-10
+    role: 'Exclusive contract actress (SOD Star flagship; codes STAR / STARS / SDDS)'
+  awards:
+  - event: 第8回SOD大賞
+    year: 2009
+    category: 最優秀女優賞 (Best Actress)
+  - event: 第9回SOD大賞
+    year: 2010
+    category: 特別賞 (Special Award)
+  - event: スカパー!アダルト放送大賞
+    year: 2010
+    category: 女優賞 (Best Actress)
+  legacy: 'A landmark SOD Star debut-era actress whose 2009 AV debut sold over 100,000 copies — one of the best-selling AV debuts of the late 2000s. After retiring from AV in 2011, she rebuilt a mainstream acting career under the name Matsunoi Miyabi and appeared in the GARO franchise and multiple television dramas.'
+
+meta:
+  total_owned_titles: 19
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 3591 holds 19 owned titles (top labels STAR 15, STARS 1, SDDS 1, FORM 1, EDD 1).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (原紗央莉) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut/retirement, studios, awards. Measurements (85-58-85, cup E) from AV女優 infobox. Identity confirmed via studio-match heuristic: DB top label STAR maps to SOD Star (SOD Create) which matches Wikipedia exclusive SOD Create contract; STARS is the successor SOD Star code — consistent. EDD = Prestige (Tamashiya per labels.yaml) and SDDS/FORM not in labels.yaml (label Unknown) — these are likely early pre-exclusive SOD releases or guest appearances; total 4 titles across non-SOD labels is plausible for a short 2-year exclusive career. DB 19 titles vs short 2-year AV career is consistent. active_to set to contract termination date 2011-03-10 per Wikipedia (health issue + Tohoku earthquake); no formal "retirement_announced" event recorded — null. Cup E note 1 in Wikipedia (footnote confirms E). alternate_names includes only documented 別名義 from Wikipedia; さおりん nickname omitted per ALTERNATE_NAMES RULE.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/原紗央莉
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3591 (canonical "Saori Hara", stage_name null, 19 titles, tier MINOR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (STAR/STARS = SOD Star / SOD Create, EDD = Tamashiya / Prestige)'
+  portfolio_listed: 0

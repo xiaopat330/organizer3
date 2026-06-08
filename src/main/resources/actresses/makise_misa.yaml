@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Makise
+    given_name: Misa
+    stage_name: 牧瀬みさ
+    reading: まきせ みさ
+    alternate_names:
+    - name: 倉木ひな
+      note: 'Stage name used for re-debut under office BLITZ from March 2016'
+  date_of_birth: 1993-04-01
+  birthplace: Hokkaido, Japan
+  blood_type: A
+  height_cm: 157
+  measurements:
+    bust: 90
+    waist: 59
+    hip: 83
+  cup: G
+  active_from: 2012-03-22
+  active_to: 2018-08-19
+  biography: "Misa Makise (牧瀬みさ) is a Japanese AV actress born on 1 April 1993 in Hokkaido. She debuted in March 2012 as an exclusive actress for SOD Create, having drawn attention prior to her debut when her first shoot was live-streamed on Niconico to an audience of 150,000 viewers and she appeared on the TBS variety programme 'Arita to Matsuko to Otoko to Onna'. A G-cup busty actress, she released six solo titles under SOD Star (STAR) during her exclusive contract (March–August 2012), then continued as a freelance actress across labels including Maxing, Madonna, Moodyz, and E-BODY. In 2016 she re-debuted under the name 倉木ひな affiliated with office BLITZ, extending her career into the late 2010s."
+  primary_studios:
+  - name: SOD Create
+    company: SOD Create
+    from: 2012-03-01
+    to: 2012-08-31
+    role: 'Exclusive contract actress (debut era; codes STAR)'
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 19
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 918 holds 19 owned titles (top labels STAR 6, MXGS 3, JUX 2, and 9 others across SCOP/RBB/MXSPS/MIBD/MIAD/MDB/EBOD/ALB).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (牧瀬みさ) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut period, and alternate name 倉木ひな. Measurements (90-59-83) and cup G are the 2012-era 公称 figures per the infobox. active_from = AV debut 2012-03-22 (Wikipedia filmography); active_to = latest DB release date 2018-08-19 (RBB-139), as Wikipedia lists career as ongoing and no formal retirement found. Identity confirmed via studio-match heuristic: DB top labels map to documented contracts — STAR = SOD Star (SOD Create exclusive debut), MXGS = Maxing (Wikipedia 2012 titles), JUX = Madonna (Wikipedia 2013 titles). DB owns 19 titles vs Wikipedia filmography showing ~25 entries in the 2012–2014 range — ratio within ballpark. Alternate name 倉木ひな is a documented former stage name (別名義) per Wikipedia cite 1 (Twitter profile) and article body; not a nickname. DB tier MINOR.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/牧瀬みさ
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=918 (canonical "Misa Makise", stage_name null, 19 titles, tier MINOR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (STAR = SOD Star, MXGS = Maxing, JUX = Madonna, MIBD = Moody''s Best, MIAD = Moody''s Acid, EBOD = E-BODY, RBB = Rookie, SCOP = Scoop, MDB = Bazooka)'
+  portfolio_listed: 0

@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Hoshino
+    given_name: Akari
+    stage_name: 星野あかり
+    reading: ほしの あかり
+  date_of_birth: 1985-08-24
+  birthplace: Kyoto Prefecture, Japan
+  blood_type: A
+  height_cm: 162
+  measurements:
+    bust: 89
+    waist: 58
+    hip: 88
+  cup: E
+  active_from: 2005-01-31
+  active_to: 2017-05-31
+  retirement_announced: 2017-05-01
+  biography: "Akari Hoshino (星野あかり) is a Japanese retired AV actress and former stripper born on 24 August 1985 in Kyoto Prefecture. She debuted in adult video in January 2005 through h.m.p and simultaneously began performing as a stripper, retiring from stripping in November 2007. From 2008 she expanded into television dramas, appearing in numerous mainstream productions throughout her career. She worked across a wide range of studios throughout her AV career, including MAX-A, SOD Create, PREMIUM (Glamorous), Tameike Goro, Moodyz/Chijo Heaven, Madonna, and Attackers, becoming particularly associated with the mature-woman (熟女) genre in her later career. She was nominated for the SKY PerfecTV! Adult Broadcast Award for Best Mature Actress in 2013. In June 2016 she announced an indefinite hiatus due to illness; in May 2017 she announced her retirement, with her final work dated 31 May 2017."
+  primary_studios:
+  - name: h.m.p
+    company: h.m.p
+    from: 2005-01-31
+    to: 2005-03-25
+    role: Debut-era contract actress
+  - name: MAX-A
+    company: MAX-A
+    from: 2005-05-24
+    to: 2005-09-27
+    role: Contract actress
+  - name: PREMIUM
+    company: PREMIUM
+    from: 2006-07-07
+    to: 2007-04-07
+    role: Contract actress (Glamorous series)
+  awards:
+  - event: スカパー!アダルト放送大賞 (SKY PerfecTV! Adult Broadcast Award)
+    year: 2013
+    category: 熟女女優賞ノミネート (Best Mature Actress, nominated)
+  legacy: 'A versatile long-career AV actress active from 2005 to 2017 who transitioned into mainstream television drama while continuing AV work; became a recognized presence in the mature-woman (熟女) genre and appeared in titles spanning virtually every major studio of her era.'
+
+meta:
+  total_owned_titles: 41
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 516 holds 41 owned titles across 32 distinct labels (top: SEND 3, MDYD 3, BID 3, PGD 2, JUC 2, BEB 2). No aliases recorded in DB.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (星野あかり) — high confidence on DOB (1985-08-24), birthplace (Kyoto Prefecture), blood type (A), height (162 cm), measurements (89-58-88), cup (E), active period (2005-2017), award nomination. Kanji stage_name 星野あかり confirmed from title_javdb_enrichment.cast_json (slug xvJO). Identity confirmed via studio-match heuristic: DB top labels map exactly to Wikipedia filmography studios — MDYD = Tameike Goro, BID/BEB = Chijo Heaven (Moodyz group), PGD = Glamorous (PREMIUM), JUC = Madonna, HBAD = Hibino, ATID = Attackers — all present in Wikipedia. DB owns 41 titles vs large Wikipedia filmography (2005-2016) — plausible partial coverage. active_from set to first h.m.p release 2005-01-31 per Wikipedia. retirement_announced set to 2017-05-01 (approximate; announced in May 2017 per Wikipedia blog post). primary_studios covers only debut-era contract periods identifiable from Wikipedia; later career was freelance multi-studio. Award listed as nomination (ノミネート) per Wikipedia text. No alternate stage names documented in Wikipedia or DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/星野あかり
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=516 (canonical "Akari Hoshino", 41 titles, 32 labels)'
+  - 'title_javdb_enrichment.cast_json — kanji name 星野あかり, slug xvJO confirmed'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  portfolio_listed: 0

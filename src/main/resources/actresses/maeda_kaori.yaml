@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Maeda
+    given_name: Kaori
+    stage_name: 前田かおり
+    reading: まえだ かおり
+  date_of_birth: 1990-09-08
+  birthplace: Kagoshima Prefecture, Japan
+  blood_type: O
+  height_cm: 160
+  measurements:
+    bust: 84
+    waist: 56
+    hip: 80
+  cup: D
+  active_from: 2011-02-05
+  active_to: null
+  biography: "Kaori Maeda (前田かおり) is a Japanese AV actress born on 8 September 1990 in Kagoshima Prefecture. She debuted in February 2011 with SOD Create, releasing nine titles over the course of the year before a brief retirement with her October 2011 final SOD work. She returned to the industry in April 2012 as an exclusive actress for Idea Pocket, where she maintained a consistent monthly release schedule through 2014. From mid-2014 she also appeared under Attackers, and later had a period as a SOD Star exclusive actress. Wikipedia's active stint listing remains open-ended, indicating she has not formally announced retirement."
+  primary_studios:
+  - name: SOD Create
+    company: Soft On Demand
+    from: 2011-02-05
+    to: 2011-10-06
+    role: Debut exclusive contract actress
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2012-04-01
+    to: null
+    role: Exclusive contract actress (return from brief retirement)
+  - name: Attackers
+    company: Attackers
+    from: 2014-08-07
+    to: null
+    role: Exclusive contract actress (concurrent with Idea Pocket period)
+  legacy: 'Known for her debut at SOD Create followed by a return exclusive at Idea Pocket from 2012; maintained a prolific monthly release output under Idea Pocket, with later work at Attackers and SOD Star.'
+
+meta:
+  total_owned_titles: 30
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 550 holds 30 owned titles (top labels IPZ 13, STAR 8, IPTD 6, SUPD 1, IPSD 1, IDBD 1). No aliases in DB.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (前田かおり) — high confidence on DOB, birthplace, blood type, height, measurements, cup. Measurements (84-56-80) and cup D are the 2011 公称 figures per Wikipedia infobox citation. active_from = AV debut date 2011-02-05 per Wikipedia filmography; active_to = null as Wikipedia article end-dates are open ("2011年 - ") and no retirement announced. Identity confirmed via studio-match heuristic: DB top labels all map to her Wikipedia exclusive contracts — IPZ/IPTD/IPSD = Idea Pocket (2012 onward), IDBD = Idea Pocket Best (compilations), STAR = SOD Star (SOD period), SUPD = Supreme (SOD-adjacent digital channel). Wikipedia categories confirm SOD女優 + アイデアポケット女優 + アタッカーズ女優 all present. DB owns 30 titles vs ~35 Wikipedia entries — within ballpark. alternate_names omitted: かおりん is a documented nickname (愛称) not a former stage name per Wikipedia infobox.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/前田かおり
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=550 (canonical "Kaori Maeda", stage_name null in DB, tier POPULAR, 30 titles)'
+  - 'src/main/resources/labels.yaml — label/company mapping (IPZ/IPTD/IPSD = Idea Pocket, IDBD = Idea Pocket Best, STAR = SOD Star, SUPD = Supreme)'
+  portfolio_listed: 0

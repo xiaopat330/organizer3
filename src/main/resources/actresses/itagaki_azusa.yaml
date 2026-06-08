@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Itagaki
+    given_name: Azusa
+    stage_name: 板垣あずさ
+    reading: いたがき あずさ
+    alternate_names:
+    - name: 板垣 梓
+      note: 'Former stage name used during gravure idol career (2004–2006)'
+  date_of_birth: 1988-11-23
+  birthplace: Niigata Prefecture, Japan
+  blood_type: A
+  height_cm: 159
+  measurements:
+    bust: 85
+    waist: 57
+    hip: 88
+  cup: D
+  active_from: 2007-11-08
+  active_to: 2015-01-01
+  biography: "Azusa Itagaki (板垣あずさ) is a Japanese talent and retired AV actress from Niigata Prefecture. She first came to public attention in 2004 as a nominee in the Weekly Young Jump-sponsored Seifuku Collection (制コレ) school uniform contest, and released her debut gravure DVD Cotton Candy in September 2005 before pausing activities in 2006. She re-entered the industry as an AV actress, debuting on 8 November 2007 with SOD Create (SOD Star label) under her real name — the first former Seifuku Collection nominee to appear in adult video. She remained an SOD exclusive until her first retirement in March 2010, then returned to AV in December 2012 and worked across numerous labels until a second, permanent retirement around 2015 after discovering she was pregnant. She has been active on YouTube since 2021 under the SOD HANAYA division."
+  primary_studios:
+  - name: SOD Star
+    company: Soft On Demand (SOD Create)
+    from: 2007-11-08
+    to: 2010-03-04
+    role: 'Exclusive contract actress (first run; STAR series)'
+  - name: SOD Create / multi-label
+    company: Soft On Demand (SOD Create)
+    from: 2012-12-20
+    to: 2015-01-01
+    role: 'Post-comeback freelance/multi-label appearances including SOD and independent studios'
+
+meta:
+  total_owned_titles: 25
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 237 holds 25 owned titles (top labels STAR 14, SDDL 3, TOMN 2, HNDS 2, TPPN 1, MIGD 1, JYH 1, HMGL 1).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (板垣あずさ) — high confidence on DOB, birthplace, blood type, height, measurements (85-57-88 D cup per 2012 公称), debut and retirement dates, studio affiliation. Stage name 板垣あずさ is confirmed as her real name (noted in Wikipedia). Former gravure name 板垣梓 is a documented prior stage name. Identity confirmed via studio-match heuristic: DB top label STAR maps to SOD Star (SOD Create exclusive flagship), SDDL = SOD Create Best, both consistent with her SOD exclusive contract. Comeback labels (HNDS = Honnaka, TPPN = TEPPAN/Attackers, MIGD = Moody''s) also match her documented post-2012 multi-label freelance period per Wikipedia filmography. Title count: DB owns 25 titles vs large Wikipedia filmography (well within ballpark). active_to set to 2015-01-01 as approximate — Wikipedia notes pregnancy-prompted retirement but does not give an exact final release date; flagged as approximate. TOMN and JYH codes not found in src/main/resources/labels.yaml — labelled Unknown.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/板垣あずさ
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=237 (canonical "Azusa Itagaki", stage_name 板垣あずさ, 25 titles, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  portfolio_listed: 0

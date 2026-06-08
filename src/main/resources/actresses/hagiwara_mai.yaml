@@ -1,0 +1,54 @@
+profile:
+  name:
+    family_name: Hagiwara
+    given_name: Mai
+    stage_name: 萩原舞
+    reading: はぎわら まい
+    alternate_names:
+    - name: 渡邊 紗希
+      note: 'Former stage name (別名義); used for idol/gravure activities from 1997'
+    - name: 久保 くるみ
+      note: 'Former stage name (別名義); documented on Wikipedia AV profile'
+  date_of_birth: 1982-03-22
+  birthplace: Osaka Prefecture, Japan
+  blood_type: AB
+  height_cm: 153
+  measurements:
+    bust: 84
+    waist: 57
+    hip: 84
+  cup: E
+  active_from: 2004-02-27
+  active_to: 2008-10-16
+  biography: "Mai Hagiwara (萩原舞) is a Japanese retired AV actress and former nude model born on 22 March 1982 in Osaka Prefecture. She first became known as a popular okashi-kei (candy-style) idol under the name Watanabe Saki (渡邊 紗希), making her gravure debut in the magazine Cream in August 1997 after narrowly missing selection on the TV Tokyo audition show ASAYAN. In November 2003 her AV debut was announced under an exclusive contract with Japan Home Video, with a dedicated sub-label 'みるくる' created for her debut work released in February 2004; her early Alice Japan output featured simulated rather than actual intercourse, contributing to both controversy and strong sales. From late 2004 she moved to the existing Alice Japan label and produced a consistent catalogue of solo works through 2006, before returning to AV in 2008 under Maxing for two new titles. She is not to be confused with the Hello! Project idol of the same name (born 1996), a fact explicitly noted on her Wikipedia page."
+  primary_studios:
+  - name: みるくる (Japan Home Video)
+    company: Japan Home Video
+    from: 2004-02-27
+    to: 2004-05-28
+    role: 'Exclusive contract actress; dedicated sub-label created for her debut'
+  - name: Alice Japan
+    company: Alice Japan
+    from: 2004-11-19
+    to: 2006-03-17
+    role: 'Exclusive contract actress (label DV)'
+  - name: Maxing
+    company: Maxing
+    from: 2008-09-16
+    to: 2008-10-16
+    role: 'Comeback exclusive titles'
+  legacy: 'A well-known okashi-kei idol-to-AV crossover of the mid-2000s, notable for the unusual softcore-only approach of her debut label みるくる and a reportedly exceptional per-title fee; her Alice Japan catalogue became a significant part of the label roster.'
+
+meta:
+  total_owned_titles: 10
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / full title enumeration run). DB record id 2112 holds 10 owned titles (labels: DV 3, MXGS 2, SDV 1, PDV 1, NDV 1, KA 1, DVAJ 1). DVAJ-403 is an Alice Japan 35th-anniversary best compilation (2019). PDV-006 is an alice pink reprint. KA-2228 is a CVD uncensored release.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (萩原舞 (AV女優)). DOB 1982-03-22, birthplace Osaka, blood type AB, height 153 cm, measurements 84-57-84 (2008 公称 figures per infobox), cup E all confirmed from Wikipedia infobox. Alternate names 渡邊 紗希 and 久保 くるみ confirmed as 別名 in Wikipedia infobox. IDENTITY CONFIRMED as the AV actress (born 1982), NOT the Hello! Project idol 萩原舞 (born 1996, C-ute member). Confirmed via: (1) Wikipedia article explicitly states the two are different persons (全くの別人); (2) studio match — DB labels DV/DVAJ = Alice Japan and MXGS = Maxing, both listed in her Wikipedia 専属契約 field; (3) title count — DB 10 owned titles vs Wikipedia listing ~6 solo AV works + compilations (ballpark consistent for a partial library collection); (4) DOB 1982-03-22 matches AV actress disambiguation entry (1982年3月). SDV label not in labels.yaml — treated as Unknown. active_from = first AV release 2004-02-27; active_to = final solo AV release 2008-10-16 (Maxing comeback); 2009 compilation and 2019 Alice Japan anniversary best excluded from active period.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E8%90%A9%E5%8E%9F%E8%88%9E_(AV%E5%A5%B3%E5%84%AA)
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=2112 (canonical "Mai Hagiwara", stage_name null, 10 titles, tier MINOR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (DV/DVAJ = Alice Japan, PDV = alice pink, MXGS = Maxing, NDV = AZ Japan, KA = CVD)'
+  portfolio_listed: 0

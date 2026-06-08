@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: Ozawa
+    given_name: Maria
+    stage_name: 小澤マリア
+    reading: おざわ まりあ
+    alternate_names:
+    - name: みやび
+      note: 'Early career modeling name (2005), used for gravure/photobook work before AV debut'
+  date_of_birth: 1986-01-08
+  birthplace: Hokkaido, Japan
+  blood_type: null
+  height_cm: 162
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: 2005-10-07
+  active_to: 2010-04-01
+  biography: "Maria Ozawa (小澤マリア) is a Japanese model, actress, and retired AV actress of mixed Canadian and Japanese heritage — her mother is Japanese and her father is a French Canadian missionary. Born 8 January 1986 in Hokkaido, she was not scouted but entered the industry through a personal connection, first modeling under the name Miyabi for the site Shirouto-Teien.com from June 2005. She debuted on October 7, 2005, under her stage name as a S1 No.1 Style exclusive, releasing approximately one original video per month through early 2007, including S1's winning entry in the 2006 AV Open. She subsequently moved to DAS! (2007), then worked non-exclusively with Attackers, Moodyz, SOD, and other studios through 2010, during which three of her titles were entered into the 2009 AV GrandPrix — the DAS compilation winning Best Violence Video Award. In 2015 she confirmed she had left the AV industry around 2010 to pursue a mainstream career, appearing in films in Taiwan, Indonesia, and the Philippines and building an entrepreneurial career in Japan and the Philippines."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: S1 No.1 Style
+    from: 2005-10-07
+    to: 2007-02-01
+    role: 'Exclusive contract actress (codes ONED, SOE, ONSD)'
+  - name: 'Das!'
+    company: 'Das!'
+    from: 2007-04-25
+    to: 2009-01-01
+    role: 'Principal studio; debut release DASD-002 (2007-04-25)'
+  awards:
+  - event: AVグランプリ (AV GrandPrix)
+    year: 2009
+    category: 'ベスト暴力ビデオ賞 (Best Violence Video Award) — DAS! compilation "The Queen of DAS!"'
+  legacy: 'One of the most internationally recognized JAV actresses of the mid-2000s, Maria Ozawa achieved significant fame outside Japan — particularly in Southeast Asia — due to her Eurasian appearance and high-profile non-exclusive cross-studio output. Her S1 debut work and the AV Open 2006 winning ensemble title remain notable; her 2009 AV GrandPrix wins with DAS! mark the peak of her AV-era recognition.'
+
+meta:
+  total_owned_titles: 61
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 2705 holds 61 owned titles (top labels: ONED 15, DASD 9, SOE 8, AVGL 4, RBD 2, DDT 2, TRP 2). Titles span a wide range of studios reflecting her non-exclusive era (2007 onward).'
+  confidence: 'Profile fields sourced from English Wikipedia (Maria Ozawa article, en.wikipedia.org/wiki/Maria_Ozawa). DOB 1986-01-08 and birthplace (Hokkaido) are directly cited in Wikipedia infobox with references. Height 162 cm from infobox. Blood type, measurements (B/W/H), and cup size are not stated in the Wikipedia article and have been left null — do NOT invent. active_from = AV debut 2005-10-07 (S1, per Wikipedia); active_to = approximately 2010 (Ozawa confirmed leaving AV ~5 years before a 2015 interview; last known AV work April 2010 per Wikipedia). Stage name 小澤マリア confirmed from cast_json slug 78EM in title_javdb_enrichment. Identity confirmed: DB top labels ONED/SOE = S1 No.1 Style (Wikipedia exclusive 2005-2007), DASD = Das! (Wikipedia principal studio 2007+), SOE = S1 (crossover). DB owns 61 titles; Wikipedia filmography is extensive — ratio plausible given her prolific multi-studio era. Japanese Wikipedia article exists (小澤マリア) but could not be fetched via mcp__fetch (robots.txt /wiki/ block); English Wikipedia used as primary source. Tier SUPERSTAR in DB.'
+  data_sources:
+  - https://en.wikipedia.org/wiki/Maria_Ozawa
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=2705 (canonical "Maria Ozawa", stage_name 小澤マリア, 61 titles, tier SUPERSTAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  - 'title_javdb_enrichment.cast_json — slug 78EM confirms 小澤マリア'
+  portfolio_listed: 0
