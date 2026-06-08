@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Kizaki
+    given_name: Jessica
+    stage_name: 希崎ジェシカ
+    reading: きざき ジェシカ
+    alternate_names:
+    - name: ジェシー
+      note: 'Nickname (愛称, "Jessie"), not a separate stage name'
+  date_of_birth: 1989-06-10
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 160
+  measurements:
+    bust: 86
+    waist: 60
+    hip: 87
+  cup: D
+  active_from: 2008-09-01
+  active_to: 2019-12-31
+  retirement_announced: 2019-06-01
+  biography: "Jessica Kizaki (希崎ジェシカ) is a Japanese talent and retired AV actress, a quarter-Italian Tokyo native and one of Idea Pocket's flagship actresses of the late 2000s and 2010s. After a 2008 gravure debut she made her AV debut on 1 September 2008 with 「FIRST IMPRESSION 38」 on an initial 12-title Idea Pocket contract, and quickly topped the maker's monthly rankings. She became a second-generation member of the Ebisu Muscats idol unit (appearing on the Onee-Mas TV franchise from 2009) and won the Livedoor Award at the 2011 SKY PerfecTV! Adult Broadcasting Awards. In 2016 she transferred to S1, and in 2018 marked her 10th-anniversary year with a DMM R-18 Adult Award nomination and her 100th title. Born 10 June 1989 (O blood type, 160 cm, D-cup), she announced a year-end retirement on turning 30 and retired at the end of 2019, afterward taking a front-desk job at a beauty clinic."
+  primary_studios:
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2008-09-01
+    to: 2016-01-01
+    role: 'Debut exclusive (initial 12-title contract) and long-time flagship actress (codes IPTD / IPZ / IPX)'
+  - name: S1 (S1 No.1 Style)
+    company: S1 (Hokuto group)
+    from: 2016-01-01
+    to: 2019-12-31
+    role: 'Exclusive contract actress after 2016 transfer (codes SNIS / SSNI)'
+  awards:
+  - event: スカパー!アダルト放送大賞 (SKY PerfecTV! Adult Broadcasting Awards)
+    year: 2011
+    category: ライブドア賞 (Livedoor Award)
+  - event: DMM R-18アダルトアワード (DMM R-18 Adult Award)
+    year: 2018
+    category: ノミネート (nominated — 10th-anniversary year)
+  legacy: 'A quarter-Italian Idea Pocket flagship and Ebisu Muscats (2nd generation) idol of the 2010s who released 100+ titles across an 11-year career, transferred to S1 in 2016, and retired at the end of 2019 on turning 30.'
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 1185 top labels IPTD 45 + IPZ 37 + IPX 26 = Idea Pocket, SNIS 3 + SSNI 1 = S1, plus Attackers (ATID/SHKD/RBD/ADN) guest/drama appearances.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (希崎ジェシカ) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut, studios, retirement, awards. Measurements (86-60-87) and cup (D from D-65) are the 2010 公称 figures. Identity confirmed via studio-match heuristic: DB is overwhelmingly Idea Pocket (IPTD/IPZ/IPX, her 2008-2016 home) with S1 (SNIS/SSNI) for her 2016-onward phase — both match the article; Attackers labels (ATID/SHKD/RBD/ADN) are guest/drama works. active_from = AV debut 2008-09-01; active_to = end-2019 retirement (announced June 2019 on turning 30; set to year-end 2019-12-31). NOTE: although the article says she transferred to S1 in 2016, it also states her 100th title (2018) was released from Idea Pocket — so the 2016 S1 boundary is approximate and she evidently kept some Idea Pocket output; primary_studios periods are approximate. Quarter-Italian heritage; Ebisu Muscats 2nd-gen member; agency Duo Entertainment. Company groupings per src/main/resources/labels.yaml. Tier GODDESS in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/希崎ジェシカ
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1185 (canonical "Jessica Kizaki", stage_name 希崎ジェシカ, tier GODDESS)'
+  - 'src/main/resources/labels.yaml — label/company mapping (IPTD/IPZ/IPX = Idea Pocket, SNIS/SSNI = S1)'
+  portfolio_listed: 0

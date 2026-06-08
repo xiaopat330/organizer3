@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Tatsumi
+    given_name: Yui
+    stage_name: 辰巳ゆい
+    reading: たつみ ゆい
+    alternate_names:
+    - name: ゆいぴょん
+      note: 'Nickname (愛称) used heavily in her Alice JAPAN title branding, not a separate stage name'
+  date_of_birth: 1984-06-08
+  birthplace: Gifu Prefecture, Japan
+  blood_type: B
+  height_cm: 168
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: 2008-01-11
+  active_to: 2015-01-01
+  retirement_announced: 2014-11-04
+  biography: "Yui Tatsumi (辰巳ゆい) is a Japanese actress and talent, and a former AV actress and race queen from Gifu Prefecture. She debuted in adult video in January 2008 as an exclusive actress for Alice JAPAN and, unusually, remained a single-studio Alice exclusive for her entire AV career, releasing roughly monthly through to 2015 (managed by At Honeys). Tall at 168 cm, she announced her retirement on her blog on 4 November 2014 and bowed out with a January 2015 DVD. After retiring she continued as a mainstream actress and talent, appearing in films, V-Cinema, stage plays, TV dramas and pink films (notably a long run with OP Pictures). Born 8 June 1984, she returned to image-video nude work in 2025 to mark her 40th birthday."
+  primary_studios:
+  - name: Alice JAPAN
+    company: Alice JAPAN
+    from: 2008-01-11
+    to: 2015-01-01
+    role: 'Exclusive contract actress for her entire AV career (code DV); managed by At Honeys'
+  legacy: 'A career-long Alice JAPAN exclusive (2008-2015) and former race queen, tall at 168 cm, who released roughly monthly for one studio across seven years and then successfully transitioned into mainstream acting (film, stage, TV drama, V-Cinema and pink film).'
+
+meta:
+  total_owned_titles: 86
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 1425 holds 86 owned titles (81 DV + 3 DVAJ = Alice JAPAN; PGD and MBRAZ are 1-off guest/compilation co-appearances).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (辰巳ゆい) — high confidence on DOB, birthplace, blood type, height, AV debut/retirement, studio. MEASUREMENTS AND CUP LEFT NULL: her Wikipedia article uses the mainstream ActorActress infobox (post-AV acting career), which omits スリーサイズ/ブラサイズ — no measurement data was fabricated from memory. Identity confirmed via studio-match heuristic: DB is overwhelmingly DV (81) + DVAJ (3) = Alice JAPAN, exactly matching the article''s lifelong アリスJAPAN専属 exclusive contract; the lone PGD and MBRAZ rows are guest/compilation appearances. active_from = first Alice release 2008-01-11; active_to approximated to 2015-01 (final DVD was a January 2015 release; exact day not in source — set to month start, not fabricated); retirement_announced = 2014-11-04 blog announcement. No AV awards listed in the article. Company mapping (DV = Alice JAPAN) per src/main/resources/labels.yaml. Tier SUPERSTAR in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/辰巳ゆい
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1425 (canonical "Yui Tatsumi", stage_name 辰巳ゆい, 86 titles, tier SUPERSTAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (DV / DVAJ = Alice JAPAN)'
+  portfolio_listed: 0

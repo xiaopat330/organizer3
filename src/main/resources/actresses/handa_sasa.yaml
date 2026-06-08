@@ -1,0 +1,61 @@
+profile:
+  name:
+    family_name: Handa
+    given_name: Sasa
+    stage_name: 範田紗々
+    reading: はんだ ささ
+    alternate_names:
+    - name: 春山ちえり
+      note: 'Reading はるやま ちえり (romanized "Chieri Haruyama"). Her earlier gravure-idol stage name (2002-2005) before renaming to 範田紗々 in 2005. Same person.'
+  date_of_birth: 1985-04-18
+  birthplace: Okinawa Prefecture, Japan
+  blood_type: A
+  height_cm: 158
+  measurements:
+    bust: 90
+    waist: 59
+    hip: 82
+  cup: I
+  active_from: 2006-07-01
+  active_to: 2010-07-01
+  biography: "Sasa Handa (範田紗々) is a Japanese actress and talent and a former AV actress, born in Okinawa Prefecture and raised in Yokohama. She started as a gravure idol in 2002 under the name Chieri Haruyama (春山ちえり), renamed herself 範田紗々 in 2005, and gained attention as an I-cup big-bust gravure model. In July 2006 she moved to adult video as an exclusive actress for SOD Create — her releases always carried the \"芸能人\" (celebrity) tagline — and became one of SOD's most decorated stars, winning Best New Actress and multiple SOD Award acting prizes. By her retirement in July 2010 she had appeared in 52 titles, the most ever for an SOD exclusive at the time (later surpassed by Mana Sakura). Since retiring she has worked broadly as an actress and talent across film, V-Cinema, stage, radio and variety TV. Born 18 April 1985, she stands 158 cm."
+  primary_studios:
+  - name: SOD Create
+    company: SOD Create (Soft On Demand)
+    from: 2006-07-01
+    to: 2010-07-01
+    role: 'Exclusive contract actress (all titles tagged 芸能人; 52 releases — a record for an SOD exclusive at the time; code STAR)'
+  awards:
+  - event: SOD大賞 (5th SOD Awards)
+    year: 2006
+    category: 最優秀新人女優賞 (Best New Actress) + 優秀女優賞 (Excellent Actress)
+  - event: DVD・オブ・ザ・イヤー (DVD of the Year, 月刊DVDナビゲーター)
+    year: 2006
+    category: 最優秀女優賞 (Best Actress — awarded March 2007)
+  - event: SOD大賞 (SOD Awards)
+    year: 2007
+    category: 最優秀女優賞 (Best Actress)
+  - event: SOD大賞 (SOD Awards)
+    year: 2008
+    category: 優秀女優賞 (Excellent Actress)
+  - event: スカパー!アダルト放送大賞 (SKY PerfecTV! Adult Broadcasting Awards)
+    year: 2010
+    category: 女優賞 (Best Actress — nominated)
+  - event: SOD大賞 (SOD Awards)
+    year: 2010
+    category: 優秀女優賞 (Excellent Actress)
+  legacy: 'A celebrity-branded SOD Create exclusive (2006-2010) and decorated SOD Award winner, the most prolific SOD single-actress of her era at 52 titles; an I-cup gravure-to-AV crossover who built a lasting second career as an actress, radio personality and talent.'
+
+meta:
+  total_owned_titles: 25
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 52
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 3582 holds 25 owned titles (top labels STAR 20 + START 1 + SDMS 2 + SDDM 1 = SOD Create; HIGR is a 1-off). Wikipedia states 52 total SOD releases, so the local library holds roughly half her catalog.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (範田紗々). The article carries BOTH a mainstream ActorActress infobox and an AV女優 infobox — measurements (90-59-82) and cup (I) are taken from the AV女優 box (no date qualifier given in source, marked いつ?). High confidence on DOB, birthplace, blood type, height, debut/retirement, studio, awards. Identity confirmed via studio-match heuristic: DB top labels STAR/START/SDMS/SDDM all map to SOD Create, matching the article''s SODクリエイト専属 exclusive contract; DB owns 25 of a stated 52 SOD titles (ratio 0.48). active_from/active_to approximated to month start (2006-07 debut, 2010-07 retirement; exact days not in source). Born in Okinawa, raised in Yokohama from age 4 — birthplace recorded as Okinawa. Earlier gravure name 春山ちえり (Chieri Haruyama, 2002-2005) recorded as an alternate_name. Tier POPULAR in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/範田紗々
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3582 (canonical "Sasa Handa", stage_name 範田紗々, 25 titles, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (STAR/START/SDMS/SDDM = SOD Create)'
+  portfolio_listed: 0

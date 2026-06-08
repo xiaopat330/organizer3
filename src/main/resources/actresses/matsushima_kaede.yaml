@@ -1,0 +1,56 @@
+profile:
+  name:
+    family_name: Matsushima
+    given_name: Kaede
+    stage_name: 松島かえで
+    reading: まつしま かえで
+    alternate_names: []
+  date_of_birth: 1982-11-07
+  birthplace: Fukuoka Prefecture, Japan
+  blood_type: O
+  height_cm: 160
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 84
+  cup: D
+  active_from: 2002-05-31
+  active_to: 2010-07-29
+  retirement_announced: 2010-07-29
+  biography: "Kaede Matsushima (松島かえで) is a retired Japanese AV actress from Fukuoka, known as a quintessential \"beautiful onee-san\" (綺麗なお姉さん) type and a signature actress of Alice JAPAN. She debuted in 2002 with Uchu Kikaku (Media Station), and after a brief release gap revived her career at Alice JAPAN in December 2003, where her work became consistently popular and made her the label's flagship actress. She first retired in November 2007 with the Alice JAPAN work 「SMILE ～Last Message～」, then returned to AV in October 2008 with an S1 cell debut, later moving to Idea Pocket. She retired for good at an event on 29 July 2010. Born 7 November 1982 (O blood type, 160 cm, D-cup), she was managed by Office Old Crew and was close friends with fellow actress Hitomi Hayasaka."
+  primary_studios:
+  - name: Uchu Kikaku
+    company: Media Station
+    from: 2002-05-31
+    to: 2003-01-31
+    role: 'Debut maker (debut work 「バージン・ラブ」)'
+  - name: Alice JAPAN
+    company: Alice JAPAN
+    from: 2003-12-19
+    to: 2007-11-09
+    role: 'Signature/flagship exclusive actress (code DV); first retirement work released here'
+  - name: S1 (S1 No.1 Style)
+    company: S1 (Hokuto group)
+    from: 2008-10-07
+    to: 2009-09-30
+    role: 'Comeback exclusive (cell debut, code SOE)'
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2009-11-01
+    to: 2010-07-29
+    role: 'Final-phase exclusive contract actress (code IPTD), through to retirement'
+  legacy: 'An Alice JAPAN flagship "beautiful onee-san" star of the mid-2000s with a two-phase career — a 2002 Uchu Kikaku debut and Alice JAPAN heyday, a 2007 retirement, then a 2008-2010 comeback across S1 and Idea Pocket before final retirement.'
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 1875 top labels DV 14 + NDV 2 = Alice JAPAN, SOE 10 = S1, IPTD 6 = Idea Pocket.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (松島かえで) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut, studio phases, retirement. Identity confirmed via studio-match heuristic: DB top labels DV/NDV = Alice JAPAN (her 2003-2007 signature studio), SOE = S1 (2008 comeback), IPTD = Idea Pocket (2009-2010 phase) — all three match the article. TWO-PHASE CAREER: active 2002-2007 then 2008-2010 (出演期間 shows both spans). active_from = debut rental date 2002-05-31; active_to/retirement = final retirement at a 2010-07-29 event. She FIRST retired 2007-11-09 (Alice JAPAN work 「SMILE ～Last Message～」) then returned in Oct 2008 — captured in biography and the split primary_studios periods. Studio period end-dates are approximate (derived from filmography boundaries, not stated contract dates). No AV awards listed in the article. Agency Office Old Crew. Company groupings per src/main/resources/labels.yaml. Tier POPULAR in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/松島かえで
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1875 (canonical "Kaede Matsushima", stage_name 松島かえで, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (DV/NDV = Alice JAPAN, SOE = S1, IPTD = Idea Pocket)'
+  portfolio_listed: 0

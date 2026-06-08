@@ -1,0 +1,51 @@
+profile:
+  name:
+    family_name: Tachibana
+    given_name: Risa
+    stage_name: 橘梨紗
+    reading: たちばな りさ
+    alternate_names:
+    - name: 城田理加
+      note: 'Reading しろた りか (romanized "Rika Shirota"). A separately-documented adult-video persona widely associated with her — a former idol-group member who debuted under the celebrity label MUTEKI on 2014-12-01 (「R18 ガチ5本番！ 城田理加」). NOT verified as the same person in prose: the 城田理加 Japanese Wikipedia article gives DIFFERING declared data (DOB 1991-06-06, A blood type, 77-57-84 measurements vs 橘梨紗''s 1993-05-18 / 85-60-92) — typical of distinct AV personas with privacy-fudged公称 profiles. Treated here as a reported association only, not encoded into 橘梨紗''s own profile fields. Not present in this DB record''s labels (only SOD STAR/STARS).'
+  date_of_birth: 1993-05-18
+  birthplace: Yamanashi Prefecture, Japan
+  blood_type: null
+  height_cm: 162
+  measurements:
+    bust: 85
+    waist: 60
+    hip: 92
+  cup: F
+  active_from: 2013-02-07
+  active_to: 2013-08-22
+  retirement_announced: 2013-08-22
+  biography: "Risa Tachibana (橘梨紗) is a former Japanese AV actress, active for a single high-profile year in 2013 as an exclusive performer for SOD Create. Billed as a former national idol and ex-idol-group member, she debuted on 7 February 2013 with 「橘梨紗 AV debut」, which topped DMM's monthly DVD ranking and put her at No. 1 on DMM's monthly actress ranking; a first photobook, Growing, was released the same day. Known for her looks, full hips and an air of innocence (F-cup), she won the Best Actress award at the 64th SOD Awards for 2013. A planned June title (「橘梨紗 緊縛中出し」) was cancelled by the maker, and she retired in August 2013 with the release 「橘梨紗 引退」. Born 18 May 1993 in Yamanashi Prefecture, she stands 162 cm; as of 2024 all of her titles are out of distribution."
+  primary_studios:
+  - name: SOD Create
+    company: SOD Create (Soft On Demand)
+    from: 2013-02-07
+    to: 2013-08-22
+    role: Exclusive contract actress (all titles on the SOD star / STAR label)
+  awards:
+  - event: SOD大賞 (SOD Awards)
+    year: 2013
+    category: 最優秀女優賞 (Best Actress — 64th SOD Awards)
+  - event: DMMアダルトアワード (DMM Adult Award)
+    year: 2014
+    category: 最優秀作品賞・通販部門 (Best Title, Mail-Order Division — awarded to 「橘梨紗 AV debut」)
+  legacy: 'A 2013 single-year SOD Create sensation whose debut topped the DMM monthly rankings; a former-idol crossover act remembered as one of the most-missed retired AV actresses (ranked No. 1 in a 2019 Hong Kong fan poll of actresses fans most wanted to return).'
+
+meta:
+  total_owned_titles: 8
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 1387 holds 8 owned titles (7 STAR + 1 STARS).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (橘梨紗) — high confidence on DOB, birthplace, height, measurements, cup, debut/retirement dates, studio, and awards. Blood type left null (not given in the 橘梨紗 infobox; do not borrow the A-type figure from the separate 城田理加 article). Identity verified: DB top labels STAR (7) + STARS (1) = SOD Create''s star label, matching the article''s SOD専属 exclusive contract; DB owns 8 titles vs 7 in the Wikipedia filmography (ratio ~1.14, the STARS entry likely a later reissue/remaster); article title matches stage_name. Measurements (85-60-92) are the 2013 公称 figures. 城田理加 (Rika Shirota, MUTEKI 2014) is recorded as a reported association ONLY — the two Wikipedia articles do not link in prose and give conflicting declared profiles, so no 城田理加 data was merged into these fields. SOD大賞 2013 Best Actress is a win; the 2014 DMM Adult Award was Best Title (mail-order division) for her debut work.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/橘梨紗
+  - https://ja.wikipedia.org/wiki/城田理加
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1387 (canonical "Risa Tachibana", stage_name 橘梨紗, 8 titles, tier MINOR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (STAR/STARS = SOD Create)'
+  portfolio_listed: 0

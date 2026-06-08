@@ -5,32 +5,32 @@ profile:
     stage_name: 高千穂すず
     reading: たかちほ すず
     alternate_names: null
-  date_of_birth: null
+  date_of_birth: 1996-03-19
   birthplace: null
   blood_type: null
-  height_cm: null
+  height_cm: 172
   measurements:
     bust: 87
     waist: 58
     hip: 89
   cup: null
-  active_from: 2015-01-01
+  active_from: 2015-12-07
   active_to: null
   retirement_announced: null
-  biography: "Takachiho Suzu is a Japanese AV actress who debuted in 2015 under S1 No.1 Style, where she released several titles under the SNIS label before appearing in the OFJE omnibus series. She later appeared under the FALENO label (REBDB), indicating continued activity into the 2020s. Her catalog in the local collection spans 8 titles across S1 and FALENO."
+  biography: "Takachiho Suzu (高千穂すず) is a Japanese AV actress who debuted on 7 December 2015 as an S1 No.1 Style exclusive with the newcomer title 「新人NO.1STYLE 高千穂すずAVデビュー」 (SNIS). At a rare 172 cm she was unusually tall for an S1 debut actress, and her debut drew notable attention. Her S1 run was brief, after which her work appears in S1 omnibus releases (OFJE) and later under the FALENO label (REBDB) in the local collection. No Japanese Wikipedia article exists for her, so several profile fields remain unverified."
   primary_studios:
   - name: S1 No.1 Style
-    company: S1 No.1 Style
-    from: 2015-01-01
+    company: S1 (WILL group)
+    from: 2015-12-07
     to: null
-    role: Exclusive contract actress
+    role: Debut exclusive contract actress (code SNIS)
   - name: FALENO
     company: FALENO
     from: null
     to: null
-    role: Contract actress
+    role: 'Later appearance(s) (code REBDB) — present in the local collection'
   awards: null
-  legacy: null
+  legacy: 'A notably tall (172 cm) S1 debut newcomer of late 2015 whose debut title is held in some regard by collectors; a short S1 run later followed by FALENO-label appearances.'
 
 meta:
   total_owned_titles: 8
@@ -38,9 +38,10 @@ meta:
   titles_with_english_title: null
   titles_with_release_date: null
   total_known_releases: null
-  coverage_note: "Portfolio not yet researched. 8 owned titles: SNIS×5, OFJE×2, REBDB×1."
-  confidence: "No Wikipedia article exists for this actress. Measurements (B87-W58-H89) confirmed from S1 official actress page (s1s1s1.com). Debut year 2015 confirmed from IMDB title listing. Height, cup size, DOB, birthplace, and blood type could not be verified from directly-fetched sources — web search summaries suggest 172cm / F cup / March 19 birthday / Tokyo but these are unconfirmed. active_from set to 2015-01-01 as an approximate year; exact date unknown."
+  coverage_note: "Portfolio not yet researched. 8 owned titles: SNIS×5, OFJE×2 (S1 omnibus), REBDB×1 (FALENO)."
+  confidence: "NO Japanese Wikipedia article exists for this actress — profile is assembled from aggregator/official sources and is lower-confidence than the Wikipedia-sourced profiles. Measurements (B87-W58-H89) confirmed from the S1 official actress page (s1s1s1.com). Debut date 2015-12-07 and S1 (SNIS) debut confirmed via IMDB title listing. DOB (1996-03-19) and height (172 cm) from aggregators dramaface.com / namuwiki; birthplace, blood type and cup unverified (web-search summaries suggest Tokyo / F cup but these are unconfirmed, so left null). CAREER-LENGTH CONFLICT (unresolved): one source set indicates only ~3 works before leaving the industry in early 2016, but the local collection holds 8 titles including a later FALENO (REBDB) release — so active_to is left null rather than asserting an early-2016 exit. This file was reconciled 2026-06-08 by merging the classpath profile fields (DOB/height/precise debut date) with the reference's catalog data (8 titles, FALENO); the prior classpath copy lacked the title/FALENO info and the reference lacked the DOB/height."
   data_sources:
   - https://s1s1s1.com/actress/detail/20064
   - https://www.imdb.com/name/nm11109771/
+  - 'Aggregators: dramaface.com, namuwiki (DOB/height; unverified)'
   portfolio_listed: 0

@@ -1,0 +1,58 @@
+profile:
+  name:
+    family_name: Itsukaichi
+    given_name: Mei
+    stage_name: 五日市芽依
+    reading: いつかいち めい
+    alternate_names:
+    - name: 愛花あゆみ
+      note: 'javdb primary name for her actress slug YnwDp (page variants: 愛花未滿 / 愛花あゆみ); romanized "Ayumi Manaka" in the DB alias. Confirmed same person, NOT a separate identity: 119 of ~120 owned titles appear in YnwDp''s filmography and its label spread matches her exclusive labels. Not listed on Japanese Wikipedia (which uses 五日市芽依). This is a FANZA-vs-javdb naming difference, not a name change.'
+  date_of_birth: 2000-09-18
+  birthplace: Tokyo, Japan
+  blood_type: B
+  height_cm: 163
+  measurements:
+    bust: 88
+    waist: 56
+    hip: 87
+  cup: G
+  active_from: 2023-07-04
+  active_to: null
+  biography: "Mei Itsukaichi (五日市芽依) is a Japanese AV actress who debuted on 4 July 2023 with MOODYZ, marketed as a G-cup mixed-look dental assistant. After her debut she worked prolifically as a kikaku-tanpai (planning-solo) actress across many makers, then from July 2024 became a simultaneous triple-exclusive for Honnaka, Das! and Wanz Factory — all within the MOODYZ/WILL/Hokuto production group. She ranked highly in FANZA monthly actress charts through 2024-2025 (No. 2 mail-order in April 2024, No. 3 rental in August 2025) and placed No. 38 in FLASH's 2024 Sexy Actress ranking. Born in Tokyo on 18 September 2000, she stands 163 cm with G-cup measurements of 88-56-87. She was managed by All Pro (BBT then Alp) before moving to Life Promotion in December 2024."
+  primary_studios:
+  - name: MOODYZ
+    company: Hokuto Corporation
+    from: 2023-07-04
+    to: null
+    role: 'Debut maker; thereafter kikaku-tanpai (planning-solo) actress'
+  - name: Honnaka
+    company: WILL/Hokuto (MOODYZ group)
+    from: 2024-07-01
+    to: null
+    role: 'Triple-exclusive contract actress (Honnaka / Das! / Wanz Factory, from July 2024)'
+  - name: Das!
+    company: WILL/Hokuto (MOODYZ group)
+    from: 2024-07-01
+    to: null
+    role: Triple-exclusive contract actress
+  - name: Wanz Factory
+    company: WILL
+    from: 2024-07-01
+    to: null
+    role: Triple-exclusive contract actress
+  legacy: 'A fast-rising planning-solo star of the mid-2020s MOODYZ/WILL group, notable for becoming a simultaneous triple-exclusive actress (Honnaka / Das! / Wanz Factory) within a year of her debut.'
+
+meta:
+  total_owned_titles: 121
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 2667 holds 121 owned titles.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (五日市芽依) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut. Identity confirmed via studio-match heuristic: DB top labels (DASS=Das!, WAAA=Wands/Wanz, HMN=Honnaka, MEYD=Tameike/Moodyz) all match Wikipedia exclusive contracts. NAMING NOTE (investigated + resolved): DB stage_name is 愛花あゆみ because that is the primary name javdb uses for her actress slug YnwDp (page variants 愛花未滿 / 愛花あゆみ); FANZA/Wikipedia use 五日市芽依. Confirmed SAME single person, not a split: 119 of ~120 owned titles are in YnwDp''s 311-entry filmography and its label spread (DASS/WAAA/HMN/Moodyz group) matches her exclusive contracts. Enrichment is healthy — the record is correctly bound to one javdb slug holding her full catalog (NOT the Rena-Kodama wrong-slug failure mode). A web-search summary claiming a 2021 debut as 真中あゆみ (Manaka Ayumi) is NOT corroborated by Wikipedia and was not encoded. Recommended cosmetic cleanup (not done): set DB stage_name to 五日市芽依 and demote 愛花あゆみ to alias so the primary name matches the canonical/FANZA name. Company groupings (WILL/Hokuto, MOODYZ group) sourced from src/main/resources/labels.yaml. active_to left null (ongoing; still releasing into 2026).'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/五日市芽依
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=2667 (canonical "Mei Itsukaichi", 121 titles)'
+  - 'javdb verification via verify_actress_titles_via_javdb(2667): 6 titles all resolve to slug YnwDp (愛花あゆみ)'
+  - 'src/main/resources/labels.yaml — label/company mapping (HMN, DASS, WAAA, MEYD)'
+  portfolio_listed: 0
