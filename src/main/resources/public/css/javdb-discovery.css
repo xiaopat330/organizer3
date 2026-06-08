@@ -371,11 +371,11 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: var(--bg-panel);
+  background: none;
   color: var(--text-faint);
-  border: 1px solid var(--border-strong);
-  border-bottom: 3px solid transparent;
-  border-radius: 5px 5px 0 0;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   padding: 5px 12px 6px;
   font-size: 11px;
   font-family: inherit;
@@ -386,11 +386,9 @@
   transition: color var(--dur-fast), border-bottom-color var(--dur-fast), background var(--dur-fast);
   margin-bottom: -1px;
 }
-.jd-subtab:hover:not(.selected) { color: var(--text-dim); background: var(--bg-hover); }
+.jd-subtab:hover:not(.selected) { color: var(--text-dim); }
 .jd-subtab.selected {
-  color: var(--accent);
-  background: var(--bg);
-  border-color: var(--border-strong);
+  color: var(--accent-fg);
   border-bottom-color: var(--accent);
 }
 
@@ -925,8 +923,6 @@ button.jd-status:hover { filter: brightness(1.15); }
 /* Single accent — drop per-tab teal identity */
 .jd-tab-titles.selected {
   color: var(--accent-fg);
-  background: var(--bg);
-  border-color: var(--border-strong);
   border-bottom-color: var(--accent);
 }
 .jd-titles-body {
@@ -1118,8 +1114,6 @@ button.jd-status:hover { filter: brightness(1.15); }
 /* Single accent — drop purple tab identity */
 .jd-tab-collections.selected {
   color: var(--accent-fg);
-  background: var(--bg);
-  border-color: var(--border-strong);
   border-bottom-color: var(--accent);
 }
 .jd-collections-body {

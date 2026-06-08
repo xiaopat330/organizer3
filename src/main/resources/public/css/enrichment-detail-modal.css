@@ -149,20 +149,21 @@
 /* Discovery tab bar */
 .jd-tabs {
   display: flex;
-  gap: 4px;
+  gap: 2px;
   margin: 0 12px;
   align-self: stretch;
   align-items: flex-end;
+  border-bottom: 1px solid var(--border);
 }
 .jd-tab {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 5px 14px 6px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border-strong);
-  border-bottom: 3px solid transparent;
-  border-radius: 5px 5px 0 0;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
   color: var(--text-faint);
   font-size: 12px;
   font-weight: 600;
@@ -174,19 +175,14 @@
 }
 .jd-tab:hover:not(.selected) {
   color: var(--text-dim);
-  background: var(--bg-hover);
 }
 /* Single accent — both Enrich and Queue tabs use --accent, no per-tab identity */
 .jd-tab-enrich.selected {
   color: var(--accent-fg);
-  background: var(--bg);
-  border-color: var(--border-strong);
   border-bottom-color: var(--accent);
 }
 .jd-tab-queue.selected {
   color: var(--accent-fg);
-  background: var(--bg);
-  border-color: var(--border-strong);
   border-bottom-color: var(--accent);
 }
 
