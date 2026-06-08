@@ -107,7 +107,7 @@ export function renderTitleCard(t, opts = {}) {
   const isWatched = watched && !!t.lastWatchedAt;
 
   const gradeHtml = grade
-    ? `<span class="grade-badge grade-${esc(grade.charAt(0))}">${esc(grade)}</span>`
+    ? `<span class="grade-badge" data-grade="${esc(grade)}">${esc(grade)}</span>`
     : '';
 
   const watchedHtml = isWatched
