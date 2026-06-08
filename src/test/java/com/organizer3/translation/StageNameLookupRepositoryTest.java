@@ -104,6 +104,20 @@ class StageNameLookupRepositoryTest {
     }
 
     @Test
+    void clearAndSeed_toleratesDuplicateKanjiFormInInputList_keepsFirstAndDoesNotThrow() {
+        // Two rows with the same kanji_form — clearAndSeed must not throw (INSERT OR IGNORE defense).
+        List<StageNameLookupRow> rowsWithDup = List.of(
+                new StageNameLookupRow(0, "みさと", "Misato A", "misato_a", "yaml_seed", ""),
+                new StageNameLookupRow(0, "みさと", "Misato B", "misato_b", "yaml_seed", "")
+        );
+        assertDoesNotThrow(() -> repo.clearAndSeed(rowsWithDup));
+
+        // Only one row should exist; first one wins (INSERT OR IGNORE ignores the second)
+        assertEquals(1L, repo.countAll());
+        assertEquals(Optional.of("Misato A"), repo.findRomanizedFor("みさと"));
+    }
+
+    @Test
     void clearAndSeed_isAtomic_findAfterSeedReflectsNewData() {
         List<StageNameLookupRow> rows = List.of(
                 new StageNameLookupRow(0, "愛佳", "Aika", null, "yaml_seed", "")

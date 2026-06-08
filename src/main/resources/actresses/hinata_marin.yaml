@@ -1,0 +1,50 @@
+profile:
+  name:
+    family_name: Hinata
+    given_name: Marin
+    stage_name: ひなたまりん
+    reading: ひなた まりん
+    alternate_names:
+    - name: ひなたま
+      note: 'Nickname (愛称) used by the actress and fans; YouTube channel "たまりんチャンネル" also used by fans'
+  date_of_birth: 1994-07-07
+  birthplace: 'Tokyo, Japan (public profile at debut; post-retirement profile states Chiba Prefecture, Japan)'
+  blood_type: A
+  height_cm: 171
+  measurements:
+    bust: 86
+    waist: 60
+    hip: 93
+  cup: E
+  active_from: 2019-07-19
+  active_to: 2023-11-21
+  retirement_announced: 2023-06-02
+  biography: "Hinata Marin (ひなたまりん) is a retired Japanese AV actress affiliated with T-Powers talent agency. Prior to her AV career she worked as a model and dancer and supplemented her income as a cabaret club hostess from around age 18 to 25, a role she later returned to after retiring. She debuted on 19 July 2019 under S1 NO.1 STYLE with SSNI-528, having been recruited with comparisons to actress Asuka Kirara; at debut, her public age was set three years younger (1997-born) per her agency's wishes, a discrepancy she later disclosed publicly. In September 2022 she graduated from S1 and became an exclusive contract actress for PREMIUM (Elegance label), during which she also publicly revealed she had tattoos removed by laser. She announced her retirement on 2 June 2023, citing the prior retirements of Asuka Kirara and Yua Mikami as contributing factors, with her final work PRED-538 released 21 November 2023; the 2022 AV new law reform petition drew her public support."
+  primary_studios:
+  - name: 'S1 NO.1 STYLE'
+    company: 'S1 NO.1 STYLE'
+    from: 2019-07-19
+    to: 2022-09-05
+    role: 'Exclusive contract actress (codes SSNI, SSIS; graduation announced 2022-09-05)'
+  - name: 'PREMIUM'
+    company: 'PREMIUM'
+    from: 2022-10-01
+    to: 2023-11-21
+    role: 'Exclusive contract actress — Elegance label (codes PRED; from October 2022 to final retirement work)'
+  awards: null
+  legacy: 'A tall (171 cm), long-limbed S1/PREMIUM exclusive known for athletic build and high-intensity scenes; active 2019–2023 with 59 owned titles spanning S1 debut, SSIS transition, and PREMIUM graduation arc.'
+
+meta:
+  total_owned_titles: 59
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 1011 holds 59 owned titles (top labels SSNI 20, SSIS 17, OFJE 9, PRED 8, REBD 3, OAE 1, BTHA 1).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (ひなたまりん) — confirmed high confidence on DOB, birthplace (Tokyo at debut / Chiba post-retirement per article), blood type A, height 171 cm, measurements 86-60-93 (2022年時点 per article), cup E. active_from = SSNI-528 debut 2019-07-19 per Wikipedia filmography table. active_to = PRED-538 retirement work 2023-11-21 per filmography. retirement_announced = 2023-06-02 per article. Stage name is hiragana only: ひなたまりん is the Wikipedia article title and consistent with all cast_json entries in DB (slug 4rw3). There is no kanji form of the name. DOB note: at debut the public profile stated 1997-born (3 years younger); 1994-07-07 is the confirmed real DOB per post-retirement disclosure per article. Birthplace: article states Tokyo at debut and Chiba post-retirement — Tokyo used as primary since it corresponds to the active-career period. Identity confirmed via javdb slug 4rw3 = ひなたまりん consistent across all 8 sampled cast_json rows; verify_actress_titles_via_javdb tool timed out (javdb blocked automated access) so verify was done manually via sql_query. Studio match PASS: DB top labels SSNI/SSIS/OFJE = S1 No.1 Style and PRED = Elegance (PREMIUM) — Wikipedia article confirms S1 NO.1 STYLE exclusive (2019–2022) then PREMIUM exclusive (2022–2023), matching exactly. REBD = FALENO (labels.yaml) — Wikipedia lists REBD-623/810/923 as REbecca photobook titles under non-exclusive side work. OAE = Arocontrol. BTHA not in labels.yaml (Unknown). awards field: Wikipedia article does not list formal award wins, only ranking placements (FANZA 月刊 2020 新人2位, FLASH 2020 38位, FLASH 2021 40位) — these are not formal award ceremonies; set to null.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/ひなたまりん'
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1011 (canonical "Marin Hinata", 59 titles)'
+  - 'src/main/resources/labels.yaml — label/company mapping (SSNI/SSIS/OFJE = S1 No.1 Style, PRED = Elegance, REBD = FALENO, OAE = Arocontrol)'
+  - 'javdb cast_json slug 4rw3 = ひなたまりん (identity anchor)'
+  portfolio_listed: 0

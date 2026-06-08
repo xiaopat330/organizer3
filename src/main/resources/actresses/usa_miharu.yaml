@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: Usa
+    given_name: Miharu
+    stage_name: 羽咲みはる
+    reading: うさ みはる
+    alternate_names:
+    - name: みはるん
+      note: 'Nickname (愛称), not a stage name'
+  date_of_birth: 1992-03-03
+  birthplace: null
+  blood_type: A
+  height_cm: 151
+  measurements:
+    bust: 86
+    waist: 59
+    hip: 84
+  cup: F
+  active_from: 2016-04-01
+  active_to: 2022-10-01
+  retirement_announced: 2022-07-09
+  biography: "Miharu Usa (羽咲みはる) is a Japanese talent, gravure/nude model, YouTuber and retired AV actress, managed by T-Powers. She debuted in April 2016 with MUTEKI (「Discovery 羽咲みはる」) and became an S1 No.1 Style exclusive from June 2016, remaining one of S1's signature petite-but-busty actresses for her whole AV career. From December 2016 she was a third-generation member of the Ebisu Muscats idol unit. She won Best New Actress at the 2017 DMM R-18 Adult Award. She retired from AV in 2022 (announced July, final release October) alongside the Ebisu Muscats' group-wide graduation, and has since built a substantial second career as a YouTuber/Twitch streamer and singer. Born 3 March 1992 (A blood type, 151 cm, F-cup)."
+  primary_studios:
+  - name: MUTEKI
+    company: MUTEKI
+    from: 2016-04-01
+    to: 2016-05-31
+    role: 'Celebrity-label debut maker (debut work 「Discovery 羽咲みはる」, code TEK)'
+  - name: S1 (S1 No.1 Style)
+    company: S1 (Hokuto group)
+    from: 2016-06-01
+    to: 2022-10-01
+    role: 'Exclusive contract actress for her whole career thereafter (codes SSNI / SSIS / SNIS)'
+  awards:
+  - event: DMM R-18アダルトアワード (DMM R-18 Adult Award)
+    year: 2017
+    category: 優秀新人女優賞 (Best New Actress)
+  legacy: 'A petite (151 cm) F-cup S1 flagship and Ebisu Muscats (3rd generation) idol of the late 2010s, MUTEKI-debuted and a 2017 Best New Actress winner, who retired with the Muscats in 2022 and reinvented herself as a popular YouTuber/Twitch streamer and singer.'
+
+meta:
+  total_owned_titles: 96
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 539 top labels SSNI 41 + SSIS 20 + SNIS 14 + OFJE 17 = S1; TEK = MUTEKI (debut); REBD/IPX = image-label/guest.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (羽咲みはる) — high confidence on DOB, blood type, height, measurements, cup, debut, retirement, studio, award. Measurements (86-59-84) and cup (F) are the 2016 公称 figures. Identity confirmed via studio-match heuristic: DB is overwhelmingly S1 (SSNI/SSIS/SNIS/OFJE) plus a TEK (MUTEKI) debut title — exactly matching the article (MUTEKI debut April 2016, then S1 専属 from June 2016). DB owns 96 titles vs an S1 career of ~73 titles + compilations (within ballpark). birthplace LEFT NULL (not given in the Wikipedia infobox). active_from = April 2016 MUTEKI debut (set to month start); active_to = final release Oct 2022 (last filmed June 2022); retirement_announced = 2022-07-09 (Twitter). Ebisu Muscats 3rd-gen member (2016-12 to 2022-08); agency T-Powers. (This file was written inline by the parent after the batch sub-agent for id 539 hit a transport error mid-run.) Company groupings per src/main/resources/labels.yaml. Tier SUPERSTAR in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/羽咲みはる
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=539 (canonical "Miharu Usa", stage_name 羽咲みはる, 96 titles, tier SUPERSTAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (SSNI/SSIS/SNIS = S1, TEK = MUTEKI)'
+  portfolio_listed: 0

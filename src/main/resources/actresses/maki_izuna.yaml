@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Maki
+    given_name: Izuna
+    stage_name: 槙いずな
+    reading: まき いずな
+    alternate_names:
+    - name: いーたん
+      note: 'Nickname (愛称), not a stage name'
+  date_of_birth: 2001-01-27
+  birthplace: Saitama Prefecture, Japan
+  blood_type: null
+  height_cm: 148
+  measurements:
+    bust: 80
+    waist: 55
+    hip: 84
+  cup: E
+  active_from: 2020-03-19
+  active_to: 2022-01-25
+  retirement_announced: 2021-12-28
+  biography: "Izuna Maki (槙いずな) is a Japanese retired AV actress from Saitama Prefecture, born 27 January 2001. She debuted on 19 March 2020 as an exclusive actress for S1 NO.1 STYLE, distinguished by her slender, petite (148 cm) figure and high-sensitivity performance style. Over roughly two years she released approximately 20 solo titles for S1, earning a reputation for intense climax scenes and an authentic, reactive on-screen presence. On 28 December 2021 she announced her retirement via Twitter, citing personal reasons, and her final AV title was released on 25 January 2022. After retiring from AV she joined CLUB 虎の穴 (Toranohana Aoyama) in August 2022, and departed her talent agency ティーパワーズ in September 2023. Her stage name was self-coined, inspired by an admiration for classical Japanese names rooted in her love of 源氏物語 (The Tale of Genji)."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: S1 No.1 Style
+    from: 2020-03-19
+    to: 2022-01-25
+    role: 'Exclusive contract actress'
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 23
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 23
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 572 holds 23 owned titles (SSNI 11, SSIS 9, OFJE 3). Wikipedia filmography lists approximately 20 solo AV titles + 3 VR titles + 2 retirement/best compilations, consistent with DB count.'
+  confidence: 'Identity PASS — all three checks clear. (1) Studio match: all DB labels (SSNI, SSIS, OFJE) map to S1 No.1 Style per labels.yaml; Wikipedia confirms exclusive S1 NO.1 STYLE contract 2020–2022. (2) Title count: DB owns 23 titles; Wikipedia lists ~25 entries (solo + VR + compilations) — ratio within ballpark. (3) Name match: Wikipedia article title 槙いずな matches javdb cast_json name (slug 0rva, name 槙いずな). Blood type not stated in Wikipedia article — set to null. Measurements (80-55-84, E cup) from 2020 公称 figures per Wikipedia infobox. active_from = AV debut 2020-03-19; active_to = retirement title release 2022-01-25; retirement_announced = 2021-12-28 (Twitter announcement). No awards found in Wikipedia. OFJE titles are best/compilation works. Name order: canonical DB name is "Izuna Maki" (given family); family_name=Maki / given_name=Izuna so "{given_name} {family_name}" = "Izuna Maki" exactly as required.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/槙いずな
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=572 (canonical "Izuna Maki", stage_name null, 23 titles, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (SSNI/SSIS/OFJE = S1 No.1 Style, parent WILL Co., Ltd.)'
+  - 'javdb cast_json — slug 0rva, name 槙いずな (confirmed via title_javdb_enrichment)'
+  portfolio_listed: 0

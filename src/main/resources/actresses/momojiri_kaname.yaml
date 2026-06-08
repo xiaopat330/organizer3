@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Momojiri
+    given_name: Kaname
+    stage_name: 桃尻かなめ
+    reading: ももじり かなめ
+    alternate_names:
+    - name: ももちゃん
+      note: 'Nickname (愛称), not a stage name'
+  date_of_birth: 2000-08-08
+  birthplace: Kyoto Prefecture, Japan
+  blood_type: null
+  height_cm: 152
+  measurements:
+    bust: 90
+    waist: 56
+    hip: 86
+  cup: G
+  active_from: 2020-05-30
+  active_to: null
+  retirement_announced: null
+  biography: "Kaname Momojiri (桃尻かなめ) is a Japanese AV actress and gravure idol born on 8 August 2000 in Kyoto Prefecture, represented by the talent agency Eightman. She debuted as a gravure model in October 2019 in Weekly Playboy and made her AV debut in May 2020 as a FALENO Star exclusive (code FSDSS-043), one of the most prominent new labels of the late 2010s under the SOD group. She rose quickly to commercial prominence: her co-starring title with Yume Nikaido (FSDSS-169) ranked third in FANZA's 2021 first-half sales ranking and was cited as FALENO's top-selling title of 2021 by Weekly Playboy. She ranked 24th in Kobunsha FLASH magazine's 2021 sexy actress rankings. After concluding her FALENO exclusive run in early 2023, she moved to the Fitch label under WILL, continuing to release titles through the JUFE code."
+  primary_studios:
+  - name: FALENO
+    company: SOD Create
+    from: 2020-05-30
+    to: 2023-04-01
+    role: 'FALENO Star exclusive contract actress (codes FSDSS, FCDSS)'
+  - name: Fitch
+    company: WILL
+    from: 2023-05-02
+    to: null
+    role: 'Exclusive contract actress (code JUFE)'
+  awards: null
+  legacy: 'A FALENO Star flagship exclusive of the early 2020s whose co-starring title FSDSS-169 topped FALENO sales in 2021 and placed third on FANZA''s half-year chart, helping establish FALENO as one of the industry''s premier premium labels.'
+
+meta:
+  total_owned_titles: 33
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB id 2510 holds 33 owned titles (FSDSS 30, FCDSS 2, JUFE 1). Wikipedia filmography lists ~35 FALENO titles + 3 Fitch titles at time of article; DB count is consistent with partial ownership.'
+  confidence: 'Identity PASS. Kanji stage_name 桃尻かなめ sourced from Japanese Wikipedia article title and body text (DB stage_name was null). Name check: Wikipedia article title matches canonical romanization "Kaname Momojiri". Studio match: DB top labels FSDSS/FCDSS map to FALENO (labels.yaml confirmed, company SOD Create); JUFE maps to Fitch (WILL) — both appear explicitly in Wikipedia infobox as exclusive contracts. Title-count ballpark: DB owns 33, Wikipedia lists ~38 total entries — ratio 0.87, within 0.3×–3× range — PASS. blood_type not listed in Wikipedia article (set null). active_to set null (still active as of article). FALENO to-date estimated ~2023-04-01 based on last FCDSS compilation (FCDSS-051, 2023-04-19 streaming / 2023-05-25 DVD) marking end of exclusive run; not precise. Note: family_name "Momojiri" / given_name "Kaname" yields canonical "{given_name} {family_name}" = "Kaname Momojiri" matching DB exactly; Japanese surname is 桃尻, given name is かなめ (hiragana). javdb verify tool timed out — kanji confirmed via Wikipedia; slug unknown from this run.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/桃尻かなめ
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=2510 (canonical "Kaname Momojiri", stage_name null, 33 titles, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (FSDSS/FCDSS = FALENO/SOD Create; JUFE = Fitch/WILL)'
+  portfolio_listed: 0

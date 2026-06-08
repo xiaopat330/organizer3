@@ -1,0 +1,50 @@
+profile:
+  name:
+    family_name: Hatsukawa
+    given_name: Minami
+    stage_name: 初川みなみ
+    reading: はつかわ みなみ
+    alternate_names:
+    - name: はっつ
+      note: 'Nickname (愛称), not a stage name'
+  date_of_birth: 1995-01-19
+  birthplace: Fukuoka Prefecture, Japan
+  blood_type: O
+  height_cm: 156
+  measurements:
+    bust: 86
+    waist: 59
+    hip: 88
+  cup: D
+  active_from: 2014-03-01
+  active_to: 2022-05-03
+  retirement_announced: 2021-05-27
+  biography: "Minami Hatsukawa (初川みなみ) is a Japanese retired AV actress from Fukuoka Prefecture, born 19 January 1995. She debuted in March 2014 as an exclusive actress for MOODYZ (label Moody's Diva, code MIDE), releasing her debut title MIDE-074 at age 18 while enrolled in university. She remained an exclusive MOODYZ actress for the majority of her career, establishing herself as one of the studio's top performers of the mid-2010s and winning the DMM.R18 Adult Award 2015 rental division best-title award for her debut work. In May 2021 she announced her retirement via Twitter, then spent approximately one year as a non-exclusive actress appearing across many studios before releasing her final retirement work MIDV-104 on 3 May 2022. She received the 週プレアダルトアワード2021 Special Award and was consistently ranked in major reader polls. After retirement she returned to private life while retaining agency registration and fan-club channels."
+  primary_studios:
+  - name: "Moody's Diva"
+    company: Moodyz
+    from: 2014-03-01
+    to: 2022-05-03
+    role: "Exclusive contract actress (codes MIDE / MIDV; non-exclusive final year 2021–2022)"
+  awards:
+  - event: "DMM.R18アダルトアワード (DMM.R18 Adult Award)"
+    year: 2015
+    category: "作品賞 レンタル部門 (Best Title — Rental Division) for MIDE-074"
+  - event: "週プレアダルトアワード2021 (Weekly Playboy Adult Award 2021)"
+    year: 2021
+    category: "特別賞 (Special Award)"
+  legacy: "One of MOODYZ's defining exclusive actresses of the 2010s; debuted at 18 while in university and built a career of over 100 titles across eight years, retiring in 2022 with a back-to-debut-angle final-work photograph that bookended her career."
+
+meta:
+  total_owned_titles: 118
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 659 holds 118 owned titles (top labels MIDE 72, MIZD 4, DASD 4, JUFE 3, HMN 3, WAAA 2, URE 2, SSNI 2, SHKD 2, ROYD 2, PRED 2, MUDR 2). No aliases in DB.'
+  confidence: "Identity PASS. Kanji stage name 初川みなみ confirmed from Japanese Wikipedia article title matching DB canonical_name Minami Hatsukawa. Studio-match PASS: DB top label MIDE (72 titles) maps to Moody's Diva / Moodyz per labels.yaml; Wikipedia confirms MOODYZ exclusive contract 2014–2022. DB owns 118 titles; Wikipedia filmography lists well over 100 AV entries — ballpark PASS. Measurements (86-59-88, D-cup) taken from AV女優 infobox (2014 時点). Javdb verify tool timed out (twice); kanji identity established via Wikipedia article title + studio-match heuristic. active_from = AV debut 2014-03-01 (MIDE-074); active_to = retirement release 2022-05-03 (MIDV-104); retirement_announced = 2021-05-27 (Twitter). Biography writes only from Wikipedia sourced facts."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/初川みなみ
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=659 (canonical "Minami Hatsukawa", stage_name null, 118 titles, tier GODDESS)'
+  - 'src/main/resources/labels.yaml — label/company mapping (MIDE/MIDV/MIZD = Moodyz)'
+  portfolio_listed: 0
