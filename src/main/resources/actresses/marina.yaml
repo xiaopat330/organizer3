@@ -1,0 +1,53 @@
+profile:
+  name:
+    family_name: null
+    given_name: Marina
+    stage_name: MARINA
+    reading: まりな
+    alternate_names:
+    - name: 真理絵
+      note: 'Early debut name used in 2007 amateur/素人 works'
+    - name: 長瀬まりな
+      note: 'Alternate stage name used for some releases'
+    - name: KAYO
+      note: 'Stage name variant (also written かよ) used for select works'
+    - name: 奈緒
+      note: 'Stage name used for select works including 盗撮 series'
+    - name: リナ
+      note: 'Stage name variant used for select works'
+    - name: まほ
+      note: 'Stage name used for 2010 appearance (Graffis ストリートエンジェルス36)'
+  date_of_birth: 1988-07-20
+  birthplace: 'Kyoto born, Tokyo raised, Japan'
+  blood_type: B
+  height_cm: 158
+  measurements:
+    bust: 88
+    waist: 56
+    hip: 88
+  cup: E
+  active_from: 2007-11-10
+  active_to: 2010-12-08
+  biography: "MARINA is a Japanese AV actress who debuted in 2007 under the name 真理絵 in the amateur-style series 若妻の匂い, before emerging as a single-name actress in late 2007. Born 20 July 1988 in Kyoto and raised in Tokyo, she is 158 cm tall with an E-cup figure (88-56-88). She worked across numerous labels in 2007-2008, including early appearances under various aliases in amateur-style and planning productions, before signing with ケイエムプロデュース (KM Produce) for a formal single-actress debut on the Million label in January 2008. Known as a ギャル-type actress, she appeared in titles for Prestige, KiraKira, Gloria Quest, SOD, h.m.p, and others during her roughly one-year active period, releasing approximately 30+ individual titles. She released multiple retirement works in early-to-mid 2008, with isolated appearances continuing under the name まほ into 2010."
+  primary_studios:
+  - name: ケイエムプロデュース
+    company: KM Produce (KMP)
+    from: 2008-01-18
+    to: 2008-05-16
+    role: 'Single-actress exclusive; formal debut and primary releases on Million label (MILD)'
+  awards: null
+  legacy: 'A short-career ギャル-type single actress of the late-2000s era known for a perfect hourglass figure; active primarily in 2007-2008 across a wide range of labels under multiple stage names before retiring after roughly one year.'
+
+meta:
+  total_owned_titles: 10
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. No portfolio researched. DB holds 10 titles: MILD×4 (Million/KMP), MISM×1, MBD×1, KIRD×1 (Kirakira), GSX×1 (ACCEL), GHT×1 (unknown label), EZD×1 (erogenus zone).'
+  confidence: 'Profile sourced from Japanese Wikipedia (MARINA (AV女優)). Identity confirmed: DB top label MILD = ケイエムプロデュース/Million — Wikipedia explicitly identifies KMP/Million as her primary studio for formal single-actress debut. KIRD = Kirakira matches Wikipedia KiraKira works. GSX = ACCEL/Prestige series matches Wikipedia 東京25時 and WATER POLE entries. MILD sequence numbers 527-551 (range of 24) are consistent with 2008 release era for this label. DB title count of 10 vs Wikipedia filmography of ~30+ individual titles — DB owns a subset, plausible for a minor-tier actress. DOB, birthplace (Kyoto/Tokyo), blood type B, height 158 cm, measurements 88-56-88, cup E all sourced directly from Wikipedia infobox. No Wikipedia article conflicts noted. alternate_names are all documented 別名義 from Wikipedia article body and infobox (別名 field). Single-name actress: given_name=Marina, family_name=null.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/MARINA_(AV%E5%A5%B3%E5%84%AA)
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3481 (canonical "Marina", stage_name null, tier MINOR, 10 titles, top label MILD×4)'
+  - 'src/main/resources/labels.yaml — MILD=Million (KMP), KIRD=Kirakira, GSX=ACCEL, MBD=Yotokiya, EZD=erogenus zone, MISM=Emco Labo'
+  portfolio_listed: 0

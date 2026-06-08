@@ -1,0 +1,56 @@
+profile:
+  name:
+    family_name: Haneda
+    given_name: Ai
+    stage_name: 羽田あい
+    reading: はねだ あい
+  date_of_birth: 1989-09-22
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 170
+  measurements:
+    bust: 87
+    waist: 55
+    hip: 85
+  cup: D
+  active_from: 2010-02-18
+  active_to: 2018-10-11
+  biography: "Ai Haneda (羽田あい) is a Japanese AV actress and former gravure idol born 22 September 1989 in Tokyo. She debuted in image DVDs in April 2008 under SOD Create's Glamorous Candy label, releasing eight gravure DVDs over two years before transitioning to adult video. Her AV debut came on 18 February 2010 with SOD Create (STAR label), where she quickly earned recognition — winning the 9th SOD Grand Prize Best Actress award in 2010 and the SKY PerfecTV! Adult Broadcasting Grand Prize Rookie Actress award in 2011. In mid-2012 she moved to Idea Pocket (IPZ/IPTD labels) as an exclusive contract actress, continuing through 2014. After a hiatus she returned to SOD Create in July 2018 for a re-debut. She is known for her tall (170 cm), slender figure and wide-ranging performance style across scenario and concept-driven works."
+  primary_studios:
+  - name: SOD Star
+    company: SOD Create
+    from: 2010-02-18
+    to: 2012-06-30
+    role: Exclusive contract actress (STAR label)
+  - name: IDEA POCKET
+    company: Idea Pocket
+    from: 2012-07-01
+    to: 2014-07-19
+    role: Exclusive contract actress (IPZ/IPTD labels)
+  - name: SOD Star
+    company: SOD Create
+    from: 2018-07-12
+    to: 2018-10-11
+    role: Returning exclusive actress (STAR/STARS label)
+  awards:
+  - event: SOD大賞 (SOD Grand Prize)
+    year: 2010
+    category: 最優秀女優賞 (Best Actress Award) — 9th ceremony
+  - event: スカパー!アダルト放送大賞 (SKY PerfecTV! Adult Broadcasting Grand Prize)
+    year: 2011
+    category: 新人女優賞 (Rookie Actress Award)
+  legacy: 'A prominent SOD Create and Idea Pocket exclusive of the early 2010s, recognised with both the SOD Grand Prize Best Actress award and the SKY PerfecTV! Rookie Actress award; known for her tall, slender build and prolific output of concept-driven works before and after a mid-career hiatus.'
+
+meta:
+  total_owned_titles: 42
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 3583 holds 42 owned titles (top labels: STAR 23, IPZ 14, IPTD 3, SUPD 1, IDBD 1). STAR = SOD Star (SOD Create); IPZ/IPTD = IDEA POCKET; SUPD = Supreme (Idea Pocket Digital Channel); IDBD = Idea Pocket Best (compilation).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (羽田あい) — high confidence on DOB (1989-09-22), birthplace (Tokyo), blood type (O), height (170 cm), measurements (87-55-85 cm), cup (D), AV debut date (2010-02-18), studio affiliations, and awards. Stage name 羽田あい confirmed from DB actresses.stage_name and cast_json slug rxbJ. Identity confirmed: DB top labels STAR/IPZ/IPTD map exactly to Wikipedia exclusive contracts (SOD Create 2010-2012, Idea Pocket 2012-2014, SOD Create return 2018). Wikipedia filmography lists ~50+ AV titles, consistent with DB count of 42 (within ballpark). active_to set to 2018-10-11 (last Wikipedia-listed SOD return title); she may still be active. No aliases in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/羽田あい
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3583 (canonical "Ai Haneda", stage_name 羽田あい, 42 titles, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (STAR = SOD Star/SOD Create, IPZ/IPTD = IDEA POCKET, SUPD = Supreme, IDBD = Idea Pocket Best)'
+  portfolio_listed: 0

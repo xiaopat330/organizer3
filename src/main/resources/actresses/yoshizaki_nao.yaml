@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Yoshizaki
+    given_name: Nao
+    stage_name: 吉崎直緒
+    reading: よしざき なお
+    alternate_names:
+    - name: 小林ゆき
+      note: 'Early stage name (別名義) used in two 2005 ビデ倫 titles released by V&R and Alice Japan before her KUKI debut under her own name'
+  date_of_birth: 1985-12-20
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: A
+  height_cm: 163
+  measurements:
+    bust: 87
+    waist: 57
+    hip: 85
+  cup: E
+  active_from: 2005-05-30
+  active_to: null
+  retirement_announced: null
+  biography: "Nao Yoshizaki (吉崎直緒) is a Japanese AV actress born on 20 December 1985 in Kanagawa Prefecture. She debuted in May 2005 under KUKI, with two early titles credited to the alias 小林ゆき (Yuki Kobayashi) predating her named debut. After an active first career period primarily with KUKI and MAX-A, she retired in December 2009 with the title 最終花～吉崎直緒、引退～ released by PREMIUM. She made a comeback in July 2012 with 吉崎直緒 復活 via PREMIUM and has been active since. Her cell-disc career was centered on PREMIUM (PGD/Glamorous label), where she built a substantial solo catalog across multiple genres."
+  primary_studios:
+  - name: KUKI
+    company: KUKI
+    from: 2005-05-30
+    to: 2009-12-07
+    role: 'Early-career non-exclusive label (rental/VHS format titles)'
+  - name: MAX-A
+    company: MAX-A
+    from: 2006-02-24
+    to: 2009-12-28
+    role: 'Non-exclusive contract actress (rental and compilation releases, code XV/Karen)'
+  - name: Glamorous (PREMIUM)
+    company: PREMIUM
+    from: 2008-04-07
+    to: null
+    role: 'Cell-disc exclusive from 2008 debut through retirement and comeback (code PGD)'
+  awards: null
+  legacy: 'A PREMIUM flagship actress of the late 2000s who retired in 2009 and made a documented comeback in 2012; notable for a long solo catalog at PREMIUM and a parallel rental career at MAX-A and KUKI.'
+
+meta:
+  total_owned_titles: 35
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB id 1671 holds 35 owned titles (top labels PGD 16, XV 10, AZRD 5, SRXV 1, SDV 1, KK 1, ADZ 1). No aliases recorded in DB.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (吉崎直緒) — high confidence on DOB, birthplace, blood type, height, measurements (87-57-85), cup E, debut/retirement/comeback dates. Kanji confirmed from title_javdb_enrichment.cast_json (slug W3BK, consistent across XV-595 and XV-614). Identity confirmed via studio-match heuristic: DB top labels PGD/SRXV = PREMIUM (Glamorous, Wikipedia lists extensive プレミアム section), XV/SRXV = MAX-A/Karen (Wikipedia lists MAX-A titles matching XV codes), ADZ = KUKI (Wikipedia lists large KUKI section). DB owns 35 titles vs a large Wikipedia filmography; ratio is well within ballpark given DB represents only the owned subset of a wide rental+cell catalog. active_to left null because Wikipedia shows comeback from 2012 with no retirement date listed. awards field is null — no awards listed on Wikipedia. alternate_name 小林ゆき is a documented former stage name (別名義) appearing on two released 2005 titles in the Wikipedia filmography, not a nickname.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/吉崎直緒
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1671 (canonical "Nao Yoshizaki", stage_name null in DB, tier POPULAR, 35 titles)'
+  - 'title_javdb_enrichment.cast_json — kanji 吉崎直緒 confirmed via slug W3BK on XV-595, XV-614'
+  - 'src/main/resources/labels.yaml — label/company mapping (PGD=Glamorous/PREMIUM, XV/SRXV=Karen/WILL-JHV, ADZ=KUKI)'
+  portfolio_listed: 0

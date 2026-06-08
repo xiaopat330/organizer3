@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: null
+    given_name: Marin
+    stage_name: まりん
+    reading: まりん
+  date_of_birth: 1987-07-20
+  birthplace: Kyoto Prefecture, Japan
+  blood_type: O
+  height_cm: 155
+  measurements:
+    bust: 88
+    waist: 59
+    hip: 84
+  cup: E
+  active_from: 2005-09-19
+  active_to: 2015-10-07
+  retirement_announced: null
+  biography: "Marin (まりん, born 20 July 1987 in Kyoto Prefecture) is a Japanese retired AV actress who debuted in 2005, initially appearing across multiple labels including GLAY'z, LEO, and Prestige. She rose to prominence after the January 2006 Prestige release 'Tokyo Ryuugi-11/MARIN', which sparked a bidding war among studios. She became an exclusive actress for Warp Entertainment from 5 April 2006, recording a prolific run of releases through 2008. During and after her Warp contract she appeared as a guest performer for Idea Pocket, Premium (WILL), and kira☆kira. She retired in 2008 and made a single-title comeback in October 2015 for Attackers (SHKD-646), retiring again shortly thereafter. She had previously worked as a gravure idol under the name 'Junna' (じゅんな)."
+  primary_studios:
+  - name: Warp Entertainment
+    company: Warp Entertainment
+    from: 2006-04-05
+    to: 2008-12-31
+    role: Exclusive contract actress
+  - name: IDEA POCKET
+    company: WILL Co., Ltd.
+    from: 2007-08-01
+    to: 2008-10-01
+    role: Guest actress (non-exclusive appearances)
+  - name: PREMIUM
+    company: WILL Co., Ltd.
+    from: 2007-06-07
+    to: 2008-08-07
+    role: Guest actress (non-exclusive appearances)
+
+meta:
+  total_owned_titles: 12
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 3549 holds 12 owned titles (labels: PGD 2, IPTD 2, WSS 1, SHKD 1, SDND 1, MAAN 1, KMHR 1, KIRD 1, IPSD 1, BUR 1). Stage name confirmed まりん via Japanese Wikipedia article (Marin.).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (Marin. / まりん) — high confidence on DOB (1987-07-20), birthplace (Kyoto Prefecture), blood type (O), height (155 cm), measurements (88-59-84), cup (E), active period, and primary studios. Identity confirmed via studio-match heuristic: DB top labels IPTD/IPSD = Idea Pocket (Wikipedia confirms multiple Idea Pocket titles 2007-2008), PGD = Premium/Glamorous (Wikipedia confirms Premium titles 2007-2008), KIRD = kira☆kira (Wikipedia confirms CHARISMA kira☆kira title 2008), SHKD = Attackers (Wikipedia confirms 2015 comeback title on Attackers). Single-name actress; given_name set to "Marin", family_name null so canonical resolves to exactly "Marin". WSS, SDND, KMHR, BUR not present in labels.yaml (smaller/unlisted labels). MAAN = MGS Video (Prestige). active_from set to first confirmed DB-holdable title era; active_to set to 2015-10-07 comeback title (Attackers SHKD-646).'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/Marin.
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3549 (canonical "Marin", stage_name null in DB, tier MINOR, 12 titles)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  portfolio_listed: 0

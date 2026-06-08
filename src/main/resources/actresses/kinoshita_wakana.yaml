@@ -1,0 +1,41 @@
+profile:
+  name:
+    family_name: Kinoshita
+    given_name: Wakana
+    stage_name: 木下若菜
+    reading: きのした わかな
+  date_of_birth: 1989-12-01
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: 2010-11-05
+  active_to: 2018-11-10
+  retirement_announced: null
+  biography: "Wakana Kinoshita (木下若菜) is a Japanese AV actress born on December 1, 1989 in Tokyo. She debuted in November 2010 with h.m.p, where her first release was a four-hour debut title. Known for her notably slender waist and large bust — described in press as 'くびれたウエストと美巨乳' — she worked extensively as a freelance actress across a wide range of labels through at least 2018. Her catalog spans mainstream idol releases (h.m.p, E-Kiss, E-BODY), amateur-format series (S-Class Amateur, KMP), specialty creampie series (ZUKKON & BAKKON), and planning compilations. She did not hold an exclusive contract beyond her debut period with h.m.p."
+  primary_studios:
+  - name: h.m.p
+    company: bidet wheel
+    from: 2010-11-05
+    to: null
+    role: 'Debut label (HODV series); freelance across multiple labels thereafter'
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 29
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 1089 holds 29 owned titles (top labels UMD 3, SAMA 3, HODV 2, EKDV 2, BEB 2). Release dates sparse — only 5 of 29 titles have enriched release dates in DB.'
+  confidence: 'DOB and birthplace sourced from Japanese Wikipedia (木下若菜) — high confidence. Blood type, height, and measurements are NOT present in the Wikipedia article (no AV infobox); set to null rather than guess. Cup size mentioned inconsistently in title descriptions (Fカップ in some, Gカップ in others across career) — cannot pin down a single value; null. active_from = AV debut 2010-11-05 (h.m.p first release date per Wikipedia). active_to = latest enriched release date in DB (BDSR-371, 2018-11-10); Wikipedia filmography article ends ~2012 and does not cover full career. Identity confirmed: Wikipedia article title matches stage name 木下若菜; DB top labels (HODV = h.m.p, BEB/BID = Chijo Heaven, EBOD = E-BODY, ZUKO = ZUKKON & BAKKON) all consistent with Wikipedia filmography entries for the same studios. DB owns 29 titles; Wikipedia article lists 60+ entries through 2012 alone — DB subset is plausible (ratio within ballpark). Stage name and javdb cast_json slug K4V6 consistently names 木下若菜 across multiple titles. No aliases in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/木下若菜
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1089 (canonical "Wakana Kinoshita", stage_name 木下若菜, 29 titles, tier POPULAR, javdb slug K4V6)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  portfolio_listed: 0

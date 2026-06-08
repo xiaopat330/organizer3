@@ -1,0 +1,35 @@
+profile:
+  name:
+    family_name: Tsuji
+    given_name: Saki
+    stage_name: 辻さき
+    reading: つじ さき
+  date_of_birth: 1988-08-09
+  birthplace: Aomori Prefecture, Japan
+  blood_type: AB
+  height_cm: 160
+  measurements:
+    bust: 90
+    waist: 61
+    hip: 92
+  cup: G
+  active_from: 2007-01-01
+  active_to: null
+  biography: "Saki Tsuji (辻さき) is a Japanese AV actress and former stripper from Aomori Prefecture, born 9 August 1988. She debuted in adult video in 2007 and quickly became a prolific freelance actress, known for a loli-type appearance combined with a G-cup (90cm) bust — a contrast the industry branded as 'kikatan' (キカタン). Her work spans a wide range of studios and labels with no recorded exclusive contract, appearing across MOODYZ, kira☆kira, Prestige, SOD-affiliated labels, and many smaller independents. She is particularly associated with schoolgirl-role scenarios and planning-heavy variety titles. No retirement has been announced and she remained active as of the Wikipedia article."
+  primary_studios: null
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 52
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 3581 holds 52 owned titles across 39 distinct labels — top labels IESP x4 (I Energy), PMP x3 (not in labels.yaml), NWF x3 (Wands), VSPDS x2 (not in labels.yaml), SBMX x2 (Black Max Cafe/Maxing), SAMA x2 (S-Class Amateur), PMS x2 (not in labels.yaml), MIAD x2 (Moody''s Acid), FSET x2 (Akinori/SOD). No release dates in DB. active_from set to 2007-01-01 (debut year from Wikipedia; exact debut date not confirmed). active_to null = still active per Wikipedia infobox (2007年 -).'
+  confidence: 'High for physical measurements, DOB, birthplace, blood type — all from Japanese Wikipedia AV女優 infobox. Identity confirmed: DB actress stage_name=辻さき matches Wikipedia article title exactly; javdb cast_json slug QnPM also names 辻さき. Studio-match check: DB label spread is broad freelance (no dominant exclusive), consistent with Wikipedia filmography showing appearances across many studios from debut year. Title-count check: Wikipedia filmography is very long (100+ entries visible in 2007-2008 section alone) vs 52 owned — plausible subset. Cup: G confirmed from infobox (ブラサイズ G). No alternate stage names documented; no aliases in DB. primary_studios set to null (no exclusive contract documented). active_from is approximate (year only, no exact debut release date found in Wikipedia profile section).'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/辻さき
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3581 (canonical "Saki Tsuji", stage_name 辻さき, tier SUPERSTAR, 52 titles)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  portfolio_listed: 0

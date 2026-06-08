@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: Mikami
+    given_name: Seri
+    stage_name: 美上セリ
+    reading: みかみ せり
+  date_of_birth: 1987-03-15
+  birthplace: Tokyo, Japan
+  blood_type: B
+  height_cm: 158
+  measurements:
+    bust: 83
+    waist: 58
+    hip: 82
+  cup: C
+  active_from: 2006-11-30
+  active_to: 2008-06-01
+  biography: "Seri Mikami (美上セリ) is a Japanese retired AV actress who debuted in November 2006 as a dual exclusive for MAX-A and Japan Home Video (Alice Japan), making her first appearance in the Alice Japan title 'Coolな女神' (2006-11-30). She released solo works under the Karen/MAX-A label before transitioning to a cell-distribution deal with Maxing in December 2007 ('美上セリ 解禁'). In early 2008 she appeared in several Idea Pocket titles, including two solo releases. No formal retirement announcement was made; new releases ceased after June 2008."
+  primary_studios:
+  - name: MAX-A / Alice Japan
+    company: WILL/JHV Group
+    from: 2006-11-30
+    to: 2008-01-16
+    role: 'Dual-exclusive contract actress (MAX-A code XV; Alice Japan code DV)'
+  - name: Maxing
+    company: Maxing
+    from: 2007-12-16
+    to: 2008-07-16
+    role: 'Cell-distribution contract actress (code MXGS)'
+  - name: IDEA POCKET
+    company: Idea Pocket
+    from: 2008-02-01
+    to: 2008-06-01
+    role: 'Contract actress (code IPTD)'
+
+meta:
+  total_owned_titles: 22
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 1871 holds 22 owned titles (top labels XV 7, DV 6, MXGS 3, IPTD 3, SRXV 1, PXV 1, MRMM 1).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (美上セリ) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut/retirement, studios. Measurements (83-58-82) and cup C (bra C-65) taken directly from infobox; no date qualifier given. Kanji resolved via web search (美上セリ, not 三上せり). Identity confirmed via studio-match heuristic: DB top labels all map to her Wikipedia exclusive contracts — XV = MAX-A (Karen), DV = Alice Japan, MXGS = Maxing, IPTD = Idea Pocket. Wikipedia filmography lists ~22 individual titles matching DB count of 22 exactly — strong identity confirmation. active_from = first listed title date 2006-11-30; active_to = last cell title June 2008 per Wikipedia note (no formal retirement announcement). SRXV (Karen reissue) and PXV (max pink) and MRMM (not in labels.yaml → Unknown) are compilation/reissue appearances. Tier POPULAR in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E7%BE%8E%E4%B8%8A%E3%82%BB%E3%83%AA
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1871 (canonical "Seri Mikami", stage_name null, 22 titles, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (XV/SRXV = Karen/MAX-A, DV = Alice Japan, MXGS = Maxing, IPTD = IDEA POCKET, PXV = max pink)'
+  portfolio_listed: 0

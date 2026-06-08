@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: Ayukawa
+    given_name: Nao
+    stage_name: 鮎川なお
+    reading: あゆかわ なお
+    alternate_names:
+    - name: 直美
+      note: 'Debut-era stage name (別名義); used for first 5 Aurora Project releases from January 2007'
+  date_of_birth: 1983-10-25
+  birthplace: Osaka Prefecture, Japan
+  blood_type: A
+  height_cm: 153
+  measurements:
+    bust: 88
+    waist: 59
+    hip: 85
+  cup: E
+  active_from: 2007-01-27
+  active_to: 2010-04-13
+  retirement_announced: 2010-02-11
+  biography: "Nao Ayukawa (鮎川なお) is a Japanese retired AV actress born on 25 October 1983 in Osaka Prefecture. She debuted in January 2007 under the name 直美 (Naomi) through Aurora Project, releasing five titles before switching to the stage name 鮎川なお and embarking on an exceptionally prolific multi-label career. Between mid-2007 and early 2010, she appeared across dozens of labels including MOODYZ, アイエナジー (I Energy), マルクス兄弟, YeLLOW, サディスティックヴィレッジ, and many others, becoming one of the most active performers of her era. On 11 February 2010, at an event for Ellie Akira (formerly Yuka Osawa), she announced her retirement scheduled for March; her final credited solo title, 引退。, was released on 13 April 2010 through MOODYZ. She was known for her E-cup figure (88-59-85 cm, 153 cm tall) and high-volume output across a wide range of content styles."
+  primary_studios:
+  - name: Aurora Project
+    company: Aurora
+    from: 2007-01-27
+    to: 2007-04-28
+    role: 'Debut-era actress (credited as 直美); non-exclusive'
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2007-09-13
+    to: 2010-04-13
+    role: 'Frequent non-exclusive contract actress; released retirement title through MOODYZ'
+  - name: I Energy
+    company: I Energy
+    from: 2008-01-05
+    to: 2009-06-04
+    role: 'Non-exclusive; most prolific single label by volume (IESP/IDOL codes)'
+
+meta:
+  total_owned_titles: 112
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 1023 holds 112 owned titles (top labels IESP 9, SMA 6, ELO 5, MIAD 4, MDS 4, IDOL 4, SVDVD 3, REAL 3, RAGI 3, NWF 3, MIDD 3).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (鮎川なお) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut/retirement dates, former stage name. DOB note: Wikipedia states an earlier profile variant listed 1983-08-08 but current standard is 1983-10-25 (used here). active_from = first Aurora Project release 2007-01-27 (制服が似合う素敵な娘13 直美). active_to = final credited title 引退。 2010-04-13 (MOODYZ). retirement_announced = 2010-02-11 (at Ellie Akira event). Alternate name 直美 is explicitly listed as 別名 in Wikipedia infobox. Identity confirmed: DB top labels IESP/IDOL = I Energy, SMA = Marx Brothers/マルクス兄弟, ELO = YeLLOW, MIAD/MDS = MOODYZ, SVDVD = Sadistic Village — all major studios match Wikipedia filmography. DB owns 112 titles vs Wikipedia listing ~130+ solo + compilation entries (within ballpark). RAGI label not found in labels.yaml (marked Unknown). stage_name set to 鮎川なお (kana-only, no kanji family name separator in stage name per Wikipedia usage). given_name/family_name render as "Nao Ayukawa" exactly matching canonical_name.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/鮎川なお
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=1023 (canonical "Nao Ayukawa", stage_name null, 112 titles, tier GODDESS)'
+  - 'src/main/resources/labels.yaml — label/company mapping'
+  portfolio_listed: 0

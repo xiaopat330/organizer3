@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Konishi
+    given_name: Nana
+    stage_name: 小西那奈
+    reading: こにし なな
+  date_of_birth: 1987-07-07
+  birthplace: Chiba, Japan
+  blood_type: A
+  height_cm: 160
+  measurements:
+    bust: 88
+    waist: 58
+    hip: 86
+  cup: F
+  active_from: 2007-04-27
+  active_to: 2010-10-07
+  biography: "Nana Konishi (小西那奈) is a retired Japanese AV actress born 7 July 1987 in Chiba Prefecture. She debuted in April 2007 with KUKI under the title 初花 and worked primarily as a KUKI exclusive through 2008, building a prolific single-label catalog. From September 2008 she added MAX-A releases in parallel, expanding her reach across the WILL/JHV group. In July 2009 she made her premium-label cell debut with PREMIUM (Glamorous), producing a steady monthly series of high-production-value titles through to retirement. She retired from the industry in October 2010 after approximately three and a half years of activity. Her hobbies included yoga and she was known for a party trick of guessing people's ages."
+  primary_studios:
+  - name: KUKI
+    company: KUKI
+    from: 2007-04-27
+    to: 2010-10-07
+    role: Debut-era exclusive contract actress (code ADZ)
+  - name: MAX-A
+    company: WILL/JHV Group
+    from: 2008-09-12
+    to: 2009-11-13
+    role: Parallel-release contract actress (code XV)
+  - name: PREMIUM
+    company: WILL Co., Ltd.
+    from: 2009-07-07
+    to: 2010-10-07
+    role: Cell-debut exclusive contract actress (code PGD)
+
+meta:
+  total_owned_titles: 22
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched (no DMM scrape / title enumeration run). DB record id 3580 holds 22 owned titles (top labels PGD 11, ADZ 9, XV 2).'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (小西那奈) — high confidence on DOB (1987-07-07), birthplace (Chiba), blood type (A), height (160 cm), measurements (88-58-86, cup F from bra size F-65), active period (2007-2010). Measurements are the 2007-12 公称 figures per Wikipedia infobox. Identity confirmed via studio-match heuristic: DB top labels all map to her Wikipedia-documented studios — ADZ = KUKI (debut exclusive), XV = MAX-A, PGD = PREMIUM (Glamorous). DB owns 22 titles vs a Wikipedia filmography with ~30+ solo entries (within ballpark for partial collection). No DB aliases recorded. javdb verify timed out; kanji and slug confirmed from title_javdb_enrichment.cast_json (slug NXwG, name 小西那奈). active_from = first Wikipedia-dated release 2007-04-27 (初花); active_to = last Wikipedia-dated PREMIUM release 2010-10-07 (ノーパン女教師). Tier POPULAR in DB.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/小西那奈
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3580 (canonical "Nana Konishi", stage_name 小西那奈, 22 titles, tier POPULAR)'
+  - 'src/main/resources/labels.yaml — label/company mapping (ADZ = KUKI, XV = MAX-A/Karen, PGD = PREMIUM/Glamorous)'
+  - 'title_javdb_enrichment.cast_json — javdb slug NXwG confirmed for 小西那奈'
+  portfolio_listed: 0

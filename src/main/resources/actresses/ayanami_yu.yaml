@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Ayanami
+    given_name: Yu
+    stage_name: 綾波優
+    reading: あやなみ ゆう
+  date_of_birth: 1989-04-01
+  birthplace: Miyagi Prefecture, Japan
+  blood_type: O
+  height_cm: 167
+  measurements:
+    bust: 83
+    waist: 58
+    hip: 83
+  cup: C
+  active_from: 2007-11-16
+  active_to: 2009-04-17
+  retirement_announced: null
+  biography: "Yu Ayanami (綾波優) is a former Japanese AV actress born 1 April 1989 in Miyagi Prefecture. She debuted in November 2007 with the title 純真 完全版 as an exclusive actress for Uchu Kikaku (Media Station), a label under KM Produce, and released a steady stream of solo titles throughout 2008. In January 2009 she transferred to the Million label (also KM Produce), and retired in April 2009 with the release of 電撃引退 イカセチャレンジ 綾波優. Her hobbies were karaoke, cooking, and confectionery-making. Post-retirement compilations under her name continued through June 2009."
+  primary_studios:
+  - name: Uchu Kikaku
+    company: KM Produce
+    from: 2007-11-16
+    to: 2008-12-31
+    role: Exclusive contract actress (code MDS)
+  - name: Million
+    company: KM Produce
+    from: 2009-01-16
+    to: 2009-04-17
+    role: Exclusive contract actress (code MILD)
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 11
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 3589 holds 11 owned titles on classic volume (top labels MDS 6, MILD 3, RMD 2). Wikipedia filmography lists approximately 21 regular solo titles (2007-2009) plus 4 post-retirement compilation/re-release titles; DB coverage is roughly 52% of known catalog.'
+  confidence: 'Profile fields sourced from Japanese Wikipedia (綾波優) and Wikidata (Q9324696) — high confidence on DOB, birthplace, blood type, height, measurements, cup, debut date, retirement date, and studios. Measurements (83-58-83) are the October 2007 公称 figures from the Wikipedia infobox; cup C derived from bra size C-70. Identity confirmed via studio-match heuristic: DB top label MDS maps to Uchu Kikaku (her debut exclusive studio); MILD maps to Million (her transfer studio); both are KM Produce labels matching her documented career history. DB title count (11) is within ballpark of Wikipedia filmography (~21 solo + 4 compilations). active_from = AV debut 2007-11-16 (debut title date); active_to = final solo release 2009-04-17 (retirement title date). No awards documented. No Wikipedia article for RMD label — mapped as Unknown in labels.yaml; RMD is likely a KMP re-release or rental label given career context.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/綾波優
+  - https://www.wikidata.org/wiki/Q9324696
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3589 (canonical "Yu Ayanami", stage_name null, 11 titles, tier MINOR, classic volume)'
+  - 'src/main/resources/labels.yaml — label/company mapping (MDS = Uchu Kikaku, MILD = Million, RMD = Unknown)'
+  portfolio_listed: 0

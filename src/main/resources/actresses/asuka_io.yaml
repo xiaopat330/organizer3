@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Asuka
+    given_name: Io
+    stage_name: あすか伊央
+    reading: あすか いお
+  date_of_birth: 1987-02-01
+  birthplace: null
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: 86
+    waist: 57
+    hip: 85
+  cup: null
+  active_from: null
+  active_to: null
+  biography: "Io Asuka (あすか伊央) is a Japanese AV actress who worked primarily in the late 2000s to early 2010s. She debuted on the Pureness Planet label (PURE-001) and appeared in all four main releases on that imprint through her final Pureness Planet title (PURE-061, 'The last work in Pureness Planet'). In addition to Pureness Planet she appeared on the Deep's planning label (DVDES, four titles) under the then-SOD umbrella, as well as Attackers' In Mad imprint (ATID-177). Her cover art consistently presents a slender, girl-next-door aesthetic with confirmed measurements of 86-57-85 cm and a 1987-02-01 birth date. No Japanese Wikipedia article or formal retirement announcement has been located; career activity and end date are unknown beyond the owned title set."
+  primary_studios:
+  - name: Pureness Planet
+    company: Pureness Planet
+    from: null
+    to: null
+    role: 'Primary exclusive label (debut through final Pureness Planet release)'
+  - name: "Deep's"
+    company: 'WILL Co., Ltd. (formerly SOD/Outvision)'
+    from: null
+    to: null
+    role: 'Guest actress (planning variety content, DVDES label)'
+  - name: In Mad
+    company: Attackers
+    from: null
+    to: null
+    role: 'Guest actress (ATID label)'
+
+meta:
+  total_owned_titles: 10
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB id=3588 holds 10 owned titles: PURE x4, DVDES x4, DVDPS x1, ATID x1. No enrichment data in DB (cast_json empty for all titles). No javdb staging row.'
+  confidence: 'Stage name あすか伊央 and reading confirmed from multiple owned cover images (PURE-001, PURE-041, PURE-057, PURE-061, ATID-177 — all consistently print あすか伊央). DOB 1987-02-01 and measurements 86-57-85 read from PURE-001 back cover profile box. Height, cup, blood type, birthplace: not visible on any cover examined — set to null. No Japanese Wikipedia article found (multiple kanji variants attempted — 飛鳥いお, 明日香いお, 明日香イオ, etc. all 404). No English Wikipedia article. javdb HTTP 403 on all fetch attempts; no cast_json enrichment in DB; no javdb_actress_staging row. Labels: PURE not in labels.yaml (Pureness Planet specialty imprint); DVDES=Deep''s (WILL/SOD); ATID=In Mad (Attackers); DVDPS not in labels.yaml. Identity confirmed via cover images — name, face, and measurements consistent across all PURE covers. Studio match note: DVDES is a SOD/WILL planning label (Magic Mirror Van creator) — not a dedicated actress label; her appearance there is consistent with a guest/planning-content role rather than an exclusive contract. Tier MINOR in DB (10 titles total).'
+  data_sources:
+  - 'Local cover images: data/covers/PURE/PURE-00001.jpg, PURE-00041.jpg, PURE-00057.jpg, PURE-00061.jpg'
+  - 'Local cover image: data/covers/ATID/ATID-00177.jpg'
+  - 'Local DB ~/.organizer3/organizer.db — actresses.id=3588 (canonical "Io Asuka", stage_name null in DB, 10 titles, tier MINOR)'
+  - 'src/main/resources/labels.yaml — DVDES=Deep''s (WILL), ATID=In Mad (Attackers)'
+  portfolio_listed: 0
