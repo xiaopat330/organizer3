@@ -34,7 +34,7 @@ export async function mountMerge(rootEl) {
     <div class="mc-wb">
       <div class="mc-wb-head">
         <div class="mc-wb-title-row">
-          <h1 class="mc-wb-title">Merge</h1>
+          <h1 class="wb-page-title">Merge</h1>
           <div class="mc-header-divider"></div>
           <div class="mc-actions">
             <button type="button" class="btn sm" id="mc-detect-btn">Detect</button>
@@ -42,7 +42,7 @@ export async function mountMerge(rootEl) {
           </div>
         </div>
         <div class="dis-kpi-strip" id="mc-headline">Loading…</div>
-        <div class="mc-wb-subtitle">
+        <div class="wb-page-subtitle">
           Title-code pairs that share a base code. Pick a winner for each pair or dismiss.
           Nothing is destroyed until you Execute.
         </div>
