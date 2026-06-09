@@ -27,11 +27,9 @@ enrichment:
 # model choice is visible in config rather than buried in code.
 #   primaryModel  — tier-1 model, used for every title first. The health gate
 #                   pauses the worker if this model is absent from `ollama list`.
-#                   NOTE: gemma4:e4b is a local-only model (not in the Ollama
-#                   registry), so `ollama pull gemma4:e4b` will not refresh it —
-#                   rebuild it from its Modelfile to update.
+#                   Update with `ollama pull gemma4:e4b`.
 #   fallbackModel — tier-2 model, used when tier-1 refuses/garbles an explicit
-#                   title. A standard registry model: `ollama pull qwen2.5:14b`.
+#                   title. Update with `ollama pull qwen2.5:14b`.
 # After changing a model here (or pulling a new version), restart the app so the
 # worker re-checks health and re-warms; on a 26 GB Mac the first call cold-loads.
 translation:
