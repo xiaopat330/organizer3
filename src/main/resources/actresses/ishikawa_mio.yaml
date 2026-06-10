@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Ishikawa
+    given_name: Mio
+    stage_name: 石川澪
+    reading: いしかわ みお
+    alternate_names: null
+  date_of_birth: 2002-03-20
+  birthplace: Japan
+  blood_type: null
+  height_cm: 158
+  measurements:
+    bust: 78
+    waist: 56
+    hip: 85
+  cup: B
+  active_from: 2021-10-01
+  active_to: null
+  retirement_announced: null
+  biography: "Mio Ishikawa (石川澪) is a Japanese AV actress born on March 20, 2002, signed to talent agency Production ALIVE. She debuted in October 2021 under the tagline 'an ordinary college student' with MOODYZ as her exclusive studio, and her debut title immediately topped the FANZA weekly and monthly digital video rankings. Her debut work was later cited by Shūkan Playboy as the best-selling MOODYZ title of 2021. In 2022 she served as campaign girl for FANZA's spring campaign, released her first image video and photobook ('unusual'), and won the Grand Prix at the Asahi Geinō AV Awards 2022. She has remained an exclusive actress at MOODYZ continuously since her debut and is one of the studio's most prominent current talents."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2021-10-01
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: アサヒ芸能 AサヒAV大賞
+    year: 2022
+    category: グランプリ女優 (Grand Prix Actress)
+  legacy: "Mio Ishikawa achieved immediate commercial success on her 2021 MOODYZ debut, topping FANZA rankings in her first month and sustaining a prominent presence as one of the label's leading exclusive actresses into 2026."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 53
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated. Active career ongoing as of 2026.
+  confidence: 'HIGH for DOB (2002-03-20), height (158 cm), measurements (78-56-85), cup (B) — all from Wikipedia 基礎情報 infobox (as of 2024, sourced to Production ALIVE). Blood type not disclosed (血液型 field blank in infobox). Birthplace not publicly disclosed per actress own statement (infobox comment confirms). Primary studio MOODYZ exclusive confirmed by infobox 専属契約 field and minnano-av title listings. profile.name romaji reconstructs to "Mio Ishikawa" matching canonical exactly.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E7%9F%B3%E5%B7%9D%E6%BE%AA'
+  - 'https://www.minnano-av.com/actress51226.html'
+  portfolio_listed: 0

@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Hamabe
+    given_name: Kaho
+    stage_name: 浜辺栞帆
+    reading: はまべ かほ
+    alternate_names: null
+  date_of_birth: 1997-04-15
+  birthplace: Japan
+  blood_type: null
+  height_cm: 156
+  measurements:
+    bust: 87
+    waist: 60
+    hip: 87
+  cup: G
+  active_from: 2022-05-12
+  active_to: null
+  retirement_announced: null
+  biography: "Hamabe Kaho (浜辺栞帆) is a Japanese AV actress born April 15, 1997, affiliated with C-more Entertainment. Before her AV debut she worked as a wedding planner, a career she continued in parallel after debuting, and was open about her AV work with colleagues. She debuted in May 2022 as an exclusive actress on SOD Create's SODstar label, quickly establishing herself as a popular busty (G-cup) performer known for an earnest, approachable onscreen presence. In January 2024 she transferred exclusively to Madonna (マドンナ), where she appeared in the label's flagship NTR and married-woman titles; she left exclusive status in September 2024 and has since worked as a project actress across numerous studios. By 2025 she ranked in FANZA's weekly sales charts and participated in the high-profile MOODYZ バコバコバスツアー ensemble event release."
+  primary_studios:
+  - name: SODstar
+    company: SOD Create
+    from: 2022-05-12
+    to: 2024-01-10
+    role: Exclusive contract actress
+  - name: Madonna
+    company: North Metropolitan Group
+    from: 2024-02-27
+    to: 2024-09-01
+    role: Exclusive contract actress
+  awards: []
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 54
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated.
+  confidence: "HIGH. Stage name 浜辺栞帆 (はまべ かほ) confirmed via Japanese Wikipedia article. DOB 1997-04-15, height 156 cm, measurements 87-60-87, cup G all from Wikipedia infobox (2022時点). Birthplace not stated in Wikipedia article — set to null prefix Japan. Blood type not found in Wikipedia infobox — null. Active_from 2022-05-12 from Wikipedia debut title. Madonna exclusive end date 2024-09 from Wikipedia text; set to 2024-09-01 as approximate. Identity verification: STARS (SOD Create) and JUQ (Madonna) match Wikipedia exclusive contracts; title count (54 DB) consistent with extensive filmography."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%B5%9C%E8%BE%BA%E6%A0%9E%E5%B8%86
+  portfolio_listed: 0

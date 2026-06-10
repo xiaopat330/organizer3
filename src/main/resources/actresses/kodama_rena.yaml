@@ -1,0 +1,54 @@
+profile:
+  name:
+    family_name: Kodama
+    given_name: Rena
+    stage_name: 児玉れな
+    reading: こだま れな
+    alternate_names:
+    - name: 三枝れい
+      note: comeback stage name from March 2026 (under Jun Promotion); same person confirmed by Wikipedia 児玉れな article
+    - name: Rei Saegusa
+      note: romanization of comeback name 三枝れい
+    - name: 富塚あき
+      note: photo-session modeling name used 2024-2025 between AV activities
+  date_of_birth: 1999-12-12
+  birthplace: null
+  blood_type: O
+  height_cm: 168
+  measurements:
+    bust: 88
+    waist: 61
+    hip: 87
+  cup: E
+  active_from: 2020-02-07
+  active_to: null
+  retirement_announced: null
+  biography: "Rena Kodama (児玉れな) is a Japanese AV actress born December 12, 1999, who debuted in February 2020 as an exclusive actress at S1 NO.1 STYLE under talent agency NAXプロモーション. Tall at 168 cm with a distinctive gap between her reserved off-screen demeanor and intense on-screen performance, she quickly built a strong following; a volleyball player through her school years, she cited wanting to overcome shyness around men as her motivation for entering the industry. In June 2021 she became an exclusive actress at Madonna, then shifted to non-exclusive work from January 2022. She announced her departure from NAX Promotion in December 2023 and subsequently worked as a photo-session model under the names 富塚あき and あき from early 2024. In March 2026 she returned to AV work under a new stage name, 三枝れい (Rei Saegusa), signed to Jun Promotion."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: Kitō Entertainment (北都)
+    from: 2020-02-07
+    to: 2021-05-31
+    role: Exclusive contract actress (児玉れな)
+  - name: Madonna
+    company: Madonna
+    from: 2021-06-01
+    to: 2021-12-31
+    role: Exclusive contract actress (児玉れな)
+  awards: []
+  legacy: "Rena Kodama became one of the more recognizable S1 and Madonna exclusive actresses of the early 2020s, known for her tall figure, E-cup measurements, and high-energy performances. Her career continued under the name 三枝れい from 2026, making her one of the few active SUPERSTARs to launch a documented second-name comeback."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 53
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated. 53 titles in local DB as of 2026-06-10. Comeback as 三枝れい began March 2026 so newer titles under that name are not yet in DB.
+  confidence: 'HIGH for core profile fields (DOB, blood type, height, measurements, cup) — all from Wikipedia 基礎情報 infobox (FANZA 2020 time-point citation). Birthplace not listed in Wikipedia infobox → null. No awards documented. Comeback identity 児玉れな=三枝れい confirmed by Wikipedia 児玉れな article (2026年3月 comeback sentence) and minnano-av (search for 児玉れな resolves to actress614634 三枝れい profile listing 児玉れな-titled works).'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%85%90%E7%8E%89%E3%82%8C%E3%81%AA
+  - https://www.minnano-av.com/actress614634.html
+  portfolio_listed: 0
