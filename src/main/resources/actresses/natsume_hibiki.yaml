@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Natsume
+    given_name: Hibiki
+    stage_name: 夏目響
+    reading: なつめ ひびき
+    alternate_names:
+    - name: 名前はまだない。
+      note: anonymous pre-debut name used for pre-release bonus DVD (early 2020)
+    - name: Untitled
+      note: English transliteration of pre-debut anonymous name
+    - name: 大河響
+      note: actress name used for mainstream film work from 2023
+  date_of_birth: 1998-06-22
+  birthplace: Iwate Prefecture, Japan
+  blood_type: A
+  height_cm: 161
+  measurements:
+    bust: 85
+    waist: 56
+    hip: 88
+  cup: F
+  active_from: 2020-04-23
+  active_to: 2026-08-01
+  retirement_announced: 2026-01-13
+  biography: "Hibiki Natsume is a Japanese AV actress from Iwate Prefecture, born June 22, 1998. She made an unusual debut: a pre-release bonus DVD produced by SODクリエイト in early 2020 under the anonymous name '名前はまだない。' ('No name yet.') drew strong viewer demand, leading to an official first release on April 23, 2020 still without a stage name. She was formally named Natsume Hibiki on May 1, 2020, with her official debut title released May 21, 2020. An exclusive contract actress under SODstar throughout her career, she rose quickly — her debut content reached #1 on FANZA daily rankings during pre-sale. In March 2023 she won the スカパー!アダルト放送大賞2023 新EXガールズセンター grand prize. She announced her retirement from AV on January 13, 2026, with her retirement title planned for August 2026."
+  primary_studios:
+  - name: SODstar
+    company: SODクリエイト
+    from: 2020-04-23
+    to: 2026-08-01
+    role: Exclusive contract actress
+  awards:
+  - event: スカパー!アダルト放送大賞2023
+    year: 2023
+    category: 新EXガールズ センター (Grand Prix — New EX Girls Center)
+  - event: ADULTOPIA 大人國成人展 (Taiwan)
+    year: 2026
+    category: BEST STORY WORKS (最優秀ストーリー作品賞)
+  legacy: "Natsume Hibiki's unconventional anonymous debut — a bonus DVD that generated enough demand to become a full commercial release — made her one of SOD's most distinctive debut stories. Her consistent exclusive output across six years under SODstar labels (START, STARS, SSHN) and her crossover into mainstream film acting under the name 大河響 mark her as one of SOD's standout contract actresses of the 2020s era."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 56
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only. Portfolio not yet researched.
+  confidence: High. DOB 1998-06-22 officially confirmed by actress in 2024 per Wikipedia. Blood type A from explicit 血液型A型 statement in Wikipedia lead paragraph. Measurements as of 2020 per infobox time-point annotation. Minnano-av search returned 404 (site access issue); Wikipedia was sole external source — cross-check not possible. Birth year 1998 used per Wikipedia infobox; note actress made an oblique joke in 2024 about being "4 years old since debut" which is understood as deflecting rather than literal.
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%A4%8F%E7%9B%AE%E9%9F%BF
+  - organizer3 local DB (actress id 1522, label distribution STARS/START/SODS)
+  portfolio_listed: 0

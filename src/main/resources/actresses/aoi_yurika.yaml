@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Aoi
+    given_name: Yurika
+    stage_name: 葵百合香
+    reading: あおい ゆりか
+    alternate_names:
+    - name: Airi Ichimatsu
+      note: "debut name (一松愛梨); used June 2016 – July 2017 at Jewels Production"
+    - name: Airi Hata
+      note: "renamed after move to Capsule Agency (八田愛梨); used July 2017 – March 2018"
+  date_of_birth: 1984-05-21
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 171
+  measurements:
+    bust: 101
+    waist: 63
+    hip: 93
+  cup: G
+  active_from: 2016-06-25
+  active_to: null
+  retirement_announced: null
+  biography: "Yurika Aoi (葵百合香) is a Japanese AV actress born on May 21, 1984, in Tokyo. She debuted in June 2016 under the name Airi Ichimatsu (一松愛梨) at Jewels Production, specializing in the milf/married-woman genre. After agency moves she adopted her final stage name in March 2018 upon joining LINX, building a reputation as a tall (171 cm), large-busted (G-cup) actress known for squirting and energetic performances. She has worked prolifically across a wide range of studios and labels over nearly a decade, with notable appearances for Das!, Madonna (Monroe), Attackers, and SOD Create. In January 2026 she became an exclusive contract actress for Madonna's Monroe sub-label."
+  primary_studios:
+  - name: Monroe
+    company: Madonna
+    from: 2026-01-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: "One of the more prolific active mature actresses in the industry, Yurika Aoi built her career over eight years working across dozens of studios before landing a Madonna Monroe exclusive in 2026. Her distinctive physicality — tall frame, G-cup bust, and trademark squirting — made her a recognizable presence across NTR drama, married-woman, and fetish-scenario labels."
+
+meta:
+  total_owned_titles: 58
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not yet researched. 58 owned titles in DB as of June 2026."
+  confidence: "HIGH for kanji stage name (confirmed from javdb cast_json slug Mw7v across 10+ titles, corroborated by Wikipedia article 葵百合香). Rename chain confirmed: 一松愛梨 → 八田愛梨 → 葵百合香 per Wikipedia 別名 field. Blood type O from explicit 血液型 field. Birthplace listed as Tokyo in Wikipedia infobox; LINX profile states Kanagawa — minor discrepancy, Tokyo used as primary. Measurements dated 2018 per Wikipedia."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E8%91%B5%E7%99%BE%E5%90%88%E9%A6%99"
+  - "organizer3 DB actress id 591 + title_javdb_enrichment cast_json (slug Mw7v = 葵百合香)"
+  portfolio_listed: 0
