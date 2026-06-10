@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Kaede
+    given_name: Fuua
+    stage_name: 楓ふうあ
+    reading: かえで ふうあ
+    alternate_names:
+    - name: 楓芙愛
+      note: alternate kanji variant of stage name (javdb slug listing)
+  date_of_birth: 2001-04-20
+  birthplace: null
+  blood_type: null
+  height_cm: 170
+  measurements:
+    bust: 93
+    waist: 59
+    hip: 88
+  cup: F
+  active_from: 2021-08-19
+  active_to: null
+  retirement_announced: null
+  biography: "Fuua Kaede (楓ふうあ, born April 20, 2001) is a Japanese AV actress who debuted in August 2021 as an exclusive contract actress for S1 NO.1 STYLE. Standing 170 cm tall with an athletic background in high-school basketball, she quickly gained recognition for her long legs and statuesque figure. By 2022 she ranked 21st in Asahi Geino's annual AV actress popularity poll and climbed to 16th in 2023, placing 9th among Kansai-region voters that year. She transitioned her talent agency affiliation to c-more ENTERTAINMENT in April 2023 while maintaining her S1 exclusive contract. In November 2024 the S1 all-star compilation featuring her debuted at No. 1 on the FANZA weekly physical-media chart."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: エスワン (S1 NO.1 STYLE)
+    from: 2021-08-19
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: "One of S1 NO.1 STYLE's leading exclusive actresses of the 2020s generation, Fuua Kaede built a prolific solo catalog of over 60 titles within her first five years, distinguished by her tall, slender physique and consistently high fan-poll rankings."
+
+meta:
+  total_owned_titles: 62
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile only; portfolio not yet researched.
+  confidence: "High confidence on DOB, height, measurements, cup, and debut date — all from Japanese Wikipedia 基礎情報 infobox with explicit date qualifiers. Blood type not present in infobox (null per policy). Birthplace not stated in Wikipedia article (null). Alternate kanji 楓芙愛 noted from javdb slug listing."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E6%A5%93%E3%81%B5%E3%81%86%E3%81%82"
+  - "local DB actress id=4063"
+  portfolio_listed: 0

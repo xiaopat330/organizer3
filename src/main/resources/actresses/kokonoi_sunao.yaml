@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Kokonoi
+    given_name: Sunao
+    stage_name: 九井スナオ
+    reading: ここのいすなお
+    alternate_names:
+    - name: 牧田有里
+      note: former name (Makita Yuuri), pre-AV identity
+  date_of_birth: 2002-01-30
+  birthplace: null
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 100
+    waist: 64
+    hip: 110
+  cup: H
+  active_from: 2023-08-15
+  active_to: null
+  retirement_announced: null
+  biography: "Sunao Kokonoi (九井スナオ, born January 30, 2002) is a Japanese AV actress affiliated with SOD HANAYA PROJECT, debuting in August 2023. She previously used the name Makita Yuuri (牧田有里) before her AV career. Known for her H-cup figure (100-64-110 cm at 160 cm tall), she debuted with the SOD-affiliated HANAYA PROJECT and quickly built a prolific catalog across many independent and major labels. Her hobbies include walking and playing the clarinet. As of 2026 she remains active with an expanding filmography across dozens of labels."
+  primary_studios:
+  - name: SOD HANAYA PROJECT
+    company: SOD Create
+    from: 2023-08-15
+    to: null
+    role: Exclusive contract actress (debut label)
+  awards: []
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 52
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated. 52 titles in local DB as of 2026-06-10; career is ongoing.
+  confidence: "MEDIUM. DOB 2002-01-30 confirmed from minnano-av structured data (JSON-LD birthDate field). Height 160 cm, measurements 100-64-110 cm, cup H from minnano-av size row (T160 / B100(Hカップ) / W64 / H110). Blood type: NOT present — the trailing 'S' in the size row is shoe size, not blood type; set to null per guardrails. Birthplace not listed on minnano-av. Former name 牧田有里 (Makita Yuuri) confirmed from minnano-av 別名 field. Agency SOD HANAYA PROJECT confirmed. Debut date 2023-08-15 from debut title listing. No Wikipedia article exists for 九井スナオ or 牧田有里. IDENTITY CONFIRMED FEMALE: 九井スナオ is the FEMALE actress born 2002-01-30, former name 牧田有里 — entirely distinct from the male performer 羽田貴史 which was a prior erroneous DB association now corrected."
+  data_sources:
+  - https://www.minnano-av.com/actress861666.html
+  portfolio_listed: 0

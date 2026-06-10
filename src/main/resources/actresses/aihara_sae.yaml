@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Aihara
+    given_name: Sae
+    stage_name: 愛原さえ
+    reading: あいはら さえ
+    alternate_names:
+    - name: 柏木理恵
+      note: 舞ワイフ名義 (Kashiwagi Rie)
+    - name: 白井美羽
+      note: 舞ワイフ名義 (Shirai Miu)
+  date_of_birth: 1989-11-09
+  birthplace: Hiroshima Prefecture, Japan
+  blood_type: null
+  height_cm: 165
+  measurements:
+    bust: 87
+    waist: 60
+    hip: 89
+  cup: F
+  active_from: 2010-11-18
+  active_to: 2016-01-01
+  biography: "Sae Aihara (愛原さえ) is a Japanese AV actress born November 9, 1989 in Hiroshima Prefecture. She debuted in November 2010 and worked actively through 2012 before a hiatus, then returned for a second stint from 2015 to 2016. During her career she appeared across multiple major labels including Prestige (SAMA/S-Class Amateur), PREMIUM (PGD/Glamorous), and WILL (WNZ), developing a reputation for a dynamite figure rated highly by fans on both looks and appeal. She was affiliated with Empress Promotion (Lotus Group) and also worked under the aliases Kashiwagi Rie and Shirai Miu for the Maiwoife series."
+  primary_studios:
+  - name: S-Class Amateur (SAMA)
+    company: Prestige
+    from: 2010-01-01
+    to: 2016-01-01
+    role: Featured actress
+  - name: Glamorous (PGD)
+    company: PREMIUM
+    from: 2010-01-01
+    to: 2016-01-01
+    role: Featured actress
+  - name: 'WNZ'
+    company: WILL
+    from: 2010-01-01
+    to: 2016-01-01
+    role: Featured actress
+  awards: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 64
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not yet researched.
+  confidence: "HIGH — kanji stage name 愛原さえ confirmed via JavDB cast_json (slug 6wrM) and minnano-av actress789471 (reading あいはらさえ, romaji Aihara Sae). DOB/measurements/birthplace from minnano-av structured data. Blood type not listed on minnano-av (no 血液型 field) — set null. Active years from minnano-av AV出演期間 field. Candidate kanji 相原沙絵 and 相原さえ were wrong — actual kanji is 愛原 (ai=love) not 相原 (ai=mutual)."
+  data_sources:
+  - "https://www.minnano-av.com/actress789471.html"
+  - "JavDB cast_json slug 6wrM (愛原さえ) from organizer3 DB title_javdb_enrichment"
+  portfolio_listed: 0

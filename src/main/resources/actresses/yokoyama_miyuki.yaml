@@ -1,0 +1,64 @@
+profile:
+  name:
+    family_name: Yokoyama
+    given_name: Miyuki
+    stage_name: 横山美雪
+    reading: よこやま みゆき
+    alternate_names:
+    - name: miyuki
+      note: music release name used for 2010 single "Chuppa"
+    - name: DJミー a.k.a. Miyuki Yokoyama
+      note: music project name active from December 2015 post-retirement
+  date_of_birth: 1989-11-15
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 156
+  measurements:
+    bust: 82
+    waist: 56
+    hip: 88
+  cup: C
+  active_from: 2008-08-25
+  active_to: 2015-03-29
+  retirement_announced: 2014-11-30
+  biography: "Miyuki Yokoyama (横山美雪) is a retired Japanese AV actress and talent from Tokyo, born November 15, 1989. She debuted in August 2008 as a kawaii* exclusive under a 24-title contract, quickly building a following for her slender figure and outgoing personality; she was a 5th-generation regular member of the idol group 恵比寿マスカッツ from October 2010. After graduating from kawaii* in July 2010 she moved to Idea Pocket, then to SOD Create in June 2011, and finally to Maxing in July 2012. She announced her AV retirement on her blog on November 30, 2014, and held a final fan event in Akihabara on March 29, 2015. She received the 23rd Pink Grand Prix Best New Actress Award. After retirement she continued talent and DJ activities under the name 'DJミー a.k.a. Miyuki Yokoyama' before announcing the full end of her public activities on February 19, 2017."
+  primary_studios:
+  - name: kawaii*
+    company: デジタルアーク (Digital Arc)
+    from: 2008-08-25
+    to: 2010-07-25
+    role: Exclusive contract actress
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2010-08-01
+    to: 2011-05-01
+    role: Exclusive contract actress
+  - name: SOD Create
+    company: SOD Create
+    from: 2011-06-01
+    to: 2012-06-30
+    role: Exclusive contract actress
+  - name: Maxing
+    company: Maxing
+    from: 2012-07-01
+    to: 2015-03-29
+    role: Exclusive contract actress
+  awards:
+  - event: ピンク大賞
+    year: 2010
+    category: 新人女優賞 (Best New Actress)
+  legacy: "Miyuki Yokoyama was one of kawaii*'s standout exclusive actresses of the late 2000s, known for her energetic personality and mainstream crossover appeal through television appearances (嬢王 Virgin, 闇金ウシジマくん, ゴッドタン) and membership in 恵比寿マスカッツ."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 51
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated. 51 titles in local DB as of 2026-06-10.
+  confidence: "HIGH. DOB 1989-11-15, birthplace Tokyo, blood type A, height 156 cm, measurements 82-56-88 cm, cup C all sourced directly from Japanese Wikipedia 基礎情報 infobox (measurements noted as 2008年8月時点). Blood type from explicit 血液型 field only. Studio timeline from 略歴 section. minnano-av search returned 404 errors (site structure may have changed); Wikipedia is sole external source."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%A8%AA%E5%B1%B1%E7%BE%8E%E9%9B%AA
+  portfolio_listed: 0

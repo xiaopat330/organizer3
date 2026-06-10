@@ -1,0 +1,74 @@
+profile:
+  name:
+    family_name: Iwasa
+    given_name: Mei
+    stage_name: 妃ひかり
+    reading: きさき ひかり
+    alternate_names:
+    - name: 岩佐めい
+      note: debut name, used 2007–2008 at S1 NO.1 STYLE (いわさ めい)
+    - name: 彩月あかり
+      note: second name, used 2008–2012 at Prestige/MOODYZ/Attackers (さつき あかり)
+    - name: 仲夏ゆかり
+      note: third name, used 2012–2013 at Crystal Eizo/Glory Quest (なかなつ ゆかり)
+  date_of_birth: 1989-05-29
+  birthplace: Chiba Prefecture, Japan
+  blood_type: B
+  height_cm: 158
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 85
+  cup: F
+  active_from: 2007-04-07
+  active_to: null
+  retirement_announced: null
+  biography: "Hikari Kisaki (妃ひかり), born May 29, 1989 in Chiba Prefecture, debuted in April 2007 under the name 岩佐めい (Mei Iwasa) at S1 NO.1 STYLE. She adopted the name 彩月あかり (Akari Satsuki) in 2008 after joining Prestige, then 仲夏ゆかり (Yukari Nakanatsu) in 2012, before effectively retiring in 2013. After a six-year hiatus, she made a high-profile comeback in August 2019 as 妃ひかり (Hikari Kisaki) with a Madonna exclusive contract. Since her return she has been one of the most prolific and sought-after mature actresses in the industry, with an extensive catalogue spanning Attackers (ADN/SAME), Das!, Planet Plus, Glory Quest, and many others."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: "エスワン"
+    from: 2007-04-07
+    to: 2008-01-01
+    role: Exclusive contract actress (岩佐めい)
+  - name: Crystal Eizo
+    company: "クリスタル映像"
+    from: 2008-01-11
+    to: 2013-08-02
+    role: Non-exclusive
+  - name: Prestige
+    company: "プレステージ"
+    from: 2008-05-13
+    to: 2010-05-01
+    role: Non-exclusive (彩月あかり)
+  - name: MOODYZ
+    company: "MOODYZ"
+    from: 2009-02-01
+    to: 2011-09-01
+    role: Non-exclusive
+  - name: Madonna
+    company: "マドンナ"
+    from: 2019-08-24
+    to: 2020-08-07
+    role: Exclusive contract actress (comeback, 妃ひかり)
+  - name: Attackers
+    company: "アタッカーズ"
+    from: 2020-11-07
+    to: null
+    role: Primary label (ADN/SAME drama)
+  awards: null
+  legacy: "One of a rare cohort of AV actresses to sustain a multi-decade career across four distinct stage names, Hikari Kisaki re-emerged in 2019 after a six-year hiatus to become a dominant figure in the mature-drama market. Her work in the ADN (Attackers Drama NTR) catalogue from 2020 onward has cemented her standing as one of the premier actresses in story-driven content."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 74
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 200
+  coverage_note: "DB record anchored to debut name Mei Iwasa (岩佐めい, actress_id 2641). Covers full career across all four stage names. Wikipedia filmography lists 200+ entries across 2007–2026."
+  confidence: "HIGH. Identity confirmed via Wikipedia article at ja.wikipedia.org/wiki/岩佐めい which redirects to 妃ひかり and documents the full rename chain. Blood type B from explicit 血液型 field in infobox. DOB discrepancy: debut-era profile stated 1986-04-19 (Tokyo), Sabra 2008 listed 1987-05-29 (Chiba); current infobox (2022) states 1989-05-29 (Chiba). Using 1989-05-29 as the most recently stated/authoritative. Measurements (85-58-85, F-cup, 158cm) from 2022 infobox. Active_to left null — still active as of 2026."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E5%B2%A9%E4%BD%90%E3%82%81%E3%81%84 (redirects to 妃ひかり article)"
+  - "Local DB actress_id 2641, label distribution query"
+  portfolio_listed: 0

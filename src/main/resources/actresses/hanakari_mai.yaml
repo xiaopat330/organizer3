@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Hanakari
+    given_name: Mai
+    stage_name: 花狩 まい
+    reading: かがり まい
+    alternate_names:
+    - name: Mai Kagari
+      note: 'romanization of reading かがり; 花狩 reads かがり not はなかり'
+  date_of_birth: 2000-11-20
+  birthplace: Aomori Prefecture, Japan
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 77
+    waist: 60
+    hip: 83
+  cup: C
+  active_from: 2021-04-13
+  active_to: null
+  retirement_announced: null
+  biography: "Mai Hanakari (花狩まい, reading: かがり まい) is a Japanese AV actress and illustrator born on November 20, 2000 in Aomori Prefecture. She debuted in April 2021 with MOODYZ and gained rapid attention when her second release became a long-running hit, launching her career as a prolific solo and ensemble performer. Known for her fair skin and versatile screen presence, she has appeared across a wide range of genres from schoolgirl roles to married-woman scenarios, cementing her status as a leading enterprise-single actress. Outside of AV, she operates a YouTube channel covering gambling (pachinko, pachislot, mahjong) and also works as an illustrator. In 2022 she placed 49th in Asahi Geino's annual AV actress ranking, rising to 31st in 2023, reflecting growing fan recognition driven by her high output and range."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2021-04-13
+    to: null
+    role: Non-exclusive enterprise actress
+  awards:
+  - event: ADULTOPIA (大人國成人展) — XCITY
+    year: 2026
+    category: BEST POPULAR ACTRESS (最優秀人気女優賞)
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 72
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Portfolio not yet researched. DB count is 72 owned titles as of 2026-06-10.'
+  confidence: HIGH
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E8%8A%B1%E7%8B%A9%E3%81%BE%E3%81%84'
+  portfolio_listed: 0

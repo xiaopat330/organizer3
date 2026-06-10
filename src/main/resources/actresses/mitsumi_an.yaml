@@ -1,0 +1,53 @@
+profile:
+  name:
+    family_name: Mitsumi
+    given_name: An
+    stage_name: 蜜美杏
+    reading: みつみ あん
+    alternate_names:
+    - name: 藤井蘭々
+      note: current legal/stage name (FALENO era, from March 2023); romanized as Ranran Fuji in DB
+    - name: Fujii Ranran
+      note: romaji of 藤井蘭々 (current name); DB alias stored as inverted "Ranran Fuji"
+  date_of_birth: 2000-11-15
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 170
+  measurements:
+    bust: 86
+    waist: 58
+    hip: 89
+  cup: G
+  active_from: 2020-05-15
+  active_to: null
+  retirement_announced: null
+  biography: "An Mitsumi (born November 15, 2000 in Tokyo) debuted in May 2020 as a Prestige exclusive actress under the stage name 蜜美杏 (Mitsumi An). She developed a reputation for her tall, voluptuous figure and became a FANZA rental chart-topper, ranking #1 on the weekly rental floor in August 2022 and earning the monthly AV actress ranking #1 in September 2022. She announced retirement in March 2022 and formally retired in May 2022, then relaunched in March 2023 under the new name 藤井蘭々 (Fujii Ranran), making a gravure debut in Shukan Post before joining FALENO as an exclusive actress from April 2023. Under the FALENO label she has released prolific content through 2025 and beyond, appearing at the FALENO FES event (February 2024) as a runway model."
+  primary_studios:
+  - name: Prestige
+    company: Prestige
+    from: 2020-05-01
+    to: 2022-05-01
+    role: Exclusive contract actress (蜜美杏 名義)
+  - name: FALENO star
+    company: FALENO
+    from: 2023-04-01
+    to: null
+    role: Exclusive contract actress (藤井蘭々 名義)
+  awards: null
+  legacy: "One of the most commercially successful actresses of her generation, 蜜美杏/藤井蘭々 achieved top FANZA rental rankings within two years of debut and successfully reinvented herself under a new name at a premium label, maintaining elite status across both career phases."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 89
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Portfolio not yet researched. Profile section only."
+  confidence: HIGH
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/蜜美杏"
+  - "Local DB actress ID 2457"
+  - "src/main/resources/labels.yaml"
+  portfolio_listed: 0

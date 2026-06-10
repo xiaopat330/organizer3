@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Hojo
+    given_name: Maki
+    stage_name: 北条麻妃
+    reading: ほうじょう まき
+    alternate_names:
+    - name: 白石 さゆり
+      note: debut stage name (2006–2009), used exclusively for Tameike Gorō and early Madonna releases
+    - name: Shirishii Sayuri
+      note: romanization of debut name 白石さゆり
+  date_of_birth: 1976-12-21
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 168
+  measurements:
+    bust: 86
+    waist: 62
+    hip: 88
+  cup: D
+  active_from: 2006-05-13
+  active_to: null
+  retirement_announced: null
+  biography: "Maki Hojo (北条麻妃), born December 21, 1976 in Tokyo, is one of Japan's most prominent and long-running AV actresses, specializing in the mature-woman (熟女) genre. She debuted in May 2006 under the stage name Shirishii Sayuri (白石さゆり) as an exclusive actress for Tameike Gorō, quickly gaining recognition and appearing with multiple major studios including Madonna, MOODYZ, and ATTACKERS under her debut name. In April 2009 she joined talent agency Diana Production and rebranded as Maki Hojo (北条麻妃), continuing as a prolific actress across dozens of studios throughout the 2010s. She won the スカパー!アダルト放送大賞 熟女女優賞 (Mature Actress Award) in 2012. In April 2019 she became an exclusive actress at Madonna (マドンナ), the premium mature-genre label where she has remained highly active, continuing to release titles as of 2026 at age 49."
+  primary_studios:
+  - name: Tameike Gorō
+    company: Tameike Gorō (溜池ゴロー)
+    from: 2006-05-13
+    to: 2009-04-01
+    role: Exclusive contract actress (白石さゆり name)
+  - name: Madonna
+    company: Madonna
+    from: 2019-04-01
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: スカパー!アダルト放送大賞
+    year: 2012
+    category: 熟女女優賞 (Mature Actress Award)
+  legacy: "Maki Hojo is regarded as one of the defining actresses of the Japanese mature AV genre, with a career spanning over 19 years and prolific output across nearly every major studio. Her longevity, combined with continued exclusive contract status at Madonna into her late forties, makes her an exceptional figure in the industry."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 52
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated. Active career ongoing (Madonna exclusive since 2019).
+  confidence: "HIGH. Stage name confirmed as 北条麻妃 (simplified 北条) from Japanese Wikipedia article title, infobox, and article body. The DB co-cast seed uses the traditional kanji variant 北條麻妃 — this is a common OCR/data-entry confusion between 北条 (simplified) and 北條 (traditional); Wikipedia is authoritative and consistently uses 北条麻妃 throughout. Hiragana reading ほうじょう まき confirmed from Wikipedia infobox. DOB 1976-12-21, birthplace Tokyo, height 168 cm, measurements 86-62-88 cm, cup D all from Wikipedia 基礎情報 infobox (2012年時点). Blood type not present in any Wikipedia 血液型 field — set to null per guardrails. Debut date 2006-05-13 from Wikipedia filmography (first listed title). Madonna exclusive from 2019-04 per Wikipedia text."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%8C%97%E6%9D%A1%E9%BA%BB%E5%A6%83
+  - https://www.minnano-av.com/actress292997.html
+  portfolio_listed: 0

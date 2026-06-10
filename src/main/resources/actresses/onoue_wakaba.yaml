@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: Onoue
+    given_name: Wakaba
+    stage_name: 尾上 若葉
+    reading: おのうえ わかば
+    alternate_names:
+    - name: わかばん
+      note: nickname used throughout her career
+  date_of_birth: 1992-04-15
+  birthplace: Fujimi, Saitama, Japan
+  blood_type: A
+  height_cm: 152
+  measurements:
+    bust: 98
+    waist: 58
+    hip: 89
+  cup: H
+  active_from: 2012-07-25
+  active_to: 2018-04-15
+  retirement_announced: 2018-04-15
+  biography: "Wakaba Onoue (尾上若葉, born April 15, 1992 in Fujimi, Saitama) debuted as a kawaii* exclusive actress in July 2012, working concurrently as a nurse during her entire exclusive contract period without publicly disclosing this. In 2013 she moved to MOODYZ as an exclusive and appeared in five titles before retiring in September 2013 to study abroad in Canada. She returned to the industry in December 2015 as a freelance actress and worked prolifically across dozens of labels. She also joined the AV idol group SEXY-J in May 2016, remaining a member until its disbandment in December 2017. Her final retirement was announced on April 15, 2018 — her own birthday — via Twitter."
+  primary_studios:
+  - name: kawaii*
+    company: Avout Vision Group
+    from: 2012-07-25
+    to: 2013-04-25
+    role: Exclusive contract actress
+  - name: MOODYZ
+    company: Avout Vision Group
+    from: 2013-01-13
+    to: 2013-09-01
+    role: Exclusive contract actress
+  awards: null
+  legacy: "Onoue Wakaba was known for her busty, girl-next-door charm and rare backstory as a working nurse who entered the AV industry on a whim after being scouted; her candid personality and H-cup figure attracted a devoted fanbase across both her initial and comeback runs."
+
+meta:
+  total_owned_titles: 85
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched."
+  confidence: "HIGH — Wikipedia infobox fully populated; DOB/blood type/measurements all from explicit 基礎情報 fields. Note: Wikipedia lists both 出身地=埼玉県富士見市 and 出生地=神奈川県; profile uses 出身地 (raised in Saitama, Fujimi) per procedure. Minnano-av shows DOB 1990-02-17 which conflicts with Wikipedia 1992-04-15 — Wikipedia is preferred as more authoritative. Identity confirmed via all three heuristics."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%B0%BE%E4%B8%8A%E8%8B%A5%E8%91%89
+  - https://www.minnano-av.com/actress868359.html
+  portfolio_listed: 0

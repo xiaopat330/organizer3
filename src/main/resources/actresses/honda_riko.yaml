@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: Honda
+    given_name: Riko
+    stage_name: 仲里紗羽
+    reading: なかざと さわ
+    alternate_names:
+    - name: 本田莉子
+      note: 'Later stage name used at S1 No.1 Style / SOD. Actress publicly explained the rename on debut: as 仲里紗羽 (MOODYZ-era) she adopted an exaggerated persona; as 本田莉子 (S1/SOD-era) she presented herself as her authentic self. DB canonical_name "Riko Honda" corresponds to this later name. NOTE: organizer3 DB row 383 uses "Riko Honda" as canonical — recommend renaming to "Sawa Nakazato" for accuracy, with "Riko Honda" as alias.'
+    - name: Sawa Nakazato
+      note: Romaji rendering of 仲里紗羽 — stored as DB alias
+  date_of_birth: 1991-08-06
+  birthplace: null
+  blood_type: null
+  height_cm: 155
+  measurements:
+    bust: 88
+    waist: 55
+    hip: 86
+  cup: F
+  active_from: null
+  active_to: null
+  biography: "Riko Honda, born August 6, 1991, is a Japanese AV actress who debuted in 2012 under the name 仲里紗羽 (Nakazato Sawa) and later renamed to 本田莉子 (Honda Riko) upon joining S1 No.1 Style / SOD. She publicly explained the name change as a desire to shed an exaggerated on-screen persona and present a more authentic character. Her 60-title catalog in the library spans labels including SOE (S1 No.1 Style), MIDE (MOODYZ), BF, TOMN, WANZ, and SHKD, indicating activity across multiple major studios in the mid-2010s. After retiring from AV work she worked at the Yoshiwara soapland Etoile (エトワール), previously Rotenburg Anbau."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: null
+    to: null
+    role: Contract actress (as 仲里紗羽)
+  - name: S1 No.1 Style
+    company: S1 NO.1 STYLE
+    from: null
+    to: null
+    role: Contract actress (as 本田莉子)
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 60
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only. No DMM scrape. No Wikipedia article found for either name. Biographical data sourced from seesaawiki.jp (fuzokuwiki) and jendow.com.tw secondary wiki. No blood_type included — no explicit 血液型 field found in Japanese primary sources (guardrail applied).
+  confidence: 'MEDIUM — identity confirmed: 仲里紗羽 and 本田莉子 are the same person (rename confirmed by actress own public statement). DOB 1991-08-06, height 155 cm, measurements B88(F)/W55/H86 sourced from seesaawiki.jp og:description (explicit T/B/W/H fields). blood_type null (no explicit 血液型 in primary Japanese sources). Active dates and contract details unresolved. DB canonical "Riko Honda" is the later-career name; primary/original name is 仲里紗羽 (Nakazato Sawa) — recommend renaming DB row 383.'
+  data_sources:
+  - 'organizer3 DB (actress_id 383, alias: Sawa Nakazato)'
+  - 'javdb cast_json enrichment (slug WKMq = 仲里紗羽, verified across 10 enriched titles incl. WANZ-372 solo)'
+  - 'seesaawiki.jp/w/fuzokuwiki — 本田莉子/仲里紗羽 entry: DOB 1991-08-06, T:155 B:88(F) W:55 H:86'
+  - 'yap00s.blog.jp/archives/6793581.html — SOD debut blog commentary confirming rename from 仲里紗羽→本田莉子 at SOD, debut 2012, agency Vanquish'
+  - 'jendow.com.tw/wiki/仲里紗羽 — secondary Chinese wiki: DOB 1991-08-06, height 155, B88/W55/H86, cup F, blood type O (blood_type NOT used — not from primary Japanese 血液型 field)'
+  portfolio_listed: 0

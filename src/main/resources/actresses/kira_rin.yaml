@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Kira
+    given_name: Rin
+    stage_name: 吉良りん
+    reading: きら りん
+    alternate_names: []
+  date_of_birth: 1998-03-20
+  birthplace: Saitama, Japan
+  blood_type: A
+  height_cm: 148
+  measurements:
+    bust: 84
+    waist: 54
+    hip: 82
+  cup: D
+  active_from: 2019-10-07
+  active_to: null
+  retirement_announced: null
+  biography: "Rin Kira (吉良りん, born March 20, 1998) is a Japanese AV actress from Saitama Prefecture who debuted in October 2019 as an exclusive actress at S1 No.1 Style (エスワン), releasing nine solo titles under the SSNI label through June 2020. She departed S1 exclusivity in June 2020 and transitioned to freelance (企画単体) activity, appearing across a wide range of labels including MOODYZ, Madonna, kawaii*, PREMIUM, Glory Quest, Attackers, and many others. Known for her slender, 148 cm petite figure, she was described in Sports Nippon as having a 'fragile, delicate body' and 'ephemeral looks'. Her stage name 吉良りん was coined by S1's publicity coordinator 'Korin'. She was affiliated with talent agency LIGHT during her S1 period."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: Kitō Entertainment (北都)
+    from: 2019-10-07
+    to: 2020-06-01
+    role: Exclusive contract actress
+  awards: []
+  legacy: "Rin Kira is a mid-generation S1 exclusive-turned-freelance actress notable for her slender petite physique and prolific multi-label output after leaving S1 exclusivity in mid-2020."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 52
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated.
+  confidence: "HIGH. Stage name 吉良りん (reading: きら りん) confirmed via Japanese Wikipedia article and minnano-av (actress412800). DOB 1998-03-20 from Wikipedia infobox (note: an X CITY data entry error showing 2001-02-14 was corrected; 1998-03-20 is the canonical DOB from Wikipedia). Birthplace Saitama Prefecture from Wikipedia. Blood type A from Wikipedia 血液型 field. Height 148 cm, measurements 84-54-82, cup D from Wikipedia infobox (2019 time point). Studio S1/SSNI confirmed against DB top label. Wikipedia article explicitly identifies agency as LIGHT. No awards documented in Wikipedia."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%90%89%E8%89%AF%E3%82%8A%E3%82%93
+  - https://www.minnano-av.com/actress412800.html
+  portfolio_listed: 0

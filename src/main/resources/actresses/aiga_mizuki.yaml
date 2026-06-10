@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Aiga
+    given_name: Mizuki
+    stage_name: 藍芽みずき
+    reading: あいが みずき
+    alternate_names: null
+  date_of_birth: 2000-06-28
+  birthplace: Nagano Prefecture, Japan
+  blood_type: null
+  height_cm: 158
+  measurements:
+    bust: 85
+    waist: 57
+    hip: 85
+  cup: E
+  active_from: 2019-10-01
+  active_to: null
+  retirement_announced: null
+  biography: "Aiga Mizuki (藍芽みずき) is a Japanese AV actress from Nagano Prefecture, born June 28, 2000, who debuted exclusively with MOODYZ in October 2019 under the catchphrase \"べっぴんキュート\" (Pretty Cute). Signed to Bambi Promotion talent agency, she became a prominent MOODYZ exclusive, appearing in the flagship MIDE series across 24 titles between 2019 and 2022 alongside appearances in MIDV and other MOODYZ sub-labels. In August 2022 she moved to SOD Creative as an exclusive actress before transitioning to freelance from 2023 onward, working across a wide range of labels including Alice Japan, Max-A, and SOD. She has also appeared in several VR titles, an AV-game adaptation, and a published photobook (藍い鍵盤, G-Walk, November 2023). Her hobbies include piano and swimming."
+  primary_studios:
+  - name: "Moody's"
+    company: MOODYZ
+    from: 2019-10-01
+    to: 2022-07-01
+    role: Exclusive contract actress
+  - name: SOD Creative
+    company: SOD Create
+    from: 2022-08-11
+    to: 2022-12-01
+    role: Exclusive contract actress
+  awards: []
+  legacy: "Aiga Mizuki is a mid-generation MOODYZ exclusive whose slender figure and E-cup measurements made her one of the label's consistent performers in the early 2020s. After her exclusive period she maintained a prolific freelance output across major and niche labels, demonstrating notable longevity and versatility."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 56
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated. 56 titles in local DB as of 2026-06-10.
+  confidence: "HIGH for stage name (藍芽みずき confirmed via Japanese Wikipedia 基礎情報 infobox + javdb cast_json slug ZWy7). HIGH for DOB 2000-06-28, birthplace Nagano, height 158cm, measurements 85-57-85, cup E (all from Wikipedia 2021時点 infobox). Blood type absent from Wikipedia infobox — null per guardrails (NOT inferred from any size-row). Studio timeline from Wikipedia 専属契約 field. No awards documented in Wikipedia article."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E8%97%8D%E8%8A%BD%E3%81%BF%E3%81%9A%E3%81%8D
+  portfolio_listed: 0

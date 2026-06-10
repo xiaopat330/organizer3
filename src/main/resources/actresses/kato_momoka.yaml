@@ -1,0 +1,64 @@
+profile:
+  name:
+    family_name: Kato
+    given_name: Momoka
+    stage_name: あきばもも
+    reading: あきば もも
+    alternate_names:
+    - name: "加藤 ももか (Momoka Kato)"
+      note: debut name, used 2017-03 to 2021-02
+    - name: "佐藤 ののか (Nonoka Sato)"
+      note: second name, used 2021-02 to 2025-04
+    - name: "あきばもも (Momo Akiba)"
+      note: current name, adopted 2025-04
+    - name: "皆見 悠佳 (Yuka Minami)"
+      note: alternate name listed in Wikipedia infobox
+  date_of_birth: 1996-03-12
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 153
+  measurements:
+    bust: 92
+    waist: 62
+    hip: 96
+  cup: H
+  active_from: 2017-03-02
+  active_to: null
+  retirement_announced: null
+  biography: "Momoka Kato (currently performing as あきばもも / Momo Akiba) is a Japanese AV actress born March 12, 1996 in Tokyo. She joined Soft On Demand (SOD) as a new graduate in April 2016, assigned to the PR department, before volunteering to appear on camera and debuting as 加藤ももか on March 2, 2017 under the SOD female employee series. She left SOD in 2018 to become an exclusive under SODstar, then transitioned to freelance work as 佐藤ののか from February 2021 under Bambi Promotion, earning a 週刊プレイボーイ Erodemy Award that year. In April 2025 she rebranded again to あきばもも and joined Arche management, subsequently announcing an exclusive contract with 溜池ゴロー starting November 2025. She is also known for a special-effects web series appearance in 救星戦隊ワクセイバー (2021) and stage live performance activity."
+  primary_studios:
+  - name: "SOD女子社員 / SOD Female Employee Series"
+    company: "SODクリエイト"
+    from: 2017-03-02
+    to: 2018-04-30
+    role: "Exclusive contract actress (female employee series)"
+  - name: "SODstar"
+    company: "SODクリエイト"
+    from: 2018-05-18
+    to: 2018-12-31
+    role: "Exclusive contract actress"
+  - name: "溜池ゴロー (TAMEIKE)"
+    company: "溜池ゴロー"
+    from: 2025-11-01
+    to: null
+    role: "Exclusive contract actress"
+  awards:
+  - event: "週刊プレイボーイ「エロデミー賞」"
+    year: 2021
+    category: "メイクアップ & ヘアスタイリング賞 (Makeup & Hairstyling Award — for 『病んでる女を寝取るのはチョロすぎた。地雷系NTR』)"
+  legacy: "One of the more recognizable AV actresses to emerge from the SOD female employee series, parlaying an in-house PR role into a full performing career spanning nearly a decade across three stage names and multiple studio affiliations."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 56
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 64
+  coverage_note: "Portfolio section not yet populated. DB count = 56 owned titles. JavDB slug XWOMV lists 64 total."
+  confidence: "HIGH — Wikipedia infobox is comprehensive; blood_type A from explicit 血液型 field; measurements (92-62-96 H, 153cm) from labeled 2021-02-05 timestamp; DOB and birthplace confirmed via 基礎情報 infobox. Name chain (加藤ももか → 佐藤ののか → あきばもも) confirmed and dated from Wikipedia 略歴. One additional alias (皆見 悠佳) from infobox with no career date context — included in alternate_names. active_to=null as she is currently active (exclusive with 溜池ゴロー from 2025-11)."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E3%81%82%E3%81%8D%E3%81%B0%E3%82%82%E3%82%82"
+  - "Local DB: actress id=1071, canonical_name='Momoka Kato', stage_name='あきばもも'"
+  portfolio_listed: 0

@@ -1,0 +1,62 @@
+profile:
+  name:
+    family_name: null
+    given_name: Kaori
+    stage_name: KAORI
+    reading: かおり
+    alternate_names:
+    - name: 森嶋 かおり
+      note: "birth name / early career name (2000-2001 gravure era)"
+    - name: Morishima Kaori
+      note: "romanization of birth name"
+    - name: 堀美幸
+      note: "alias used on Mywife (舞ワイフ) label releases"
+    - name: 月野キラリ
+      note: "alias; reading: つきのきらり (Tsukino Kirari)"
+    - name: kaori
+      note: "lowercase stylization used on some releases"
+  date_of_birth: 1978-05-08
+  birthplace: Chiba Prefecture, Japan
+  blood_type: AB
+  height_cm: 165
+  measurements:
+    bust: 98
+    waist: 65
+    hip: 98
+  cup: I
+  active_from: 2009-12-01
+  active_to: 2019-05-01
+  retirement_announced: 2019-05-01
+  biography: "KAORI (born Morishima Kaori, May 8, 1978, Chiba Prefecture) is a former Japanese AV actress, gravure idol, and race queen. She began her entertainment career under her birth name, serving as a race queen for 5ZIGEN (2000) and Sigma Tec Racing (2001), which led to gravure magazine coverage and a formal debut with the photo book 'bé cat' and an image video in September 2001. From 2002 she adopted the mononym KAORI, building a following through sexy gravure shoots and image DVDs throughout the mid-2000s. She made her AV debut in December 2009 through MUTEKI, followed by an exclusive contract period with PREMIUM (Prestige) and Attackers during 2010-2014, establishing herself as a prominent I-cup performer known for her voluptuous figure. She worked as a free-agent actress from 2015 onward across numerous labels under various aliases including 堀美幸 and 月野キラリ, before retiring from AV in May 2019."
+  primary_studios:
+  - name: MUTEKI
+    company: MUTEKI
+    from: 2009-12-01
+    to: 2010-12-01
+    role: Contract actress
+  - name: Glamorous
+    company: PREMIUM
+    from: 2010-12-01
+    to: 2014-03-01
+    role: Exclusive contract actress
+  - name: Attackers
+    company: Attackers
+    from: 2011-09-01
+    to: 2014-06-01
+    role: Contract actress
+
+portfolio: []
+
+meta:
+  total_owned_titles: 55
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Portfolio not yet researched. DB actress_id=332 filing count is 55 titles (label k vol + collections + classic_pool). lookup_actress reports 66 total including co-credits across all vols."
+  confidence: "High. DOB 1978-05-08 confirmed by two independent sources: Wikipedia infobox (explicit 生年月日 field) and minnano-av actress412654 JSON-LD (birthDate: 1978-05-08). Both sources state 現在48歳 which is internally consistent with 1978 as of 2026. Wikipedia page category says 1975年生 — this is a Wikipedia editorial error; all three consistency checks (infobox, minnano, current-age display) agree on 1978. Blood type AB from explicit 血液型 field in both Wikipedia and minnano-av. Measurements B98/W65/H98 from Wikipedia infobox, dated to 2007; minnano-av lists W61/H95 (undated, possibly later era data) — Wikipedia 2007-dated values used as measurements field since they carry a date qualifier. Cup I confirmed by both sources. Aliases 堀美幸 and 月野キラリ from minnano-av."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/KAORI_(%E3%83%A2%E3%83%87%E3%83%AB)"
+  - "https://www.minnano-av.com/actress412654.html"
+  - "organizer3 DB actress id=332 (canonical_name=Kaori, stage_name=KAORI, javdb_slug=XyW1)"
+  portfolio_listed: 0

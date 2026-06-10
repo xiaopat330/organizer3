@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Sakurai
+    given_name: Aya
+    stage_name: 桜井彩
+    reading: さくらい あや
+    alternate_names: null
+  date_of_birth: 1989-02-24
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 158
+  measurements:
+    bust: 90
+    waist: 58
+    hip: 82
+  cup: H
+  active_from: 2012-01-01
+  active_to: 2020-05-08
+  retirement_announced: 2019-12-07
+  biography: "Aya Sakurai (桜井彩) is a Japanese AV actress from Tokyo who first entered the industry not as a performer but as a promotional staff member at SOD Create, appearing from June 2011 on the SOD publicity blog and as MC of the cable television programme 'SOD女子社員のお仕事ですよ'. She made her AV debut in February 2012 while still employed at SOD, becoming a notable figure through a series of releases themed around her employee persona. In April 2014 she left SOD and from June 2014 became an exclusive actress at S1 No.1 Style (エスワン), citing the label's attentive promotion and the way its actresses were made to shine. She left S1 exclusivity in August 2016 and worked as a freelance single-actress talent across multiple labels. On 7 December 2019 she announced her retirement via Twitter at age 30, citing a desire to pursue other dreams, and her final retirement title was released on 8 May 2020 on SOD Star, with a message from Mana Sakura, one of the actresses she had promoted during her staff days."
+  primary_studios:
+  - name: SOD Create
+    company: SOD Create
+    from: 2012-01-01
+    to: 2014-04-01
+    role: AV actress (while employed as SOD promotional staff)
+  - name: S1 No.1 Style
+    company: 'Kitō Entertainment (北都)'
+    from: 2014-06-01
+    to: 2016-08-01
+    role: Exclusive contract actress
+  awards: null
+  legacy: "Aya Sakurai is remembered as one of the most prominent \"SOD女子社員\" (SOD female employee) performers, whose natural personality and behind-the-scenes premise attracted a large fanbase during the S1 era. Her career arc — from in-house PR staff to S1 exclusive — was unusual in the industry and gave her a distinctive identity throughout her eight-year active period."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 55
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile section only; portfolio not enumerated. Active titles in DB as of 2026-06-10; career ended with retirement title on 2020-05-08.'
+  confidence: 'HIGH. DOB 1989-02-24 from Wikipedia 基礎情報 infobox (生年月日 field). Blood type O from explicit 血液型 field (O型). Measurements 90-58-82 cm and cup H from infobox (2014年時点). Height 158 cm from infobox. Birthplace Tokyo from 出身地 field and 人物 section. Active period 2012-2020 from 出演期間 field and confirmed by biography narrative. Retirement announced 2019-12-07 per Wikipedia. Minnano-av search URL could not resolve profile page; Wikipedia data sufficient for all required fields.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%A1%9C%E4%BA%95%E5%BD%A9
+  portfolio_listed: 0

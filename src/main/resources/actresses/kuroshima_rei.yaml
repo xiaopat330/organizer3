@@ -1,0 +1,41 @@
+profile:
+  name:
+    family_name: Kuroshima
+    given_name: Rei
+    stage_name: 黒島玲衣
+    reading: くろしま れい
+    alternate_names: null
+  date_of_birth: 2003-04-25
+  birthplace: Fukushima, Fukushima Prefecture, Japan
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 85
+    waist: 60
+    hip: 86
+  cup: F
+  active_from: 2023-08-08
+  active_to: null
+  retirement_announced: null
+  biography: "Rei Kuroshima (黒島玲衣) is a Japanese AV actress born on April 25, 2003, in Fukushima Prefecture. She debuted in August 2023 on S1 No.1 Style (SONE label) as a music college student, with her debut title highlighting her piano background and artistic sensibility. She signed exclusively with the talent agency LIGHT and quickly built a prolific catalog spanning S1 No.1 Style (SONE/SSIS), JUFE, and numerous other labels. As of 2026 she remains one of the most active exclusive actresses on S1, with over 58 owned titles in under three years of her career."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: WILL Co., Ltd.
+    from: 2023-08-08
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 58
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not yet researched.
+  confidence: "DOB, birthplace, measurements, height sourced from minnano-av.com profile (JSON-LD schema + HTML table). Blood type not present in any explicit 血液型 field — set to null. No Japanese Wikipedia article exists for this actress. active_from set to debut date per minnano debut title entry (August 2023, SONE label). Agency confirmed via minnano official site link (lightpro.jp). Identity confirmed: minnano stage name, DOB, and S1 debut match DB canonical_name and top label (SONE×18). Debut title: 'ピアノで、感性が広がる。SEXで、感度が高まる。上品で、敏感で、エッチな現役音大生 新人NO.1 STYLE 黒島玲衣 AVデビュー'."
+  data_sources:
+  - "https://www.minnano-av.com/actress647641.html"
+  - "https://ja.wikipedia.org/wiki/黒島玲衣 (404 — no article exists)"
+  portfolio_listed: 0

@@ -1,0 +1,62 @@
+profile:
+  name:
+    family_name: Ninomiya
+    given_name: Saki
+    stage_name: 二宮沙樹
+    reading: にのみや さき
+    alternate_names: []
+  date_of_birth: 1985-04-10
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 158
+  measurements:
+    bust: 83
+    waist: 60
+    hip: 86
+  cup: null
+  active_from: 2004-12-01
+  active_to: 2015-01-01
+  retirement_announced: null
+  biography: "Saki Ninomiya (二宮沙樹) is a Japanese AV actress and gravure idol from Tokyo who debuted in December 2004 with Max-A (マックス・エー), initially holding a dual exclusive contract with Max-A and Tri Heart Corporation (セクシア). She moved to Media Station (宇宙企画) in 2005, then to Momotaro Eizou Shuppan (桃太郎映像出版) in October 2006 for her sell-through debut. She subsequently became an exclusive actress at Premium (プレミアム) under the Autovision/Kitō umbrella, releasing prolifically through 2011; she also appeared on Idea Pocket titles and moved to MOODYZ in June 2012. Outside AV she was active as a kickboxing round girl and race queen at the Suzuka 8-Hour Endurance Race, and released a CD single in 2008. No new releases have appeared since 2015, placing her in effective retirement."
+  primary_studios:
+  - name: マックス・エー
+    company: Max-A
+    from: 2004-12-01
+    to: 2010-01-01
+    role: Debut and recurring contract actress
+  - name: 宇宙企画
+    company: Media Station
+    from: 2005-01-01
+    to: 2006-09-30
+    role: Contract actress
+  - name: 桃太郎映像出版
+    company: Momotaro Eizou Shuppan
+    from: 2006-10-01
+    to: 2007-12-31
+    role: Sell-through exclusive actress
+  - name: プレミアム
+    company: Autovision (北都)
+    from: 2007-09-01
+    to: 2012-05-31
+    role: Exclusive contract actress
+  - name: エムズビデオグループ
+    company: M's Video Group
+    from: 2012-06-01
+    to: 2015-01-01
+    role: Contract actress (MOODYZ label)
+  awards: []
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 53
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated.
+  confidence: "MEDIUM-HIGH. DOB 1985-04-10 and birthplace Tokyo from Wikipedia 基礎情報 infobox (sourced to Bambi Promotion official profile, now archived). Measurements B83/W60/H86 from same infobox. Blood type and cup fields are explicitly empty in the Wikipedia infobox template — both set to null per guardrails. Active period 2004-2015 from Wikipedia 出演期間 field and 略歴 note that no new releases appeared after 2015. Primary studios from Wikipedia 専属契約 field (マックス・エー, プレミアム, エムズビデオグループ) plus career narrative. minnano-av search did not return a matching profile page."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E4%BA%8C%E5%AE%AE%E6%B2%99%E6%A8%B9
+  portfolio_listed: 0

@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: null
+    given_name: Minamo
+    stage_name: MINAMO
+    reading: みなも
+    alternate_names:
+    - name: 太陽しずく
+      note: 'gravure idol name (たいようしずく / Taiyo Shizuku), active before AV debut'
+  date_of_birth: 1998-09-14
+  birthplace: Kyoto, Kyoto Prefecture, Japan
+  blood_type: A
+  height_cm: 153
+  measurements:
+    bust: 86
+    waist: 56
+    hip: 88
+  cup: E
+  active_from: 2021-06-10
+  active_to: null
+  retirement_announced: null
+  biography: "MINAMO (みなも) is a Japanese AV actress and gravure idol born on September 14, 1998 in Kyoto Prefecture, Japan. She debuted under the gravure idol name Taiyo Shizuku (太陽しずく) before transitioning to AV work in June 2021 with SOD Create's SODSTAR label. Signed exclusively to SODSTAR (SOD Create), she quickly became one of the label's top draws, earning the designation of super-tier new actress. She is represented by talent agency T-POWERS and remains active as of 2026, having released her 5th anniversary title in May 2026."
+  primary_studios:
+  - name: SODSTAR
+    company: SOD Create
+    from: 2021-06-10
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: "One of SODSTAR's most prominent exclusive actresses of the early 2020s, MINAMO achieved rapid mainstream recognition within the SOD ecosystem following a high-profile debut and consistent annual output across the STARS and START label lines."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 61
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 73
+  coverage_note: Portfolio section not yet researched. Owned titles from DB (61); total known from minnano-av (73).
+  confidence: 'DOB 1998-09-14 from minnano-av structured profile table and JSON-LD; a user-contributed body text section on the same page cites gravure DOB 2000-05-10 with slightly different measurements (B88/W54/H87) — treated as unverified alternate. Measurements B86/W56/H88/E-cup from main profile table. Blood type A from explicit 血液型 field in minnano-av table. No Japanese Wikipedia article found for MINAMO or Taiyo Shizuku. Birthplace (Kyoto) from minnano-av meta and keywords.'
+  data_sources:
+  - 'https://www.minnano-av.com/actress876195.html'
+  - 'https://minnano-av.com/search_result.php?search_scope=actress&search_word=MINAMO'
+  portfolio_listed: 0

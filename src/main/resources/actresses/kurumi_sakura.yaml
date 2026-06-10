@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Kurumi
+    given_name: Sakura
+    stage_name: 胡桃さくら
+    reading: くるみ さくら
+    alternate_names:
+    - name: 胡桃櫻
+      note: Chinese-market romanization used in Chinese-language fan media
+  date_of_birth: 2002-10-29
+  birthplace: Fukui Prefecture, Japan
+  blood_type: AB
+  height_cm: 161
+  measurements:
+    bust: 89
+    waist: 57
+    hip: 85
+  cup: F
+  active_from: 2022-02-23
+  active_to: null
+  retirement_announced: null
+  biography: "Sakura Kurumi (胡桃さくら) is a Japanese AV actress born October 29, 2002 in Fukui Prefecture. She debuted on February 23, 2022 as an exclusive actress for the DOGITATE (もぎたて) label under SOD Create, with her debut work attracting immediate attention. She originally moved to Tokyo to attend a voice-acting vocational school, and initially planned to appear in only three AV titles to gain experience relevant to her voice-acting ambitions. She quickly expanded beyond that early plan and became active across numerous labels, placing 3rd in FANZA's 'Best New AV Actress Summer 2022' ranking. She is known for her sweet, anime-character-like voice, which distinguishes her work across NTR, drama, and planning-genre productions. She is represented by the talent agency T-Powers (ティーパワーズ)."
+  primary_studios:
+  - name: DOGITATE (もぎたて)
+    company: SOD Create
+    from: 2022-02-23
+    to: null
+    role: Exclusive debut actress
+  awards: null
+  legacy: "Kurumi debuted in early 2022 and rapidly built a prolific multi-label catalog spanning Royal, Lunatics, Das!, Glory Quest, and many others. Her distinctively sweet voice became a defining characteristic singled out in rankings and fan reception, earning her a FANZA video floor ranking top-10 placement in April 2024 and subsequent chart appearances through early 2026."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 65
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 69
+  coverage_note: "Portfolio section not yet researched. Owned title count from local DB (actress_id 2459). javdb title count 69 per campaign brief."
+  confidence: "HIGH — Wikipedia article is a direct match on stage name, DOB, birthplace, blood type, measurements, and cup. All three identity-verification heuristics passed (studio categories in Wikipedia match DB label distribution; name match exact; title count ballpark consistent). Blood type AB is sourced from explicit 血液型 field in Wikipedia infobox, not from measurements row. Debut date 2022-02-23 sourced from Wikipedia 略歴 section."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E8%83%A1%E6%A1%83%E3%81%95%E3%81%8F%E3%82%89"
+  - "https://www.t-powers.co.jp/talent/%E8%83%A1%E6%A1%83%E3%81%95%E3%81%8F%E3%82%89/ (cited in Wikipedia)"
+  - "Local DB actress_id 2459, label distribution query"
+  portfolio_listed: 0

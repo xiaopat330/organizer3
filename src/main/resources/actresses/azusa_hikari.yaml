@@ -1,0 +1,51 @@
+profile:
+  name:
+    family_name: Azusa
+    given_name: Hikari
+    stage_name: 梓ヒカリ
+    reading: あずさ ひかり
+    alternate_names:
+    - name: 梓ひかり
+      note: different person — gravure idol, Miss Tokyo Sports 2019 candidate; NOT this actress
+  date_of_birth: 1999-11-30
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 155
+  measurements:
+    bust: 89
+    waist: 54
+    hip: 86
+  cup: G
+  active_from: 2020-03-13
+  active_to: null
+  retirement_announced: null
+  biography: "Hikari Azusa (梓ヒカリ, born November 30, 1999 in Tokyo) debuted as an exclusive actress for IdeaPocket in March 2020 at the age of 20. She quickly gained attention for her large bust — initially promoted as F-cup and later as G-cup — and her high-energy on-screen presence, which earned her coverage in publications such as Sankei Sports and Shukan Playboy. Throughout the 2020s she became one of IdeaPocket's most prolific releases, building a catalog of over 60 solo and featured titles with the label. In February 2025 she transferred to Attackers, continuing as an exclusive contract actress. She is known for her otaku interests and active social media engagement, and was notably cited for publicly confronting a groper on the subway in August 2023."
+  primary_studios:
+  - name: IdeaPocket
+    company: Idea Pocket
+    from: 2020-03-13
+    to: 2025-01-31
+    role: Exclusive contract actress
+  - name: Attackers
+    company: Attackers
+    from: 2025-02-04
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: "One of IdeaPocket's most consistent solo performers of the 2020–2024 era, Hikari Azusa built a large and loyal following through frequent high-production releases before transitioning to Attackers in early 2025, extending her prominence into a second major exclusive chapter."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 68
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not yet researched.
+  confidence: "HIGH — Wikipedia article confirmed via studio match (IdeaPocket/Attackers both present), title count ballpark, and name match. Cup: Wikipedia footnote notes growth from F to G; infobox value is G (current). Blood type not listed in Wikipedia infobox or minnano-av. Note: a separate gravure idol named 梓ひかり (hiragana) exists; Wikipedia explicitly disambiguates the two persons."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E6%A2%93%E3%83%92%E3%82%AB%E3%83%AA"
+  - "https://www.minnano-av.com/actress678473.html"
+  - "Local DB actress id 1548"
+  portfolio_listed: 0

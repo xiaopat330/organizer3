@@ -1,0 +1,60 @@
+profile:
+  name:
+    family_name: Shirato
+    given_name: Hana
+    stage_name: 白桃 はな
+    reading: しらと はな
+    alternate_names: null
+  date_of_birth: 2000-05-12
+  birthplace: Yamagata Prefecture, Japan
+  blood_type: B
+  height_cm: 153
+  measurements:
+    bust: 78
+    waist: 58
+    hip: 88
+  cup: C
+  active_from: 2020-10-01
+  active_to: 2022-11-01
+  retirement_announced: null
+  biography: "Hana Shirato (白桃 はな) is a former Japanese AV actress born on May 12, 2000, in Yamagata Prefecture. Inspired by AV actress Momono Kana while in high school, she debuted in October 2020 under Moodyz at age 20, having chosen the stage name 白桃 (Shirato / white peach) as a tribute to her idol. She quickly rose to prominence in the industry, placing 4th in FANZA's 2021 second-half actress ranking and 3rd in the 2022 annual ranking. In March 2022, she won the 透明感賞 (Transparency Award) at the prestigious Miss iD 2022 competition organized by Kodansha, becoming notable as an AV actress crossing into mainstream idol circles. After a prolific two-year career across major studios including Moodyz, Wands Factory, Honnaka, and kawaii*, she withdrew from public activity in late 2022; as of April 2024, her agency Mines no longer lists her on their website."
+  primary_studios:
+  - name: "Moody's Acid"
+    company: Moodyz
+    from: 2020-10-01
+    to: 2022-11-01
+    role: Contract actress
+  - name: Wands
+    company: WANZ Factory
+    from: 2021-06-01
+    to: 2022-09-01
+    role: Featured actress
+  - name: Honnaka
+    company: Honnaka
+    from: 2020-10-25
+    to: 2022-08-01
+    role: Featured actress
+  - name: "kawaii*"
+    company: "kawaii*"
+    from: 2021-01-25
+    to: 2021-10-05
+    role: Featured actress
+  awards:
+  - event: ミスiD2022
+    year: 2022
+    category: 透明感賞 (Transparency Award)
+  legacy: "Shirato Hana was one of the most commercially successful AV actresses of her debut year cohort (2020), ranking in FANZA's top 5 for both the 2021 and 2022 annual polls and earning a mainstream media crossover via Miss iD 2022. Known as the 'sweet sadist queen' (甘サドの女王), her career — though only about two years in duration — produced over 80 titles across nearly every major studio."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 84
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only. Portfolio not yet researched."
+  confidence: HIGH — infobox data (DOB, birthplace, blood_type, height, measurements, cup, active_from) all sourced directly from Japanese Wikipedia 基礎情報 infobox. Blood type confirmed from explicit 血液型 field. Identity verified via studio match (all 4 top DB labels match Wikipedia categories), title count ballpark, and name match.
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E7%99%BD%E6%A1%83%E3%81%AF%E3%81%AA
+  portfolio_listed: 0

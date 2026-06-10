@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: Ichijo
+    given_name: Mio
+    stage_name: 一条みお
+    reading: いちじょう みお
+    alternate_names:
+    - name: Miyo Ichijo
+      note: alternate romanization used in some releases
+    - name: 相葉美久
+      note: early alternate name
+    - name: 小松菜いよ
+      note: alternate name
+    - name: 岡庭みちか
+      note: alternate name
+  date_of_birth: 1996-11-30
+  birthplace: Yamagata Prefecture, Japan
+  blood_type: B
+  height_cm: 147
+  measurements:
+    bust: 83
+    waist: 62
+    hip: 86
+  cup: C
+  active_from: 2018-04-13
+  active_to: null
+  retirement_announced: null
+  biography: "Mio Ichijo is a Japanese AV actress born November 30, 1996 in Yamagata Prefecture. Before entering the industry she worked as a gym instructor and part-time at Seicomart convenience stores. She first joined the Sapporo-based idol group 'Sapporo Zero Dollar Zukan' in October 2017, then made her AV debut in April 2018 as an exclusive contract actress at Idea Pocket. She left the Idea Pocket exclusive in July 2018 to become a free agent (kikaku single actress), while continuing her Sapporo Zero Dollar Zukan activities. Known for her petite frame (147 cm) and half-Japanese appearance, she remained based in Sapporo throughout her career, commuting to Tokyo for work rather than relocating. She has been active across numerous labels including MILK, REAL, TIKB, and IPX, and gained attention in 2023 when an anthology work featuring her reached the #1 spot on the FANZA weekly video floor ranking."
+  primary_studios:
+  - name: IDEA POCKET
+    company: IDEA POCKET
+    from: 2018-04-13
+    to: 2018-07-31
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 74
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not yet researched."
+  confidence: "High — Wikipedia infobox provides explicit fields for DOB, blood type, height, measurements, cup, birthplace. Identity confirmed via Idea Pocket studio match (IPX in DB top labels), title count, and name match. Active since 2018; still active as of article's 2026 references."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E4%B8%80%E6%9D%A1%E3%81%BF%E3%81%8A"
+  portfolio_listed: 0

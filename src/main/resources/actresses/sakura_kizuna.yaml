@@ -1,0 +1,60 @@
+profile:
+  name:
+    family_name: Sakura
+    given_name: Kizuna
+    stage_name: 佐倉絆
+    reading: さくら きずな
+    alternate_names:
+    - name: きずぽん
+      note: nickname
+  date_of_birth: 1989-05-30
+  birthplace: "Ashikaga, Tochigi, Japan"
+  blood_type: AB
+  height_cm: 151
+  measurements:
+    bust: 83
+    waist: 59
+    hip: 84
+  cup: D
+  active_from: 2014-01-01
+  active_to: 2020-03-31
+  retirement_announced: 2019-03-31
+  biography: "Kizuna Sakura (佐倉絆) is a retired Japanese AV actress and former gravure idol born on May 30, 1989 in Ashikaga, Tochigi. She began her entertainment career at the Akihabara maid café @ほぉ〜むカフェ before transitioning to idol activities as a member of SIR (サンスポアイドルリポーター) from late 2011. After graduating from SIR in January 2014, she announced her AV debut in July 2014, signing an exclusive contract with million (ケイ・エム・プロデュース) and joining the AV unit ミリオンガールズZ alongside Rika Hoshimi and others. Over her six-year AV career she received numerous industry awards including the スカパー!アダルト放送大賞 Saizō Prize (2015), the 30th Pink Prize New Actress Award (2018), the 31st Pink Prize Supporting Actress Award (2019), and the スカパー!アダルト放送大賞 Actress Award (2020). She formally retired on March 31, 2020 and subsequently launched a ramen restaurant business."
+  primary_studios:
+  - name: million
+    company: "ケイ・エム・プロデュース"
+    from: 2014-01-01
+    to: 2020-03-31
+    role: "Exclusive contract actress"
+  awards:
+  - event: "スカパー!アダルト放送大賞2015"
+    year: 2015
+    category: "サイゾー賞"
+  - event: "第30回ピンク大賞"
+    year: 2018
+    category: "新人女優賞"
+  - event: "第31回ピンク大賞"
+    year: 2019
+    category: "助演女優賞"
+  - event: "ゲオTV×メンズサイゾー ADULT AWARD 2019"
+    year: 2020
+    category: "メンズサイゾー賞"
+  - event: "スカパー!アダルト放送大賞2020"
+    year: 2020
+    category: "女優賞"
+  - event: "ピンク映画ベストテン2019"
+    year: 2020
+    category: "主演女優賞"
+  legacy: "One of million/KMP's signature exclusive actresses of the mid-2010s, Kizuna Sakura was known for her genuine enthusiasm for the industry and her distinctive oral skills (dubbed '国宝級舌技'). Her transition from Akihabara maid café worker and idol to AV actress, and later to entrepreneur, made her an unusual multi-phase public figure."
+
+meta:
+  total_owned_titles: 57
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched"
+  confidence: "High — all profile fields sourced from Japanese Wikipedia infobox (ja.wikipedia.org/wiki/佐倉絆). Blood type from explicit 血液型 field. Measurements noted as 2014年時点. Active dates from infobox AV出演期間 field."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E4%BD%90%E5%80%89%E7%B5%86"
+  portfolio_listed: 0

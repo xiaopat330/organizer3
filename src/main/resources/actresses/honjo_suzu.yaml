@@ -1,0 +1,51 @@
+profile:
+  name:
+    family_name: Honjo
+    given_name: Suzu
+    stage_name: 本庄 鈴
+    reading: ほんじょう すず
+    alternate_names:
+    - name: すずちゃん
+      note: nickname (愛称)
+  date_of_birth: 1997-01-12
+  birthplace: Yamanashi Prefecture, Japan
+  blood_type: null
+  height_cm: 163
+  measurements:
+    bust: 85
+    waist: 59
+    hip: 88
+  cup: C
+  active_from: 2018-04-26
+  active_to: null
+  retirement_announced: null
+  biography: "Suzu Honjo (本庄 鈴) is a Japanese AV actress and nude model born on January 12, 1997, in Yamanashi Prefecture. Inspired by Asuka Kirara, she approached an AV production company hoping to become famous, but hesitated to debut; SODクリエイト launched a crowdfunding-style campaign in January 2018 requiring 10,000 pre-orders within two months to greenlight her debut, which she cleared by February 28. Her debut work was released on April 26, 2018, and was notable for elaborate CG wing effects on the cover. She won the SOD AWARD 2019 Best New Actress award and took the FANZA Adult Award 2019 Best Work (mail-order division) for her debut title. She has maintained an exclusive contract with SODstar (SODクリエイト) throughout her career and is affiliated with C-more Entertainment."
+  primary_studios:
+  - name: SODstar
+    company: SODクリエイト
+    from: 2018-04-26
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: SOD AWARD
+    year: 2019
+    category: 最優秀新人賞 (Best New Actress)
+  - event: FANZAアダルトアワード
+    year: 2019
+    category: 最優秀作品賞（通販部門）(Best Work — Mail Order Division)
+  legacy: "Suzu Honjo is one of SODstar's flagship exclusive actresses, having debuted through an unprecedented fan-driven crowdfunding campaign and quickly rising to become one of the label's most prolific and popular performers. Her long-running exclusive contract, high output rate, and crossover appearances in mainstream media — including an・an magazine, solo live music performances, and a nomination in TC Candler's 100 Most Beautiful Faces of 2023 — cement her status as one of the defining faces of the SOD STARS era."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 97
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not yet researched. DB shows 97 owned titles predominantly under STARS (54) and START (28) labels, all SODクリエイト."
+  confidence: "High. Wikipedia infobox (ja) is the primary source for all profile fields. Blood type is not listed in the Wikipedia infobox and has been set to null per campaign guardrails — it was not sourced from any size/measurement row. Measurements are dated 2018年時点 per infobox header. Active-to is null as she remains active as of 2026."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%9C%AC%E5%BA%84%E9%88%B4
+  - https://www.minnano-av.com/search_result.php?search_word=%E6%9C%AC%E5%BA%84%E9%88%B4&search_scope=actress
+  portfolio_listed: 0

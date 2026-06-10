@@ -1,0 +1,67 @@
+profile:
+  name:
+    family_name: Nanami
+    given_name: Tina
+    stage_name: 七海ティナ
+    reading: ななみ てぃな
+    alternate_names:
+    - name: 七碧ティナ
+      note: former stage name (idol era, until April 2018)
+    - name: Tina
+      note: early solo idol name
+  date_of_birth: 1993-12-08
+  birthplace: Toyohashi, Aichi, Japan
+  blood_type: A
+  height_cm: 160
+  measurements:
+    bust: 98
+    waist: 70
+    hip: 104
+  cup: H
+  active_from: 2019-01-10
+  active_to: null
+  retirement_announced: null
+  biography: "Tina Nanami (七海ティナ) was born on December 8, 1993, in Toyohashi, Aichi Prefecture. Her given name Tina is her real name, chosen by her mother who admired Tina Turner and wished her daughter to spread her wings to the world. After working as a live idol in Nagoya under the name Nanaao Tina (七碧ティナ), she renamed herself Nanami Tina in April 2018, debuting as a gravure talent and joining idol group Ebisu Muscats in August 2018. She made her AV debut on January 10, 2019, as a SOD Star exclusive, distinguishing herself with an exceptionally muscular physique and promoting her signature muscle-themed performances. She transferred to FALENOstar in July 2020, then to DAHLIA in February 2021, before going on hiatus from October 2021 due to recurring eating disorder, surgery, and panic disorder. She returned to AV work in July 2023, subsequently appearing for Attackers, then becoming a Madonna exclusive from August 2025, transitioning to a more glamorous, fuller-figured image that expanded her dramatic range."
+  primary_studios:
+  - name: SOD Star
+    company: SODクリエイト
+    from: 2019-01-10
+    to: 2020-07-24
+    role: Exclusive contract actress
+  - name: FALENO star
+    company: FALENO
+    from: 2020-07-25
+    to: 2021-02-28
+    role: Exclusive contract actress
+  - name: DAHLIA
+    company: FALENO
+    from: 2021-02-01
+    to: 2021-10-31
+    role: Exclusive contract actress
+  - name: Attackers
+    company: Attackers
+    from: 2024-01-01
+    to: 2025-07-31
+    role: Exclusive contract actress
+  - name: Madonna
+    company: Madonna
+    from: 2025-08-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: "Tina Nanami is notable for entering AV at age 25 with a distinctively athletic, muscular physique built through years of idol activity, boxing, and bodybuilding — a rarity in the industry — before deliberately transitioning to a more voluptuous figure for her post-hiatus work. Her career narrative of overcoming eating disorders and personal health crises, combined with consistent high-profile exclusive contracts at SOD, FALENO/DAHLIA, and eventually Madonna, established her as a resilient and adaptable performer across nearly a decade of adult entertainment."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 55
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not yet researched.
+  confidence: HIGH — Wikipedia infobox provides explicit blood_type (血液型 A型 field), DOB, birthplace, measurements (2024時点), cup; all three identity heuristics pass (studio match, title count, name match). Former name 七碧ティナ confirmed in Wikipedia text. Active_from date (2019-01-10 SOD debut) confirmed in AV女優 section. Madonna exclusive from 2025-08 per Wikipedia AV女優 section.
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E4%B8%83%E6%B5%B7%E3%83%86%E3%82%A3%E3%83%8A'
+  - organizer3 local DB (actress id 1386, 55 titles)
+  portfolio_listed: 0

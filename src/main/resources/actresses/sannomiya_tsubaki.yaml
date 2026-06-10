@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Sannomiya
+    given_name: Tsubaki
+    stage_name: 三宮つばき
+    reading: さんのみや つばき
+    alternate_names:
+  date_of_birth: 1998-05-04
+  birthplace: null
+  blood_type: A
+  height_cm: 150
+  measurements:
+    bust: 89
+    waist: 54
+    hip: 83
+  cup: G
+  active_from: 2020-08-07
+  active_to: null
+  retirement_announced: null
+  biography: "Tsubaki Sannomiya (三宮つばき) is a Japanese AV actress born on May 4, 1998. She debuted on August 7, 2020 as an exclusive actress for S1 No.1 Style, where she was marketed for her mysterious aura, refined looks, and G-cup figure. Prior to her AV career, she worked as a patissier at a hotel pastry department, leaving after about a year and a half due to tendinitis. In January 2022 she announced her transfer to Attackers, with whom she became exclusively contracted from February 2022 onward. Beyond adult work she is active as an amateur singer performing Showa-era kayokyoku at live events, and is affiliated with talent agency C-more Entertainment."
+  primary_studios:
+  - name: S1 No.1 Style
+    company: S1 No.1 Style
+    from: 2020-08-07
+    to: 2021-12-31
+    role: Exclusive contract actress
+  - name: Attackers
+    company: Attackers
+    from: 2022-02-01
+    to: null
+    role: Exclusive contract actress
+  awards:
+  legacy: null
+
+meta:
+  total_owned_titles: 64
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile only; portfolio not yet researched.
+  confidence: 'DOB, blood type, measurements from Japanese Wikipedia infobox (explicit fields). Birthplace listed as 非公開 (undisclosed) in infobox — set to null. Measurements qualified as 2022年時点. No formal awards listed on Wikipedia. Active through 2026 based on article timeline.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E4%B8%89%E5%AE%AE%E3%81%A4%E3%81%B0%E3%81%8D
+  portfolio_listed: 0

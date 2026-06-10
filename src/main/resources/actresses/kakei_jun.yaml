@@ -1,0 +1,65 @@
+profile:
+  name:
+    family_name: Kakei
+    given_name: Jun
+    stage_name: 鷲尾めい
+    reading: わしお めい
+    alternate_names:
+    - name: 筧ジュン
+      note: debut name at S1 NO.1 STYLE (April 2019 – February 2020)
+    - name: Jun Kakei
+      note: romanization of debut kanji name 筧ジュン; DB canonical_name
+    - name: Mei Washio
+      note: romanization of current stage name 鷲尾めい
+  date_of_birth: 1997-10-20
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: A
+  height_cm: 164
+  measurements:
+    bust: 104
+    waist: 59
+    hip: 89
+  cup: J
+  active_from: 2019-04-07
+  active_to: null
+  retirement_announced: null
+  biography: "Mei Washio (born October 20, 1997 in Kanagawa Prefecture) debuted in
+    April 2019 as an exclusive S1 NO.1 STYLE actress under the name 筧ジュン (Jun Kakei),
+    appearing in Shuukan Playboy the same summer for her first gravure spread. In
+    March 2020 she transferred management to Eightman Production and renamed herself
+    鷲尾めい (Mei Washio), simultaneously releasing two digital photo books for Weekly
+    Gendai. She has remained an exclusive S1 actress throughout her career, building
+    a reputation around a signature J-cup bust and warm, service-oriented screen presence.
+    Her FANZA rankings and Asahi Geino poll placements (11th overall in the 2024 survey)
+    reflect steady A-list status. Outside adult work she appeared in the Fuji TV anthology
+    drama Sekai ni mo Kimyou na Monogatari (2020) and in Netflix's Zenra Kantoku 2 (2021)."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: S1 NO.1 STYLE (エスワン)
+    from: 2019-04-07
+    to: null
+    role: Exclusive contract actress
+  awards: []
+  legacy: "One of S1 NO.1 STYLE's signature busty actresses of the 2020s, Washio Mei
+    built a loyal fanbase through consistent FANZA chart appearances and a notably
+    warm on-screen persona that set her apart in the large-bust specialist niche."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 76
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only. Portfolio not yet researched.
+  confidence: HIGH — all profile fields sourced directly from Japanese Wikipedia infobox
+    (explicit 血液型 field confirms blood type A; measurements cited as 2025年時点). Cup
+    size listed as J in infobox; recent title text references K/L — possible gradual
+    upgrade not yet reflected in infobox. Name-change chain 筧ジュン→鷲尾めい confirmed
+    by Wikipedia 別名 field and career narrative. Identity verified via three heuristics
+    (S1 studio match, title count ballpark, name match) — all PASS.
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E9%B7%B2%E5%B0%BE%E3%82%81%E3%81%84
+  - Local DB (actress id 1287, canonical_name Jun Kakei, stage_name 鷲尾めい)
+  portfolio_listed: 0

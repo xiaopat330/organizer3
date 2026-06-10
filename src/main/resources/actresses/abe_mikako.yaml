@@ -1,0 +1,68 @@
+profile:
+  name:
+    family_name: Abe
+    given_name: Mikako
+    stage_name: あべみかこ
+    reading: あべ みかこ
+    alternate_names:
+    - name: 安部未華子
+      note: kanji form of stage name (used in Chinese-language contexts and formal documents; rarely appears on-screen)
+    - name: みずきはな
+      note: alias used in some productions
+  date_of_birth: 1994-02-21
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 158
+  measurements:
+    bust: 74
+    waist: 62
+    hip: 87
+  cup: AA
+  active_from: 2012-06-20
+  active_to: 2022-06-20
+  retirement_announced: 2021-06-05
+  biography: "あべみかこ (Mikako Abe, legal kanji 安部未華子) is a Japanese actress, YouTuber, and entertainer from Tokyo who debuted in June 2012 under Peters MAX, quickly selling approximately 10,000 copies of her debut title. Following two brief early retirements (March 2013 and September 2013), she made a sustained comeback in November 2014 and became one of the most prolific and recognizable freelance AV actresses of the 2010s, appearing across MOODYZ, Wanz Factory, Peters MAX, and dozens of other labels. She is particularly known for her slim, small-busted figure — trading under the 'ちっぱい (flat-chest)' concept — which she credited with creating a broader industry demand for similar performers. In 2016 she received both the MOODYZ Most Appearances Award and the Best Wanz Factory Award, and in 2017 won the DMM.R18 Adult Awards Special Prize. She expanded into mainstream entertainment via YouTube (10.4万 subscribers), music (CD debut February 2021), stage acting, and pink film, winning the Pink Film Best Ten 2020 Lead Actress Award. She formally announced her AV retirement in June 2021 and retired on 2022-06-20 at her 10th-anniversary event."
+  primary_studios:
+  - name: Peters MAX
+    company: Peters MAX
+    from: 2012-06-20
+    to: 2022-06-20
+    role: Primary exclusive label; debut and career anchor throughout all active periods
+  - name: Wanz Factory
+    company: WILL Co., Ltd.
+    from: 2015-02-01
+    to: 2022-06-20
+    role: Major contract label; received Best Wanz Factory Award 2016
+  - name: MOODYZ / ZEX / MIAA / MIAD
+    company: WILL Co., Ltd.
+    from: 2015-02-13
+    to: 2022-06-20
+    role: Frequent contract appearances across MOODYZ family labels
+  awards:
+  - event: MOODYZチーム最多出演賞
+    year: 2016
+    category: Most Appearances — MOODYZ Team (MOODYZ年間最多出演)
+  - event: 最優秀ワンズファクトリー賞
+    year: 2016
+    category: Best Wanz Factory Actress Award
+  - event: DMM.R18アダルトアワード2017
+    year: 2017
+    category: 特別賞 (Special Prize)
+  - event: ピンク映画ベストテン2020
+    year: 2021
+    category: 主演女優賞 (Lead Actress Award)
+  legacy: "あべみかこ is credited with popularizing the 'ちっぱいブーム' (flat-chest boom) in the JAV industry — her distinctive figure turned a longtime insecurity into a demand signal and influenced casting trends throughout the 2010s. She was among the most prolific freelance actresses of her era, appearing for nearly every major studio, and built a lasting post-AV career as a YouTuber and stage actress."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 32
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 400
+  coverage_note: 'Profile section only; portfolio not enumerated. 32 titles owned in local DB as of 2026-06-10. Task description cited 56 titles and anchor labels MIRD/REAL/HNDS — these labels are absent from the 32 DB titles (which are dominated by ZEX, MIAA/MIAD, WANZ, EKDV, NACR, SQTE). The identity is verified by Wikipedia name match, MOODYZ+WANZ studio match, and career timeline. The count discrepancy likely reflects collection coverage gaps, not identity mismatch. Wikipedia filmography runs 400+ individual titles over the 2012–2022 career.'
+  confidence: 'HIGH. Stage name あべみかこ confirmed from Japanese Wikipedia article (URL: ja.wikipedia.org/wiki/あべみかこ). Kanji form 安部未華子 listed in article as Chinese name. DOB 1994-02-21, birthplace Tokyo, blood type O, height 158 cm, measurements 73.5-61.5-86.5 (公称サイズ 2018年1月時点), cup AA (2018年1月時点) all from Wikipedia infobox explicit fields. Active from 2012-06-20 (debut), retired 2022-06-20. Identity verification: studio match PASS (MOODYZ+WANZ in both DB and Wikipedia), name match PASS (英文名Mikako Abe = DB canonical_name), title count ballpark PASS (32 owned vs. 400+ total career titles). Blood type O sourced from explicit 血液型 field in infobox — not from size row. Measurements rounded to nearest integer from the 73.5/61.5/86.5 cm values. Cup AA is the corrected value as of 2018 (earlier public profile said A; actress corrected to AA January 2018; Wikipedia notes further correction to C in 2020 measurement but AA retained in 2021 Shūkan Playboy special).'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E3%81%82%E3%81%B9%E3%81%BF%E3%81%8B%E3%81%93
+  portfolio_listed: 0

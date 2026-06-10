@@ -1,0 +1,61 @@
+profile:
+  name:
+    family_name: Aoi
+    given_name: Rena
+    stage_name: あおいれな
+    reading: あおい れな
+    alternate_names:
+    - name: Aoi Rena
+      note: romanized form of stage name
+    - name: 葵玲奈
+      note: kanji form of stage name; used in Chinese-speaking markets
+    - name: れな
+      note: debut name at kawaii (2015)
+    - name: くろいれな
+      note: "alternate dark persona used 2019-04 to 2020-01; separate AV credits"
+    - name: Rena Kuroi
+      note: romanization of くろいれな alternate persona
+  date_of_birth: 1996-03-19
+  birthplace: Saitama Prefecture, Japan
+  blood_type: null
+  height_cm: 158
+  measurements:
+    bust: 80
+    waist: 57
+    hip: 85
+  cup: A
+  active_from: 2015-07-25
+  active_to: 2021-12-31
+  retirement_announced: 2021-07-18
+  biography: "Rena Aoi (born March 19, 1996, Saitama Prefecture) debuted on July 25, 2015 under kawaii label using only the name 'Rena', presenting herself as an amateur. After a brief hiatus in mid-2017, she returned in September 2017 under the stage name 'あおいれな' after joining talent agency Mine'S. Between April 2019 and January 2020 she operated a second persona 'くろいれな' (Rena Kuroi), a deliberately raunchier alter ego with its own AV credits, while also performing as herself. She won the SOD AWARD 2019 Best Actress prize and was nominated for the スカパー!アダルト放送大賞 2020. On July 18, 2021 she announced her retirement from AV acting by year-end, subsequently transitioning to work as an AV director under the Mine'S umbrella."
+  primary_studios:
+  - name: kawaii
+    company: SODクリエイト
+    from: 2015-07-25
+    to: 2017-07-02
+    role: Debut and early career
+  - name: Mine'S
+    company: Mine'S
+    from: 2017-09-06
+    to: 2021-12-31
+    role: Exclusive talent / later AV director
+  awards:
+  - event: SOD AWARD 2019
+    year: 2019
+    category: "最優秀女優賞 (Best Actress)"
+  legacy: "Rena Aoi built an unusually diverse career across multiple studios and personas, becoming one of the more recognizable multi-label actresses of the late 2010s before transitioning to AV direction after her 2021 retirement, a rare trajectory in the industry."
+
+portfolio:
+meta:
+  total_owned_titles: 40
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 77
+  coverage_note: "Profile only; portfolio not yet researched. DB owns 40 titles; user brief cites 77 total on javdb slug K5EM."
+  confidence: "High for profile data — all biographical fields sourced from Japanese Wikipedia infobox and biography sections. Blood type is genuinely absent from the Wikipedia template (blank field). Measurements are noted as 2015-era figures. The alias 'Megumi Takagi / 高木めぐみ' present in DB actress_aliases is unverified: it does not appear in Wikipedia, in the javdb staging name_variants_json, or in the biography text; treat as suspect until confirmed."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E3%81%82%E3%81%8A%E3%81%84%E3%82%8C%E3%81%AA (fetched 2026-06-10)"
+  - "Local DB actress record id=263"
+  - "Local DB javdb_actress_staging slug=K5EM"
+  portfolio_listed: 0

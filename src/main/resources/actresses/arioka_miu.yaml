@@ -1,0 +1,59 @@
+profile:
+  name:
+    family_name: Arioka
+    given_name: Miu
+    stage_name: 有岡みう
+    reading: ありおか みう
+    alternate_names:
+    - name: Mikuru Shiiba
+      note: 椎葉みくる — debut stage name used 2018–2019 under OPPAI exclusive contract
+    - name: Mami Shinohara
+      note: 篠原まみ — also listed as alternate name in Wikipedia infobox
+  date_of_birth: 1995-08-17
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 163
+  measurements:
+    bust: 96
+    waist: 60
+    hip: 89
+  cup: I
+  active_from: 2018-02-07
+  active_to: null
+  retirement_announced: 2019-10-01
+  biography: "Miu Arioka (有岡みう, born August 17, 1995, Tokyo) is a Japanese AV actress
+    known for her large-bust (I-cup) figure. She debuted in February 2018 under OPPAI
+    as Shiiba Mikuru (椎葉みくる), marketed with the catchphrase 'OPPAI's best nipple
+    newcomer ever.' She announced retirement in October 2019 via Twitter, then returned
+    on September 4, 2020 under her current name Miu Arioka, signing with talent agency
+    T-Powers. Her comeback saw wide multi-label activity across MOODYZ group labels,
+    E-BODY, Fitch, and many others. Multiple titles reached #1 on FANZA weekly video
+    rankings in 2023. Her hobbies include anime watching and cosplay; she lists badminton
+    as a special skill."
+  primary_studios:
+  - name: OPPAI
+    company: OPPAI
+    from: 2018-02-07
+    to: 2019-10-01
+    role: Exclusive contract actress (as Shiiba Mikuru)
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 69
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Portfolio section not yet researched. Profile only.
+  confidence: High — Wikipedia 基礎情報 infobox has explicit 血液型 O型 field; measurements
+    and DOB sourced directly from infobox (2020年時点). Alternate name 篠原まみ from infobox
+    only, context unknown. Shiiba Mikuru relationship confirmed by both Wikipedia biography
+    and DB actress_aliases table. The DB stored a simplified CJK variant 冈 in stage_name;
+    the correct traditional kanji is 岡 as confirmed by Wikipedia article title 有岡みう.
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%9C%89%E5%B2%A1%E3%81%BF%E3%81%86'
+  - local DB actress_aliases (id 1068)
+  portfolio_listed: 0

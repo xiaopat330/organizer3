@@ -1,0 +1,57 @@
+profile:
+  name:
+    family_name: Kawakita
+    given_name: Meisa
+    stage_name: 鳳みゆ
+    reading: おおとり みゆ
+    alternate_names:
+    - name: Meisa Kawakita
+      note: 'former stage name (川北メイサ, かわきた めいさ) — debut name under FALENO 2020–2021, used again briefly 2023'
+    - name: Minami Sawakita
+      note: 'former stage name (沢北みなみ, さわきた みなみ) — used July 2022–January 2023 after agency move to LIGHT'
+  date_of_birth: 2000-12-05
+  birthplace: Gunma Prefecture, Japan
+  blood_type: A
+  height_cm: 154
+  measurements:
+    bust: 85
+    waist: 62
+    hip: 90
+  cup: E
+  active_from: 2020-12-12
+  active_to: null
+  retirement_announced: 2023-04-15
+  biography: "Miyu Otori (鳳みゆ), born December 5, 2000 in Gunma Prefecture, debuted on December 12, 2020 under the stage name Kawakita Meisa as a FALENO exclusive actress. After leaving FALENO in late 2021 she transitioned to general planning work across multiple labels, briefly changing her name to Minami Sawakita from July 2022 before reverting to Kawakita Meisa in early 2023. She announced retirement in April 2023 but returned to the industry in July 2024 under the new stage name Miyu Otori (鳳みゆ), affiliated with talent agency SO MODEL AGENT. In November 2025 she entered a dual exclusive contract with ROYAL and Attackers simultaneously, marking a prominent comeback. As of 2026, several of her titles have topped FANZA weekly rental and video floor rankings."
+  primary_studios:
+  - name: FALENO
+    company: FALENO
+    from: 2020-12-12
+    to: 2021-09-30
+    role: Exclusive contract actress
+  - name: ROYAL
+    company: Matsumoto Kikaku / Royal
+    from: 2025-11-01
+    to: null
+    role: Exclusive contract actress (dual)
+  - name: Attackers
+    company: Attackers
+    from: 2026-01-01
+    to: null
+    role: Exclusive contract actress (dual)
+  awards: null
+  legacy: "One of the more distinctive FALENO debut-era actresses who crossed over to Madonna (JUL) and Attackers (ADN) in her free-agent phase, then reinvented herself entirely with a new name and dual exclusive contract in 2025–2026. The name change to 鳳みゆ represents a deliberate image reset; under the new name she achieved FANZA #1 monthly actress ranking for May 2026."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 82
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched. DB has 82 titles across 46 labels spanning 2020–2026.'
+  confidence: 'HIGH — Wikipedia infobox provides explicit DOB, blood type, measurements, and full career timeline. DOB note: the 鳳みゆ public profile lists 2000-07-21 for privacy; infobox real DOB is 2000-12-05 (used here). Identity confirmed via studio match (FALENO/ROYAL/Attackers all in Wikipedia), title count ballpark, and redirect from 川北メイサ to 鳳みゆ article.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E9%B3%B3%E3%81%BF%E3%82%86 (redirects from 川北メイサ)'
+  - 'organizer3 local DB actress id=2286'
+  portfolio_listed: 0
