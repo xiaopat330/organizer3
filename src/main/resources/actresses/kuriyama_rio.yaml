@@ -1,0 +1,58 @@
+profile:
+  name:
+    family_name: Kuriyama
+    given_name: Rio
+    stage_name: 栗山莉緒
+    reading: くりやま りお
+    alternate_names:
+    - name: くりちゃん
+      note: nickname
+  date_of_birth: 1998-08-02
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 148
+  measurements:
+    bust: 85
+    waist: 54
+    hip: 83
+  cup: E
+  active_from: 2020-10-13
+  active_to: null
+  retirement_announced: null
+  biography: "Rio Kuriyama (栗山莉緒) is a Japanese AV actress from Tokyo, born August 2, 1998. She debuted as an exclusive actress at Idea Pocket on October 13, 2020, gaining quick recognition for her petite 148 cm frame paired with an E-cup figure and energetic screen presence. In November 2021 she graduated from Idea Pocket and transferred to Madonna (マドンナ) as an exclusive actress, remaining there from December 2021 through April 2025. In May 2025 she announced her graduation from Madonna and debuted as an exclusive actress at Attackers (アタッカーズ) from June 2025 onward. She is managed by Mines (マインズ) talent agency and also maintains a YouTube channel under the name くりチューブ. In 2026 she received the BEST PERFORMANCE ACTRESS award at the ADULTOPIA adult expo in Taiwan."
+  primary_studios:
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2020-10-13
+    to: 2021-10-31
+    role: Exclusive contract actress
+  - name: Madonna
+    company: Madonna
+    from: 2021-12-01
+    to: 2025-04-30
+    role: Exclusive contract actress
+  - name: Attackers
+    company: Attackers
+    from: 2025-06-03
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: ADULTOPIA（大人國成人展）
+    year: 2026
+    category: BEST PERFORMANCE ACTRESS（最優秀演技賞）
+  legacy: "Rio Kuriyama established herself as one of the standout exclusive actresses of her generation, moving from Idea Pocket through Madonna to Attackers across a prolific career spanning major labels. Her combination of compact stature, E-cup measurements, and versatile dramatic range earned international recognition, including a best performance award at the 2026 Taiwan ADULTOPIA expo."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 50
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 147
+  coverage_note: Profile section only; portfolio not enumerated. 50 titles in local DB as of 2026-06-10; career is ongoing (Attackers exclusive from 2025-06).
+  confidence: "HIGH for most fields. DOB 1998-08-02 confirmed from Wikipedia 基礎情報 infobox. Blood type absent — 血液型 field is blank in infobox; set to null per guardrails. Measurements 85-54-83/E are from Wikipedia infobox marked 2021年時点. Studio contract dates from Wikipedia infobox (アイデアポケット 2020-10 to 2021-10; マドンナ 2021-12 to 2025-04; アタッカーズ 2025-06 onward). Minnano-av profile section contained no biographical data. ADULTOPIA 2026 award sourced from Wikipedia 略歴 section."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%A0%97%E5%B1%B1%E8%8E%89%E7%B7%92
+  - https://www.minnano-av.com/actress811420.html
+  portfolio_listed: 0

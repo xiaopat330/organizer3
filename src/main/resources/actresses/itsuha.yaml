@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: null
+    given_name: Itsuha
+    stage_name: 五芭
+    reading: いつは
+    alternate_names:
+    - name: いつは
+      note: hiragana reading used in some title credits and amateur-style releases
+  date_of_birth: 2003-05-08
+  birthplace: Nagano Prefecture, Japan
+  blood_type: null
+  height_cm: 163
+  measurements:
+    bust: 84
+    waist: 54
+    hip: 83
+  cup: E
+  active_from: 2022-10-04
+  active_to: null
+  retirement_announced: null
+  biography: "Itsuha (五芭, born May 8, 2003, Nagano Prefecture) is a Japanese AV actress represented by talent agency NAX. She debuted in October 2022 as an exclusive actress at MOODYZ, promoted with the catchphrase \"10年に1度のビンカン\" (the most sensitive woman in a decade), a reference to her highly reactive on-screen responses that quickly became her signature. In December 2023 she transferred her exclusive contract to Attackers, where she released a consistent stream of drama-focused titles through 2024. In May 2025 she announced a transition to non-exclusive (企画単体) work, beginning her second career chapter with appearances across a wide range of studios. She has also appeared in mainstream film and television, including a role in the Netflix series \"デスキスゲーム\" (2025) and several theatrical releases from OPP Films."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2022-10-04
+    to: 2023-11-07
+    role: Exclusive contract actress
+  - name: Attackers
+    company: Attackers
+    from: 2023-12-05
+    to: 2025-05-06
+    role: Exclusive contract actress
+  awards: []
+  legacy: "Itsuha is one of MOODYZ's breakout exclusive actresses of the early 2020s, whose pronounced sensitivity and expressive reactions established a devoted fanbase within her debut year. Her 2024 Attackers output charted consistently on FANZA weekly rankings, and her 2025 transition to non-exclusive work broadened her reach across mainstream and theatrical productions."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 50
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only. Portfolio not yet researched.
+  confidence: 'HIGH — kanji stage_name 五芭 (いつは) confirmed via Japanese Wikipedia
+    基礎情報 infobox (article title 五芭, reading いつは); studio match MOODYZ+Attackers
+    confirmed against DB labels MIDV+ADN; DOB 2003-05-08 from infobox 生年月日 field;
+    birthplace 長野県 from infobox 出身地; measurements (84-54-83, E cup) from infobox
+    公称サイズ (2023年時点). Blood type absent from infobox — set null. Active_from
+    2022-10-04 from first MOODYZ filmography entry.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E4%BA%94%E8%8A%AD
+  - https://www.minnano-av.com/actress760714.html
+  portfolio_listed: 0
