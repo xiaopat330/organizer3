@@ -1,0 +1,65 @@
+profile:
+  name:
+    family_name: Momose
+    given_name: Asuka
+    stage_name: 小栗操
+    reading: おぐり みさお
+    alternate_names:
+    - name: 百瀬あすか
+      note: "birth stage name, used 2020–2023; renamed to 小栗操 on return in May 2025"
+    - name: Misao Oguri
+      note: romanization of current legal stage name 小栗操
+  date_of_birth: 2000-05-31
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 156
+  measurements:
+    bust: 90
+    waist: 58
+    hip: 86
+  cup: G
+  active_from: 2020-09-08
+  active_to: null
+  retirement_announced: 2023-02-18
+  biography: "Small-framed Tokyo-born actress who debuted in September 2020 under SOD Create's 青春時代 label as 百瀬あすか (Asuka Momose), quickly becoming one of the label's most prominent faces. She left exclusive status in February 2021 and spent two prolific freelance years working across MOODYZ, 本中, ダスッ!, ROYAL, and dozens of other labels. She announced retirement on 18 February 2023 and officially retired on 31 December 2023. In May 2025 she returned under the new stage name 小栗操 (Misao Oguri), signing a simultaneous exclusive contract with 本中, ダスッ!, and ROYAL. Reviewers have noted her naturally high hair density and sharp comedic personality as signature traits that carry across both career eras."
+  primary_studios:
+  - name: SOD Create (青春時代)
+    company: "SOD Create"
+    from: 2020-09-08
+    to: 2021-02-01
+    role: Exclusive contract actress
+  - name: "本中 / HMN WORKS"
+    company: MOODYZ Group
+    from: 2021-03-25
+    to: 2023-12-31
+    role: Freelance regular
+  - name: "ダスッ!"
+    company: MOODYZ Group
+    from: 2021-03-13
+    to: 2023-12-31
+    role: Freelance regular
+  - name: ROYAL
+    company: MOODYZ Group
+    from: 2021-07-19
+    to: 2023-12-31
+    role: Freelance regular
+  - name: "本中 / ダスッ! / ROYAL (三社専属)"
+    company: MOODYZ Group
+    from: 2025-05-20
+    to: null
+    role: Tri-label exclusive contract actress (return era)
+  awards: null
+  legacy: "One of the most prolific freelance actresses of the early 2020s, 百瀬あすか accumulated a catalog spanning well over 200 titles across nearly every major label in under three years. Her career hiatus and rebranded return as 小栗操 in 2025 — immediately as a three-label exclusive — marks one of the higher-profile comebacks of the mid-2020s JAV industry."
+
+meta:
+  total_owned_titles: 60
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 230
+  coverage_note: "DB owns 60 titles spanning 2021–2025 (mix of 百瀬あすか freelance era and 小栗操 return era). Wikipedia filmography lists 200+ entries across both eras."
+  confidence: "High — DOB, birthplace, blood type, height, measurements and cup all sourced directly from the Wikipedia 基礎情報 infobox (https://ja.wikipedia.org/wiki/小栗操). Identity confirmed: canonical_name Asuka Momose = former stage name 百瀬あすか; current stage name is 小栗操 since May 2025. DB stage_name should be updated from 小栗操 to 小栗操 (already correct) and canonical_name should eventually reflect current name or kept as historical anchor. No awards section found in Wikipedia."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E5%B0%8F%E6%A0%97%E6%93%8D"
+  - "organizer3 local DB (actress_id=1084)"
+  portfolio_listed: 0

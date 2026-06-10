@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Miyagi
+    given_name: Rie
+    stage_name: 宮城りえ
+    reading: みやぎ りえ
+    alternate_names: null
+  date_of_birth: 2002-07-31
+  birthplace: null
+  blood_type: null
+  height_cm: 161
+  measurements:
+    bust: 86
+    waist: 62
+    hip: 95
+  cup: E
+  active_from: 2022-11-08
+  active_to: null
+  retirement_announced: null
+  biography: "Rie Miyagi (宮城りえ) is a Japanese AV actress born July 31, 2002, and managed by the LIGHT talent agency. She made her AV debut on November 8, 2022, as an exclusive contract actress with S1 NO.1 STYLE under the title 'Shinjin No.1 Style: Miyagi Rie AV Debut' (SSIS-553). In June 2024 she transferred her exclusive contract to Honnaka, then in October 2024 stepped away from studio exclusivity to work as an independent freelance actress across multiple labels. She gained mainstream attention when FLASH magazine dubbed her the 'AV-world Miyazawa Rie' and her work has charted multiple times in FANZA weekly and monthly sales rankings."
+  primary_studios:
+  - name: "S1 No.1 Style"
+    company: "S1 NO.1 STYLE"
+    from: 2022-11-08
+    to: 2024-05-31
+    role: "Exclusive contract actress"
+  - name: Honnaka
+    company: Honnaka
+    from: 2024-06-01
+    to: 2024-09-30
+    role: "Exclusive contract actress"
+  awards: null
+  legacy: "One of the active generation of S1-era actresses who debuted in 2022, Rie Miyagi distinguished herself by working across a broad range of labels after leaving studio exclusivity, accumulating over 76 titles within roughly two years of her debut."
+
+meta:
+  total_owned_titles: 76
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only — portfolio section not yet researched."
+  confidence: "HIGH for DOB, height, measurements, cup, debut date, studio affiliations — all from Japanese Wikipedia infobox and 略歴 section. Birthplace and blood type are null (blank in Wikipedia infobox, no alternative source checked). Measurements qualified as 2022年時点 per infobox."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E5%AE%AE%E5%9F%8E%E3%82%8A%E3%81%88"
+  portfolio_listed: 0
