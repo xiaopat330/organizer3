@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Amami
+    given_name: Tsubasa
+    stage_name: 天海つばさ
+    reading: あまみ つばさ
+    alternate_names: null
+  date_of_birth: 1988-03-08
+  birthplace: Hiroshima Prefecture, Japan
+  blood_type: B
+  height_cm: 160
+  measurements:
+    bust: 85
+    waist: 60
+    hip: 88
+  cup: E
+  active_from: 2009-10-01
+  active_to: 2025-01-21
+  retirement_announced: 2024-10-01
+  biography: "Tsubasa Amami is a Japanese AV actress from Hiroshima Prefecture who debuted on October 1, 2009 with 'First Impression 44' on Idea Pocket, establishing herself as one of the studio's flagship exclusive performers. She sustained an unbroken exclusive contract with Idea Pocket for over 15 years — a rare feat in the industry — releasing approximately one new solo title per month throughout the 2010s and into the early 2020s. In addition to her Idea Pocket output, she made regular guest appearances on Attackers (RBD, SHKD, SSPD series) and collaborated with MOODYZ, Madonna, and Tameike Gorō labels for notable projects. She moved talent agencies from 名東(DINO) to T-Powers in April 2018 while maintaining her Idea Pocket contract. On October 1, 2024, marking her 15th debut anniversary, she announced via X (Twitter) that she would enter an indefinite hiatus beginning in November 2024."
+  primary_studios:
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2009-10-01
+    to: 2024-10-08
+    role: Exclusive contract actress
+  awards:
+  - event: スカパー!アダルト放送大賞
+    year: 2011
+    category: アサヒ芸能賞
+  - event: AV OPEN
+    year: 2017
+    category: "ベストパッケージ賞 (AVOP-301 LEGEND IMPRESSION 史上最強コンテンツで贈る奇跡の共演!240分)"
+  legacy: "Tsubasa Amami is regarded as one of the defining exclusive performers of Idea Pocket's golden era, known for her consistency, longevity, and broad genre range across over 200 solo titles spanning 15 years. Her ability to remain a top-tier draw at a single studio across multiple industry cycles — while also earning recognition at Attackers and other labels — made her one of the most durable GODDESS-tier performers of the 2010s generation."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 200
+  coverage_note: "Profile only. Wikipedia filmography documents 150+ AV titles from 2009–2025 across Idea Pocket (IPTD, IDBD, IPZ, IPX, IPZZ, AVOP, IPVR), Attackers (RBD, SHKD, SSPD, ATKD, ATAD), MOODYZ (MIRD), Madonna (JUL), Tameike Gorō (MEYD, MBYD), and minor labels. Total known releases estimated at 200+ including compilations and VR titles."
+  confidence: "High confidence on all profile fields. DOB, birthplace, blood type, height, measurements, and cup sourced directly from Japanese Wikipedia infobox. Debut date confirmed from Wikipedia filmography (IPTD-500, 2009-10-01). Note: Wikipedia states birthplace as Hiroshima Prefecture but notes some media list Tokyo — Hiroshima is the Wikipedia-canonical value. active_to set to date of last Wikipedia-documented individual release (MBYD-399, 2025-01-21); retirement_announced is the date of her hiatus announcement on X. Studio agency history (名東→T-Powers April 2018) sourced from Minnano-AV profile notes."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%A4%A9%E6%B5%B7%E3%81%A4%E3%81%B0%E3%81%95
+  - https://www.minnano-av.com/actress611627.html
+  portfolio_listed: 0
+
+portfolio: []

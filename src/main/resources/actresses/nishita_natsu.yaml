@@ -1,0 +1,59 @@
+profile:
+  name:
+    family_name: Nishita
+    given_name: Natsu
+    stage_name: 西田那津
+    reading: にしだ なつ
+    alternate_names:
+    - name: "Sumire Kurokawa"
+      note: "primary working name 黒川すみれ (くろかわ すみれ) since 2018 return to AV; name under which nearly all owned titles were released"
+    - name: "Natsume Inagawa"
+      note: "stage name 稲川なつめ used 2011–2013 under Five Promotion"
+    - name: "田丸麻紀子"
+      note: "early name variant per Wikipedia"
+    - name: "辻村成美"
+      note: "early name variant per Wikipedia"
+    - name: "西島すみれ"
+      note: "early name variant per Wikipedia"
+  date_of_birth: 1991-04-25
+  birthplace: "Shiga Prefecture, Japan"
+  blood_type: O
+  height_cm: 167
+  measurements:
+    bust: 88
+    waist: 56
+    hip: 88
+  cup: G
+  active_from: 2010-10-15
+  active_to: null
+  retirement_announced: null
+  biography: "Sumire Kurokawa is a Japanese AV actress from Shiga Prefecture who debuted in AV in October 2010, initially working under multiple stage names before settling on 稲川なつめ (Natsume Inagawa) from 2011 to 2013. After a brief period as a stripper at Shinjuku New Art in late 2013 she took a hiatus from AV work. She returned to AV in 2018 under her current stage name 黒川すみれ, signed with the agency Mines (マインズ), and has remained prolific across a wide range of labels including DASS, MIAA, MEYD, and many others. In 2020 she briefly used the name 西田那津 (Nishita Natsu) after moving to Life Promotion, but returned to 黒川すみれ later the same year. She ranked 15th in the FANZA 2023 annual AV actress ranking and 16th in the 2023 first-half ranking."
+  primary_studios:
+  - name: "Five Promotion (稲川なつめ名義)"
+    company: "Five Promotion"
+    from: 2011-01-01
+    to: 2013-11-01
+    role: "AV actress"
+  - name: "Mines (マインズ)"
+    company: "Mines"
+    from: 2018-08-01
+    to: null
+    role: "AV actress"
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 143
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "143 titles in local DB across labels including DASS, MIAA, MIAB, MEYD, LULU, JUQ, ADN, BF, AVSA, ROYD, NGOD, VENU, WAAA, MKMP, GVH, NACR, and many others. All are under the 黒川すみれ or 西田那津 era (2018+). The 稲川なつめ era (2011–2013) is not represented in the local library."
+  confidence: "Strong — Japanese Wikipedia article confirmed this person (黒川すみれ / 西田那津). DOB 1991-04-25 is the authoritative infobox value; Wikipedia also notes a second listed DOB of 1989-01-30 associated with the 西田那津 name change in 2020, likely a false age used for that persona. Measurements (88-56-88, G cup, 167cm) from Wikipedia infobox dated 2024. Minnano-AV cross-check was not completed — Puppeteer unavailable and minnano-av.com returned 404 to plain HTTP; measurements are single-sourced from Wikipedia. active_from is first known AV title (October 15, 2010 under 篠原かすみ). Five Promotion contract start date approximated to 2011-01-01 as exact start is unknown. Birthplace confirmed as 滋賀県 from Wikipedia and web search corroboration. primary_studios entries reflect management agencies (she is a freelancer across many makers, with no exclusive studio contract)."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E8%A5%BF%E7%94%B0%E9%82%A3%E6%B4%A5"
+  - "https://ja.wikipedia.org/wiki/%E9%BB%92%E5%B7%9D%E3%81%99%E3%81%BF%E3%82%8C"
+  - "https://www.themoviedb.org/person/3110489"
+  portfolio_listed: 0
+
+portfolio: []

@@ -1,0 +1,51 @@
+profile:
+  name:
+    family_name: Saito
+    given_name: Amiri
+    stage_name: 斎藤あみり
+    reading: さいとう あみり
+    alternate_names:
+    - name: 斎藤 あみり
+      note: "Full-width space form used in Wikipedia infobox; functionally identical to 斎藤あみり"
+  date_of_birth: 1999-03-08
+  birthplace: Shizuoka Prefecture, Japan
+  blood_type: A
+  height_cm: 161
+  measurements:
+    bust: 84
+    waist: 52
+    hip: 81
+  cup: E
+  active_from: 2019-09-20
+  active_to: null
+  retirement_announced: 2025-03-09
+  biography: "Amiri Saito (斎藤あみり), born 8 March 1999 in Shizuoka Prefecture, is a Japanese AV actress who debuted on 20 September 2019 as a Prestige exclusive under the catchphrase 'Japan's most sexy Saito-san,' having previously worked at an Akihabara maid cafe. She remained a Prestige exclusive until November 2021, when she transferred to Idea Pocket as an exclusive; from June 2022 she moved to a freelance model career, working across a wide range of labels including MOODYZ, kira kira, kawaii*, Attackers, MAXING, and many others. Known for her slender build, gyaru image, and high FANZA chart performance — her MOODYZ title '入り浸りギャルにま○こ使わせて貰う話 実写版' reached #1 on the FANZA video floor ranking in March 2024 — she became one of the most frequently charting actresses of the mid-2020s. On 9 March 2025 she announced via social media that she would retire at the end of December 2025."
+  primary_studios:
+  - name: Prestige
+    company: Prestige
+    from: 2019-09-20
+    to: 2021-10-31
+    role: Exclusive contract actress
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2021-11-01
+    to: 2022-05-31
+    role: Exclusive contract actress
+  awards:
+  - event: "このエロVRがすごい!"
+    year: 2023
+    category: 女優賞
+  legacy: "Amiri Saito is remembered as one of the defining gyaru-type actresses of the early-to-mid 2020s freelance era, achieving rare chart-topping FANZA performance across multiple labels during her post-exclusive period and maintaining a highly active output through her announced 2025 retirement."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not yet researched. DB record id=2422 (canonical 'Amiri Saito', stage_name 斎藤あみり, tier GODDESS). Representative owned titles span ABP/ABW (Prestige), IPX/MIAB (Idea Pocket + MOODYZ), BLK, DASS, ROYD, CAWD, XVSR, NACR, SQTE, MXGS — consistent with Prestige exclusive (2019–2021), Idea Pocket exclusive (2021–2022), and freelance (2022–2025) career phases."
+  confidence: "All profile fields sourced from Japanese Wikipedia infobox (斎藤あみり article, fetched 2026-06-09). Measurements stated as 公称サイズ（2023年時点） — values are as of 2023. Retirement announcement date (2025-03-09) sourced from Wikipedia citation of actress's own X/Twitter post. Studio transition dates derived from Wikipedia article text: Prestige debut 2019-09-20 (ABP first title date), Idea Pocket transfer from '2021年11月', freelance from '2022年6月'. active_to is null as she had not yet retired as of the announcement; retirement_announced set to 2025-03-09 per the social media announcement. Minnano-AV profile page (actress925186) confirmed identity but showed filmography list only — no separate measurements panel available via fetch. No discrepancies found between Wikipedia and Minnano-AV identity data."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/斎藤あみり
+  - https://www.minnano-av.com/actress925186.html
+  portfolio_listed: 0

@@ -1,0 +1,60 @@
+profile:
+  name:
+    family_name: Arai
+    given_name: Rima
+    stage_name: 新井リマ
+    reading: あらい りま
+    alternate_names:
+    - name: Rima Arai
+      note: Standard Hepburn romanization used in DB canonical_name.
+  date_of_birth: 2000-10-03
+  birthplace: Hyogo Prefecture, Japan
+  blood_type: AB
+  height_cm: 157
+  measurements:
+    bust: 88
+    waist: 56
+    hip: 84
+  cup: F
+  active_from: 2021-06-24
+  active_to: null
+  retirement_announced: null
+  biography: "Rima Arai (新井リマ) is a Japanese AV actress from Hyogo Prefecture, born October 3, 2000 (AB blood type, 157 cm, F-cup). She debuted in June 2021 as an exclusive actress under SODクリエイト's KMHR (キミホレ) label, quickly gaining attention for her 'ちょいギャル' (casual gyaru) persona and was featured in a May 2022 issue of Weekly Playboy as a pioneer of the gyaru boom in adult video. After leaving KMHR exclusive status in November 2021 she became a single-title freelancer, appearing across numerous labels and achieving multiple FANZA rental and sales chart number-one titles. In December 2024 she made her mainstream film debut in 'Netoware, Junai.' (directed by Keita Donmoto). From June 2025 she holds a triple exclusive contract with MOODYZ, kira☆kira, and Ones Factory."
+  primary_studios:
+  - name: "KMHR (キミホレ) / SODクリエイト"
+    company: SODクリエイト
+    from: 2021-06-24
+    to: 2021-11-01
+    role: Exclusive contract actress (debut label)
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2025-06-01
+    to: null
+    role: Triple exclusive (alongside kira☆kira and Ones Factory)
+  - name: "kira☆kira"
+    company: "kira☆kira"
+    from: 2025-06-01
+    to: null
+    role: Triple exclusive (alongside MOODYZ and Ones Factory)
+  - name: "ワンズファクトリー (Ones Factory)"
+    company: "ワンズファクトリー"
+    from: 2025-06-01
+    to: null
+    role: Triple exclusive (alongside MOODYZ and kira☆kira)
+  awards: []
+  legacy: "Rima Arai emerged as one of the breakout AV actresses of the early 2020s, credited in mainstream press with reigniting the 'ちょいギャル' (casual gyaru) trend. Her prolific freelance output — spanning dozens of labels — produced multiple FANZA ranking number-one titles and built a large fan following that she has cited as her primary professional motivation."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not researched. DB record id 2276. Representative codes include BLK-566, MIAA-690, HMN-261, CAWD-372, KMHRS-044, MNGS-002, WAAA-234, PPPE-091, JUFE-583, MIMK-154, LULU-144, SQTE-407."
+  confidence: "Profile fields sourced from Japanese Wikipedia (新井リマ) — high confidence on DOB (2000-10-03), Hyogo Prefecture birthplace, blood type AB, height 157 cm, measurements 88-56-84 (公称サイズ 2021年時点), F-cup, debut date 2021-06-24. Identity verified: article title matches stage name 新井リマ exactly; debut label KMHR/SODクリエイト matches KMHRS-044 in representative title codes. Studio history: KMHR exclusive Jun–Nov 2021; freelance Nov 2021–May 2025; triple exclusive MOODYZ+kira☆kira+Ones Factory from June 2025. active_to is null (still active as of article content through 2026). Minnano-AV cross-check not completed — Puppeteer unavailable and the site blocks name-search GET parameters; Wikipedia infobox data is internally consistent and confirmed against KMHRS code evidence. UNCONFIRMED: city-level birthplace within Hyogo Prefecture (Wikipedia states prefecture only). No awards section found in Wikipedia article."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/新井リマ
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=2276 (canonical 'Rima Arai', stage_name 新井リマ, tier GODDESS)"
+  portfolio_listed: 0
+
+portfolio: []

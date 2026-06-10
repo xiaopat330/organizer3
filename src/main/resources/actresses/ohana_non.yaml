@@ -1,0 +1,57 @@
+profile:
+  name:
+    family_name: Ohana
+    given_name: Non
+    stage_name: 小花のん
+    reading: おはな のん
+    alternate_names:
+    - name: "清家 紬"
+      note: "Birth-name/gravure alias (せいけ つむぎ / Seike Tsumugi); used in gravure title MMND-204 (2022)"
+    - name: "小花 暖"
+      note: "Simplified-Chinese name variant used in Chinese-language markets"
+  date_of_birth: 2001-06-28
+  birthplace: "Oita Prefecture, Japan"
+  blood_type: B
+  height_cm: 157
+  measurements:
+    bust: 86
+    waist: 60
+    hip: 88
+  cup: F
+  active_from: 2021-10-07
+  active_to: null
+  retirement_announced: null
+  biography: "Non Ohana (小花のん; reading おはな のん), born 28 June 2001 in Oita Prefecture, is a Japanese AV actress and gravure model managed by C-more ENTERTAINMENT. She debuted on 7 October 2021 with SOD Create's キミホレ (KMHR) label, and quickly gained traction — her debut work topped FANZA's rental weekly chart in February 2022, and a second title held the top position for three consecutive weeks in May–June 2022. After working prolific non-exclusive across dozens of labels in 2022–2023, she joined Madonna as an exclusive in December 2023, transitioning to the mature-woman (熟女) segment and reaching 7th in FANZA's 2023 annual actress ranking. In October 2025 she transferred to the DAHLIA label (a FALENO group affiliate) as an exclusive. Alongside her AV career she is active as a gravure model, has released multiple photobooks and digital photo collections, and has performed live as a singer. Her special skill is classical ballet, which she studied for eight years."
+  primary_studios:
+  - name: "SODクリエイト / キミホレ"
+    company: "SOD Create"
+    from: 2021-10-07
+    to: 2021-11-30
+    role: "Debut exclusive (キミホレ label, 2 titles)"
+  - name: "マドンナ"
+    company: "Madonna"
+    from: 2023-12-01
+    to: 2025-08-31
+    role: "Exclusive contract actress"
+  - name: "DAHLIA"
+    company: "FALENO"
+    from: 2025-10-01
+    to: null
+    role: "Exclusive contract actress"
+  awards: null
+  legacy: "Non Ohana is one of the most prolific and commercially successful AV actresses to debut in the early 2020s, building a massive non-exclusive catalog before pivoting to a high-profile exclusive career at Madonna and then DAHLIA. She is widely recognized for her combination of a girl-next-door appearance, F-cup figure, and high-volume output, consistently ranking in FANZA annual charts from 2022 onward."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not yet researched. DB record id=2452 (canonical 'Non Ohana', stage_name 小花のん, tier GODDESS). Representative titles in DB confirmed against Wikipedia filmography: JUQ-027 (2022-07-12), DLDSS-435 (2025-11-06), CAWD-352 (2022-03-01), PPPE-068 (2022-08-16), MIAA-678 (2022-07-19), ROYD-104 (2022-09-27), EBOD-919 (2022-06-21), HMN-178 (2022-05-24), JUR-111 (2024-12-24), WAAA-231 (2023-01-03), MEYD-772 (2022-07-19), MKMP-502 (2023-01-10) — all present, identity confirmed."
+  confidence: "Profile fields sourced from Japanese Wikipedia (小花のん) infobox, with full identity confirmation via filmography cross-match. DOB 2001-06-28 cited in Wikipedia via Smart FLASH interview. Birthplace Oita Prefecture cited via SOD debut interview. Blood type B from Wikipedia infobox. Measurements 86-60-88 F from Wikipedia infobox (marked 公称サイズ — official declared size, with note that timing is unspecified). Debut date 2021-10-07 from Wikipedia filmography first entry (KMHRS-055). Studio history (SODクリエイト→freelance→Madonna→DAHLIA) directly stated in Wikipedia 専属契約 infobox field. Minnano-AV not accessible via HTTP fetch (geo-restriction or session requirement); Wikipedia is the sole confirmed cross-reference. No retirement announced as of 2026-06-09."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/小花のん
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=2452 (canonical 'Non Ohana', stage_name 小花のん, tier GODDESS)"
+  portfolio_listed: 0
+
+portfolio: []

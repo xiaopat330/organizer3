@@ -1,0 +1,67 @@
+profile:
+  name:
+    family_name: Ogura
+    given_name: Yuna
+    stage_name: 小倉由菜
+    reading: おぐら ゆな
+    alternate_names: null
+  date_of_birth: 1998-11-05
+  birthplace: "Yokohama, Kanagawa Prefecture, Japan"
+  blood_type: O
+  height_cm: 156
+  measurements:
+    bust: 83
+    waist: 58
+    hip: 87
+  cup: D
+  active_from: 2017-12-07
+  active_to: null
+  retirement_announced: null
+  biography: "Yuna Ogura (小倉由菜) is a Japanese AV actress and YouTuber from Yokohama, Kanagawa Prefecture, born 5 November 1998, who has been an exclusive SODstar (SODクリエイト) actress since her debut in December 2017. She made her AV debut on 2017-12-07 with STAR-854 '小倉由菜 AV Debut' as the third entry in SODstar's three-month consecutive debut series, going on to win the SOD AWARD 2018 Best New Actress award. She is known for a strong VR catalog — her 2019 VR title '雪山遭難VR' (3DSVR-0382) ranked first in the '2019 upper-half best erotic VR' poll and second in the 2016–2021 all-time best — and has cultivated a large Korean fanbase through active YouTube activity (channel 'OGURA YUNA TV' reached 470,000 subscribers before closure; successor channel 'OGUOGU' launched 2023). She also appeared in the Netflix series 全裸監督 (seasons 1 and 2) and the pink film '濡れた愛情 ふしだらに暖めて' (2019), for which she won the Momo-Kuma Award for Best Actress in 2020. In April 2026 she announced a temporary hiatus from acting to study abroad."
+  primary_studios:
+  - name: SODstar
+    company: SODクリエイト
+    from: 2017-12-07
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: SOD AWARD
+    year: 2018
+    category: 最優秀新人女優賞 (Best New Actress)
+  - event: SOD AWARD
+    year: 2018
+    category: ラムタラ女優作品賞
+  - event: SOD AWARD
+    year: 2019
+    category: 優秀専属女優賞
+  - event: "ゲオTV×メンズサイゾー ADULT AWARD"
+    year: 2019
+    category: "キス&フェラ部門グランプリ"
+  - event: ピンク映画ベストテン（桃熊賞）
+    year: 2020
+    category: 主演女優賞
+  - event: "スカパー!アダルト放送大賞"
+    year: 2020
+    category: "スカパー!オンデマンドアダルト賞"
+  - event: "第43回黄金撮影賞 (Golden Cinematography Awards, Korea)"
+    year: 2023
+    category: 親善文化交流賞
+  - event: "2023 Korea Culture Entertainment Award"
+    year: 2023
+    category: 芸能賞
+  legacy: "Yuna Ogura is one of the most prominent SODstar exclusive actresses of her generation, recognized for exceptional VR content and as the leading Japanese AV actress among Korean audiences. Her cross-border appeal — including Korean-language YouTube content, television appearances in South Korea, and awards from Korean entertainment organizations — represents a rare mainstream international profile for a Japanese AV performer."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 101
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Owned titles: STAR (20, debut series), STARS (57, main series), START (23, current series), SODS (1, compilation), NHDTB (1, Natural High guest), REBD+REBDB (3, Rebecca image video), OAE (1), PRBY (1), SGKI (1). SSHN-002 is in the DB but attributed to null (not linked to actress_id 1379). Portfolio not yet researched."
+  confidence: "Profile sourced from Japanese Wikipedia (小倉由菜 article, fetched 2026-06-09). Identity confirmed: article title matches 小倉由菜 exactly; debut STAR-854 on 2017-12-07 appears as first filmography entry; SODstar exclusive throughout matches DB label distribution (STAR/STARS/START = 100 of 101 owned titles). DOB 1998-11-05, birthplace Yokohama/Kanagawa, blood type O, height 156 cm, and measurements 83-58-87 D-cup all from Wikipedia infobox (noted as 2024 figures). Cup size listed as D65 (2024). Minnano-AV not accessible (Puppeteer unavailable; fetch returned 404 on search URL). active_to is null: Wikipedia notes a 2026-04-06 announcement of overseas study hiatus (休業), not a formal retirement. Agency: Mine's (マインズ)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/小倉由菜
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=1379 (canonical 'Yuna Ogura', stage_name 小倉由菜, tier GODDESS, 101 owned titles)"
+  portfolio_listed: 0

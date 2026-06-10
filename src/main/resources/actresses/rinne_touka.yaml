@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Rinne
+    given_name: Touka
+    stage_name: 凛音とうか
+    reading: りんね とうか
+    alternate_names:
+    - name: "Rin"
+      note: "Short-form name used in some Prestige/MGT titles (e.g. MGT-071)"
+    - name: "Kawase Tomoko"
+      note: "川瀬知子 — alias used in SODCreate NTR production SDMT-016"
+  date_of_birth: 1990-10-23
+  birthplace: Chiba Prefecture, Japan
+  blood_type: O
+  height_cm: 165
+  measurements:
+    bust: 98
+    waist: 58
+    hip: 90
+  cup: I
+  active_from: 2018-02-19
+  active_to: 2022-03-15
+  retirement_announced: 2022-03-15
+  biography: "Touka Rinne is a Japanese former AV actress from Chiba Prefecture who debuted on February 19, 2018 with S1 NO.1 STYLE (SSNI-140), marketed as a 27-year-old newlywed with an I-cup figure. She held the S1 exclusive contract for approximately six months before transitioning to freelance (企画単体) work from August 2018, going on to appear across a wide range of studios including PREMIUM, MOODYZ, Madonna, Attackers, Fitch, E-BODY, and many others. Signed to the talent agency LINX, she announced her departure from the agency on June 8, 2020, with the effective date of July 9, 2020, noting a temporary hiatus while clarifying she was not retiring. She resumed active release activity from approximately July 2021. On March 15, 2022, she released her formal retirement title (PRED-380), marking the end of her approximately four-year career."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: S1 NO.1 STYLE
+    from: 2018-02-19
+    to: 2018-08-01
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only. Wikipedia filmography documents a large freelance catalog spanning 2018–2022 across S1, PREMIUM, MOODYZ, Madonna, Attackers, Fitch, E-BODY, OPPAI, Honnakatomo, Naturalhigh, Glory Quest, HMJM, SODCreate, Crystal Eizo, BeFree, Dream Ticket, and many other labels, plus a VR filmography. Total owned titles and release count not yet tallied."
+  confidence: "High confidence on all profile fields. DOB, birthplace, blood type, height, measurements, and cup sourced directly from Japanese Wikipedia infobox (2018 reference point noted in Wikipedia). Debut date confirmed from Wikipedia filmography (SSNI-140, 2018-02-19). S1 exclusive end date approximate — Wikipedia states 'from August 2018 became freelance' without a precise date; active_to for S1 set to 2018-08-01 as a placeholder. Retirement date confirmed from Wikipedia: final title PRED-380 released 2022-03-15, described as retirement title. alternate_names 'りん' and '川瀬知子' sourced directly from Wikipedia infobox 別名 field. Minnano-AV page (actress96328) confirmed name and identity match but did not expose a structured profile block after site redesign."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E5%87%9B%E9%9F%B3%E3%81%A8%E3%81%86%E3%81%8B
+  - https://www.minnano-av.com/actress96328.html
+  portfolio_listed: 0
+
+portfolio: []

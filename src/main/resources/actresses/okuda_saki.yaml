@@ -1,0 +1,58 @@
+profile:
+  name:
+    family_name: Okuda
+    given_name: Saki
+    stage_name: 奥田咲
+    reading: おくだ さき
+    alternate_names:
+    - name: Okudasaki
+      note: "One-word stylization used in some online contexts; same person, same stage name 奥田咲."
+  date_of_birth: 1992-06-15
+  birthplace: Chiba Prefecture, Japan
+  blood_type: O
+  height_cm: 148
+  measurements:
+    bust: 92
+    waist: 55
+    hip: 80
+  cup: H
+  active_from: 2011-06-10
+  active_to: null
+  retirement_announced: null
+  biography: "Saki Okuda (奥田咲) is a Japanese AV actress from Chiba Prefecture, born June 15, 1992, known for her petite 148 cm frame combined with an exceptionally large H-cup bust. She entered the industry at 19 and made her AV debut in June 2011 as an exclusive for Alice Japan, where she was also a member of the label's idol unit アリスた～ず★. After graduating from Alice Japan in January 2013 she briefly joined E-BODY (February–July 2013), then signed as an exclusive with S1 No.1 Style from August 2013 — a tenure that reached its 10th anniversary in 2023, making her only the third S1 actress in history to achieve that milestone. Alongside her AV career she has appeared in mainstream pink films, stage productions (including founding and producing the theater group どんどんチェリー in 2018), and various mainstream media appearances. She has maintained consistent top-100 placements in FANZA annual rental rankings every year from 2014 through 2025."
+  primary_studios:
+  - name: Alice Japan (アリスJAPAN)
+    company: Alice Japan
+    from: 2011-06-01
+    to: 2013-01-31
+    role: "Exclusive contract actress; member of アリスた～ず★ idol unit"
+  - name: E-BODY
+    company: E-BODY
+    from: 2013-02-01
+    to: 2013-07-31
+    role: Exclusive contract actress
+  - name: S1 No.1 Style (エスワン ナンバーワンスタイル)
+    company: S1 No.1 Style
+    from: 2013-08-19
+    to: null
+    role: "Exclusive contract actress (ongoing); 10th-anniversary exclusive milestone reached August 2023"
+  awards:
+  - event: "AV OPEN 2015"
+    year: 2015
+    category: "女優部門1位 (co-starring title エスワン七姉妹と同棲ハーレム性活; also 準グランプリ)"
+  legacy: "One of S1's longest-serving exclusive actresses, Saki Okuda is celebrated for her striking physical contrast — a petite 148 cm height paired with an H-cup bust — and has built an unusually durable mainstream-adjacent career spanning stage theater, pink film, and continuous FANZA top-100 rental rankings for over a decade."
+
+meta:
+  total_owned_titles: 160
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Owned titles span Alice Japan (DV, PDV, EBOD guest), S1 (SNIS, SOE, SSNI, SSIS, SONE, OFJE, ONSD), and minor labels (MEYD, MFYD, MIMK, EYAN, SNOS). Does not include streaming-only or VR-exclusive titles not captured in the local filesystem sync."
+  confidence: "Profile data sourced from Japanese Wikipedia infobox and article body (2026-06-09 fetch). DOB 1992-06-15 is the primary confirmed date; Wikipedia footnote 21 acknowledges an alternate profile using 1991-11-14 (sourced from an archived MONDO TV page) — treating 1992-06-15 as authoritative per the article infobox. Measurements (92-55-80, H65) are labeled as 2022年2月時点 公称 (self-reported as of February 2022). active_from set to 2011-06-10 (first Alice Japan AV release date from Wikipedia filmography: 新人×アリスJAPAN 着エロアイドル限界突破, June 10, 2011); she also released an AIV in January 2011. active_to is null — she remains active as of 2026 per the Wikipedia filmography listing 2026 releases. S1 start date 2013-08-19 sourced from first S1 Wikipedia filmography entry (専属NO.1STYLE 秘密捜査官の女, August 19, 2013). No formal retirement announced. Agency: 有限会社オフィスオールドクルー. Minnano-AV cross-check not performed (geo-restricted without Japan VPN)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/奥田咲
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=1209 (canonical 'Saki Okuda', stage_name 奥田咲, 160 titles across DV/EBOD/EYAN/MEYD/MFYD/MIMK/OFJE/ONSD/PDV/SNIS/SNOS/SOE/SONE/SSIS/SSNI)"
+  portfolio_listed: 0
+
+portfolio: []

@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Sasaki
+    given_name: Aki
+    stage_name: 佐々木あき
+    reading: ささき あき
+    alternate_names:
+    - name: 今井沙月
+      note: alternate name (別名) per Wikipedia infobox
+  date_of_birth: 1983-03-17
+  birthplace: Saitama Prefecture, Japan
+  blood_type: null
+  height_cm: 165
+  measurements:
+    bust: 85
+    waist: 60
+    hip: 90
+  cup: D
+  active_from: 2015-10-08
+  active_to: null
+  biography: "Aki Sasaki (佐々木あき) is a Japanese AV actress from Saitama Prefecture who debuted in October 2015 with SOD Create's wife label, marketed as 'the best woman in her 30s in SOD wife label history.' Her debut work framed her as a married mother of two, and she quickly became one of the most prolific married-woman genre actresses of the 2010s, appearing in over 400 titles across dozens of labels — notably Madonna (JUY/JUX series), MOODYZ (MIAD/MIAE/MIGD), and Prestige (PRED) — in under four years without holding a studio exclusive. She announced her retirement in December 2018, citing her children's growth and having met her savings target, with her final original work in April 2019; she had said she would 'only return if chased by debt collectors.' She resumed her social media presence in September 2025 and returned as a MOODYZ exclusive in December 2025 with active releases continuing into 2026. For many years she publicly claimed a birth date of December 24, 1979, but corrected this to March 17, 1983 in a December 2025 post on X."
+  primary_studios:
+  - name: SOD Create
+    company: SODクリエイト
+    from: 2015-10-08
+    to: 2016-01-01
+    role: Debut label (SDNM series); non-exclusive from early 2016 (approximate end date)
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2025-12-01
+    to: null
+    role: Exclusive contract actress (comeback)
+  awards:
+  - event: AV OPEN 2016
+    year: 2016
+    category: 人妻熟女部門 2位 (Married Women / Mature Women category, 2nd place; title AVOP-270)
+  - event: FLASHセクシー女優ランキング (FLASH Sexy Actress Ranking)
+    year: 2025
+    category: 36位 (36th place; cited in FLASH 2026-01-06/13 issue)
+  legacy: "Aki Sasaki is regarded as one of the most productive and acclaimed actresses of the 2010s married-woman (人妻) AV genre, known for high-volume output across premium labels and a distinctive elegant style. Her return to the industry in December 2025 after more than six years away — as a MOODYZ exclusive — was commercially successful, achieving multiple top-10 FANZA chart placements and immediate industry recognition."
+
+meta:
+  total_owned_titles: 122
+  titles_with_japanese_title: 0
+  titles_with_english_title: 0
+  titles_with_release_date: 0
+  total_known_releases: null
+  coverage_note: "Owned titles span many labels including JUY/JUX (Madonna), MIAD/MIAE/MIGD (MOODYZ), HND (Honnaka), PRED/PGD (Prestige), WANZ, CJOD, SDNM (SOD Create), XVSR, REAL, DVAJ, and others. Portfolio research deferred."
+  confidence: "Profile sourced from Japanese Wikipedia infobox (2015 reference snapshot). DOB is the corrected value 1983-03-17 per actress's own X post December 2025 (Wikipedia cites this correction); the previously public false DOB 1979-12-24 was in circulation for the actress's entire first career and is still present on many distributor sites — do not use it. Blood type not listed in Wikipedia infobox; null per procedure. Height listed as 165cm in Wikipedia (2015 公称サイズ); Wikidata lists 166cm — Wikipedia infobox value used per procedure. active_to is null because she is currently active (MOODYZ exclusive comeback from December 2025 with releases into 2026). SOD Create end date 2016-01-01 is approximate — inferred from SDNM-069 being the last SDNM title (released January 2016); she became non-exclusive soon after. Minnano-AV cross-check was not possible (site search returns 404; Puppeteer unavailable)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E4%BD%90%E3%80%85%E6%9C%A8%E3%81%82%E3%81%8D
+  - https://www.wikidata.org/wiki/Q23948849
+  portfolio_listed: 0
+
+portfolio: []

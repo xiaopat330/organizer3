@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Tojo
+    given_name: Natsu
+    stage_name: 東條なつ
+    reading: とうじょう なつ
+    alternate_names: null
+  date_of_birth: 1999-08-19
+  birthplace: Tochigi Prefecture, Japan
+  blood_type: A
+  height_cm: 156
+  measurements:
+    bust: 78
+    waist: 55
+    hip: 85
+  cup: C
+  active_from: 2020-02-02
+  active_to: null
+  biography: "Natsu Tojo is a Japanese AV actress from Tochigi Prefecture who debuted in February 2020 as an exclusive under FALENO's 'FALENOstar' label, quickly gaining recognition for her bright smile, slender figure, and high sensitivity. After her one-year FALENO exclusive ended in late 2020 she transitioned to working as a non-exclusive actress across many labels, steadily building a large cross-studio filmography. By 2022 she had risen to the top tier of FANZA rankings, placing 6th in the annual actress ranking that year. In March 2023 she became an exclusive of Honnaka, then added a dual exclusive with Dassu! in May 2023. She announced a hiatus in August 2023 but returned to new releases in December 2024 and remained active into 2026. Beyond AV she has appeared in Weekly Playboy, Asahi Geino, and FLASH gravure, hosted the CS TV programme 'Kira☆Sma Natchan' from 2023, and served as a FANZA campaign girl in 2021 and 2022."
+  primary_studios:
+  - name: FALENOstar
+    company: FALENO
+    from: 2020-02-02
+    to: 2020-11-25
+    role: Exclusive contract actress
+  - name: Honnaka
+    company: Honnaka
+    from: 2023-03-28
+    to: null
+    role: Exclusive contract actress (dual exclusive with Dassu! from 2023-05)
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Representative DB codes include FSDSS-021, DASS-006, HMN-206, MIAA-366, CAWD-161, FCDSS-009, MUDR-157, SHKD-921, JUKF-055, WAAA-090, ROYD-070, SW-835. Actress works across many labels as non-exclusive; full catalog is very large."
+  confidence: "Strong for DOB, birthplace, blood type, height, measurements, cup — all from Japanese Wikipedia infobox (2020 snapshot per article). Debut date 2020-02-02 from Wikipedia filmography. FALENO exclusive end date from Wikipedia (announced 2020-11-25 on official Twitter). Honnaka exclusive start date 2023-03-28 from Wikipedia. active_to null — actress confirmed active as of 2026 per Wikipedia article content. No awards section found in Wikipedia article. Minnano-AV not consulted (Puppeteer unavailable); web search cross-check confirmed all infobox values match Wikipedia."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/東條なつ
+  portfolio_listed: 0

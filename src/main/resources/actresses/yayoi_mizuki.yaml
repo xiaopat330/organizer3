@@ -1,0 +1,53 @@
+profile:
+  name:
+    family_name: Yayoi
+    given_name: Mizuki
+    stage_name: 弥生みづき
+    reading: やよい みづき
+    alternate_names:
+    - name: みづき
+      note: "Single-name alias used on some early titles and promotional materials."
+    - name: Yayoi Mizuki
+      note: "Standard Hepburn romanization. Note: stage name uses づ (dzu kana), not ず; both romanize to 'zu' in standard Hepburn."
+  date_of_birth: 1998-12-07
+  birthplace: "Kitakyushu, Fukuoka Prefecture, Japan"
+  blood_type: A
+  height_cm: 157
+  measurements:
+    bust: null
+    waist: 60
+    hip: null
+  cup: G
+  active_from: 2019-08-13
+  active_to: null
+  retirement_announced: null
+  biography: "Mizuki Yayoi (弥生みづき) is a Japanese AV actress from Kitakyushu, Fukuoka Prefecture, born December 7, 1998, affiliated with the LIGHT talent agency. She debuted in August 2019 with MOODYZ under the (self-described fictional) persona of a well-bred university student, though she later disclosed she was a NEET at the time. For the first two years she worked as a prolific free agent across dozens of labels, initially in M-oriented and submissive roles before a fetish-domination title by director Sawagani in 2020 reshaped her career toward S/chijo (nymphomaniac) content. Her breakthrough came around 2022 when she broke out as a chijo actress; she ranked 4th on FANZA's 2023 first-half actress ranking and 8th for the full year, and won the Asa-Gei AV Grand Prize for Most Versatile Actress in December 2023. In September 2025 she announced an exclusive contract with KMP's new IROKE label under the million brand, effective October 2025."
+  primary_studios:
+  - name: "Free agent (multi-label)"
+    company: null
+    from: 2019-08-13
+    to: 2025-09-30
+    role: "Non-exclusive appearances across MOODYZ, MAXING, h.m.p, Attackers, Prestige, SOD, Glory Quest, Aurora Project, Dream Ticket, and many others."
+  - name: "million / IROKE (KMP)"
+    company: "Kie-em Productions (ケイ・エム・プロデュース)"
+    from: 2025-10-01
+    to: null
+    role: "Exclusive contract actress under the new IROKE sub-label of KMP's million brand."
+  awards:
+  - event: "アサ芸AV大賞2023"
+    year: 2023
+    category: "最優秀女優賞（マルチプレイヤー部門）"
+  legacy: "One of the most prolific and commercially successful free-agent actresses of the early 2020s, Yayoi Mizuki built a remarkable career through sheer volume and genre range before being recognised with a top FANZA ranking (4th, 2023 first-half) and the Asa-Gei AV Grand Prize. Her pivot from M-submissive to chijo-dominant content, informed by intensive self-study of Kurea Hasumi's performances, is widely cited as a template for actress reinvention."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not researched. DB record id 138 (canonical 弥生みづき, tier GODDESS). Representative owned codes from DB: MIAA-197, HMN-304, LULU-169, MEYD-850, CEMD-429, WAAA-233, MKMP-493, REXD-503, SQTE-452, MXGS-1181, GVH-189, BLK-503."
+  confidence: "DOB (1998-12-07), birthplace (Kitakyushu, Fukuoka), blood type A, height 157 cm, cup G, debut date (2019-08-13), nickname (やよちゃん), alternate name (みづき), agency (LIGHT then KMP million/IROKE Oct 2025), and awards all sourced from Japanese Wikipedia (弥生みづき). IDENTITY CONFIRMED: Wikipedia article title 弥生みづき matches exactly; career description (debut 2019 MOODYZ, Kitakyushu origin, chijo breakout, FANZA rankings, 2025 KMP exclusive) is consistent with DB label set (MIAA=MOODYZ, MXGS=MAXING, HMN=HMN Works, MEYD=Madonna, WAAA/MKMP/SQTE/GVH/BLK multi-label free agent). UNCONFIRMED: bust and hip measurements — the Wikipedia infobox rendered '149 - 60 - 905 cm' which is a markdown corruption artifact (waist=60 is the only plausible value; '149' bust and '905' hip are physically impossible and likely result from the B/W/H label characters being stripped and digits merged). Bust and hip set to null pending a clean source (agency page or Minnano-AV). Note the kana variant: stage name uses づ (voiced dental affricate), not ず; both romanize identically as 'zu' in Hepburn romanization. active_to is null — she is still active as of 2026-06-09."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/弥生みづき
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=138 (canonical 'Mizuki Yayoi', stage_name 弥生みづき, tier GODDESS)"
+  portfolio_listed: 0

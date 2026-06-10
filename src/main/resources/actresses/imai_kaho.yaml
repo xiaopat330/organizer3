@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Imai
+    given_name: Kaho
+    stage_name: 今井夏帆
+    reading: いまい かほ
+    alternate_names:
+    - name: "Ikeda Sara"
+      note: "alternate stage name 池田 沙良, used in select early releases (e.g. スパイスビジュアル 2020)"
+    - name: "Kaho"
+      note: "first-name-only pseudonym used in amateur-format and guest releases throughout 2019–2023"
+  date_of_birth: 1999-11-30
+  birthplace: "Nichinan, Miyazaki Prefecture, Japan"
+  blood_type: O
+  height_cm: 163
+  measurements:
+    bust: 88
+    waist: 60
+    hip: 90
+  cup: G
+  active_from: 2019-01-24
+  active_to: 2023-01-31
+  retirement_announced: 2023-01-01
+  biography: "Kaho Imai is a Japanese former AV actress from Nichinan, Miyazaki Prefecture who debuted in January 2019 as an exclusive with SOD Create's 'Seishun Jidai' (青春時代) label. After leaving that exclusive contract in April 2019 she became a freelance actress, quickly breaking through as a prominent gal-type performer known for her tan complexion, G-cup bust, and energetic on-screen presence. She appeared across a wide range of studios including MOODYZ, kira☆kira, E-BODY, Attackers, and many others, and in August 2020 ranked eleventh in the FANZA first-half AV actress rankings. In September 2021 and 2022 she was appointed campaign girl for HHH Group's Triple Happy Campaign. She announced a hiatus from AV activity at end of January 2023 via her fan club; her X (Twitter) account subsequently became a support account and new original content effectively ceased."
+  primary_studios:
+  - name: SOD Create (Seishun Jidai label)
+    company: SOD Create
+    from: 2019-01-24
+    to: 2019-03-31
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Representative title codes from DB: BLK-408, MIAA-145, MEYD-502, EBOD-696, PPPD-763, HND-664, JUFE-134, ATID-466, MVSD-434, RKI-506, WANZ-911, SDDE-597. Full catalog spans 2019–2023 across many freelance labels; no single dominant studio after SOD exclusive."
+  confidence: "Profile data sourced from Japanese Wikipedia infobox (公称サイズ as of 2019 per cite note). DOB, birthplace, blood type, height, measurements, cup all from Wikipedia infobox. Debut date (2019-01-24) from first filmography entry on Wikipedia. active_to set to 2023-01-31 per fan club hiatus announcement noted in Wikipedia text; retirement_announced set to 2023-01-01 as year-only (day within January unknown — using Jan 1 placeholder per guide). Alternate name 池田 沙良 confirmed from Wikipedia infobox 別名 field. Minnano-AV profile page (actress869403) did not return structured measurement data via fetch — no discrepancies to note. Birthplace confirmed from Wikipedia and SOD debut material."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/今井夏帆"
+  - "https://www.minnano-av.com/actress869403.html"
+  portfolio_listed: 0

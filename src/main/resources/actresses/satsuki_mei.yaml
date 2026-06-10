@@ -1,0 +1,56 @@
+profile:
+  name:
+    family_name: Satsuki
+    given_name: Mei
+    stage_name: さつき芽衣
+    reading: さつき めい
+    alternate_names:
+    - name: Satsuki Mei
+      note: Standard Hepburn romanization of さつき芽衣; used on Minnano-AV and R18 listings.
+  date_of_birth: 2000-08-16
+  birthplace: Shizuoka Prefecture, Japan
+  blood_type: A
+  height_cm: 154
+  measurements:
+    bust: 87
+    waist: 60
+    hip: 86
+  cup: G
+  active_from: 2020-07-07
+  active_to: null
+  retirement_announced: null
+  biography: "Mei Satsuki (さつき芽衣) is a Japanese AV actress born on 16 August 2000 in Shizuoka Prefecture (her agency's official profile listed Yamagata Prefecture, but she publicly stated Hamamatsu, Shizuoka on a Twitcast broadcast; magazine interviews also use Shizuoka Prefecture). She debuted on 7 July 2020 with DEEP'S under the title 'あどけなさとおとなっぽさのちょうど間 19歳新人,' signed as an exclusive. Her exclusive contract with DEEP'S ended on 31 March 2021, after which she worked as a freelance 企画単体 actress across a wide range of labels. In June 2024 she temporarily paused AV filming while continuing public-facing activities, then in September 2025 announced a dual exclusive contract with 無垢 and マドンナ simultaneously from October 2025 — a pairing noted by industry writers as unusual given the studios' contrasting audience profiles (school-girl genre vs. mature-woman genre). She is affiliated with the Mines (マインズ) talent agency and is also a regular at the Roppongi club レッドドラゴン."
+  primary_studios:
+  - name: "DEEP'S (ディープス)"
+    company: "DEEP'S"
+    from: 2020-07-07
+    to: 2021-03-31
+    role: Exclusive contract actress (debut studio)
+  - name: Freelance (企画単体)
+    company: null
+    from: 2021-04-01
+    to: 2025-09-30
+    role: Freelance / 企画単体 actress across multiple labels
+  - name: 無垢 + マドンナ (dual exclusive)
+    company: null
+    from: 2025-10-01
+    to: null
+    role: Dual exclusive contract actress (無垢 and マドンナ simultaneously)
+  awards: []
+  legacy: "Mei Satsuki became one of the most prolific freelance actresses of the early-to-mid 2020s after her DEEP'S exclusive debut, accumulating credits across dozens of labels and ranking 7th in FANZA's 2022 annual AV actress poll. Her 2025 dual exclusive signing with 無垢 (school-girl genre) and マドンナ (mature-woman genre) simultaneously was described by industry commentators as a rare 'achievement' reflecting the breadth of her appeal."
+
+meta:
+  total_owned_titles: 149
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "149 owned titles across 69 labels; top labels by count: CEMD 11, MUDR 10, DVDMS 8, WAAA 5, XVSR 5, JUR 5, GVH 5, DASS 5. Does not include VR titles or productions from labels not represented in the local library."
+  confidence: "Profile data sourced from Japanese Wikipedia infobox (さつき芽衣 article, scraped 2026-06-09). DOB 2000-08-16 and blood type A confirmed from infobox. Height 154 cm, measurements 87-60-86, and cup size (right F / left G, asymmetric) from infobox with note '2020年7月7日時点の公称サイズ' — measurements may have changed over her multi-year career; right-F/left-G asymmetry noted verbatim; G used as primary cup field. Birthplace: Wikipedia article body states she publicly disclosed Hamamatsu, Shizuoka (via Twitcast), while the official agency profile listed Yamagata Prefecture — Shizuoka used per Wikipedia body; magazine interviews also cite Shizuoka. active_from = 2020-07-07 (debut release date per Wikipedia). active_to = null (still active; dual exclusive announced September 2025 for October 2025 restart). Debut studio DEEP'S exclusive end date 2021-03-31 per Wikipedia article. Dual exclusive 無垢+マドンナ from October 2025 announced 2025-09-16 and 2025-09-23 per Wikipedia citations. Agency マインズ per Wikipedia body. DISAMBIGUATION CONFIRMED: This profile covers さつき芽衣 (DOB 2000-08-16, debut DEEP'S 2020), NOT 沙月恵奈 (Ena Satsuki — different kanji, different person, already has her own satsuki_ena.yaml in this repository). Identity heuristics PASS: (1) DB stage_name field = さつき芽衣 for actress_id 1465; (2) representative codes CEMD/MUDR/JUFE/BLK/CAWD/WAAA/MIAA/PPPE/DASS/XVSR all present in DB title set; (3) Wikipedia article title さつき芽衣 matches exactly. Minnano-AV (actress513692) cross-checked — profile section minimal (only notes asymmetric cup right F / left G), consistent with Wikipedia. No awards found (Wikipedia lists none)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/さつき芽衣
+  - https://www.minnano-av.com/actress513692.html
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=1465 (canonical 'Mei Satsuki', stage_name さつき芽衣, tier GODDESS, 149 titles)"
+  portfolio_listed: 0
+
+portfolio: []

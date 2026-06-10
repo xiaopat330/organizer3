@@ -1,0 +1,50 @@
+profile:
+  name:
+    family_name: Totsuki
+    given_name: Ruisa
+    stage_name: 都月るいさ
+    reading: とつきるいさ
+    alternate_names:
+    - name: Totsuki Kaede
+      note: "Stage name 都月楓, used for 舞ワイフ (Mai Wife) label appearances"
+  date_of_birth: 1997-11-30
+  birthplace: "Kyoto Prefecture, Japan"
+  blood_type: null
+  height_cm: 165
+  measurements:
+    bust: 89
+    waist: 56
+    hip: 86
+  cup: E
+  active_from: 2022-08-09
+  active_to: null
+  biography: "Ruisa Totsuki is a Japanese AV actress from Kyoto Prefecture who debuted in August 2022 with Idea Pocket under the FIRST IMPRESSION series. Known for her slender athletic build and long legs, she has worked across a wide range of studios including Idea Pocket (IPX), MOODYZ (MIAB), Prestige (PRED), Royal (ROYD), and Tameike Gorow (MFYD), where she later became an exclusive. Managed by BODY Corporation, she built a substantial catalog of over 120 titles within her first four years of activity."
+  primary_studios:
+  - name: "Idea Pocket"
+    company: "Idea Pocket"
+    from: 2022-08-09
+    to: null
+    role: "Contract actress"
+  - name: "TAMEIKE (溜池ゴロー)"
+    company: "TAMEIKE"
+    from: null
+    to: null
+    role: "Exclusive contract actress"
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 121
+  titles_with_japanese_title: 1
+  titles_with_english_title: 0
+  titles_with_release_date: 1
+  total_known_releases: null
+  coverage_note: "121 titles across labels: MIAB (10), ROYD (6), ALDN (6), CEMD (6), LULU (5), IPX (3), XVSR (4), RKI (4), JUFE (3), DASS (4), VEC (3), PRED (2), DVAJ (2), VAGU (2), NPJS (2), GVH (3), MKMP (2), HODV (2), KTB (2), and many single-title labels. One title with release date: MFYD-134 (2026-05-19)."
+  confidence: "Profile data sourced from Minnano-AV structured HTML (birthDate, birthPlace, measurements, debut info confirmed in JSON-LD schema block). No Japanese Wikipedia article exists. Blood type not found in any source — set null. Hip measurement is 86cm per Minnano-AV structured data; an Instagram fan account listed 89cm. Minnano-AV used. Active_from is debut title release date per Minnano-AV. TAMEIKE exclusive start date unknown — confirmed via actress's own pinned tweet. Primary studio periods are incomplete due to multi-studio non-exclusive career."
+  data_sources:
+  - https://www.minnano-av.com/actress620673.html
+  - https://www.instagram.com/av_e1age/p/C61UfINvONW/
+  - https://www.sotwe.com/totsukiruisa
+  portfolio_listed: 0
