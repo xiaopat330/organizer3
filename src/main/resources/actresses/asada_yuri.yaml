@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: Asada
+    given_name: Yuri
+    stage_name: 浅田結梨
+    reading: あさだ ゆうり
+    alternate_names:
+    - name: 深田結梨
+      note: stage name used June 2018 – May 2022 (romanized "Fukada Yuri")
+    - name: ゆーりまん
+      note: stage name used from June 2022; also nickname
+    - name: 澄悠里
+      note: mainstream acting name from February 2024 (romanized "Sumi Yuuri")
+  date_of_birth: 1997-01-10
+  birthplace: Niigata Prefecture, Japan
+  blood_type: O
+  height_cm: 154
+  measurements:
+    bust: 84
+    waist: 63
+    hip: 88
+  cup: F
+  active_from: 2015-11-12
+  active_to: 2023-11-01
+  retirement_announced: 2023-10-06
+  biography: "Yuri Asada (浅田結梨) is a Japanese actress and former AV actress born on January 10, 1997, in Niigata Prefecture. She made her AV debut in November 2015 through SOD Create under the concept of a part-time AV actress who was simultaneously working as a maid café staff member at a Akihabara café and active as a TV talent. She quickly became prolific across dozens of labels as a freelance actress, and in March 2020 she joined the idol group 恵比寿マスカッツ. In June 2018 she renamed herself 深田結梨 (Fukada Yuri), and in June 2022 she went freelance under the nickname ゆーりまん before her formal retirement in October 2023 after an eight-year AV career. Following her AV retirement she transitioned to mainstream entertainment activities, adopting the name 澄悠里 (Sumi Yuuri) in February 2024."
+  primary_studios:
+  - name: SOD Create
+    company: SOD Create
+    from: 2015-11-12
+    to: 2018-06-01
+    role: Exclusive contract actress (浅田結梨 name)
+  awards: []
+  legacy: "Active across more than 200 titles over eight years, Yuri Asada was one of the most prolific multi-label freelance AV actresses of the late 2010s, recognized in multiple FANZA actress rankings and known for her high-volume output and idol-group membership in 恵比寿マスカッツ."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 54
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 200
+  coverage_note: Profile section only; portfolio not enumerated. 54 owned titles span actress_id 660 across 41 labels.
+  confidence: 'HIGH. Kanji stage_name 浅田結梨 confirmed from javdb co-cast slug pV3E and Wikipedia (article on 澄悠里 explicitly states she was known as 浅田結梨 until June 2018). DOB 1997-01-10 from Wikipedia infobox. Blood type O from explicit 血液型 field in Wikipedia infobox. Measurements 84-63-88 / F70 from Wikipedia infobox (公称サイズ 2020年時点 — SOD Create era measurements used as primary). Birthplace Niigata Prefecture confirmed by two Wikipedia citations. Retirement date October 2023 per personal Twitter announcement.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%BE%84%E6%82%A0%E9%87%8C
+  portfolio_listed: 0

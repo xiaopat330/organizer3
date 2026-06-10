@@ -1,0 +1,61 @@
+profile:
+  name:
+    family_name: Ninomiya
+    given_name: Waka
+    stage_name: 二宮和香
+    reading: にのみや わか
+    alternate_names:
+    - name: 能美ちなつ
+      note: stage name used exclusively at E-BODY (2016–)
+    - name: Nomi Chinatsu
+      note: romanization of 能美ちなつ E-BODY alias
+    - name: 立原みずき
+      note: alternate name
+    - name: 中川遥
+      note: alternate name
+    - name: 黒川千鶴
+      note: alternate name
+    - name: まい
+      note: alternate name
+    - name: 片桐真里
+      note: alternate name
+  date_of_birth: 1991-04-19
+  birthplace: null
+  blood_type: O
+  height_cm: 155
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 85
+  cup: F
+  active_from: 2015-09-01
+  active_to: null
+  retirement_announced: null
+  biography: "Waka Ninomiya (二宮和香) is a Japanese AV actress affiliated with Fanstar Promotion (ファンスタープロモーション) who debuted in September 2015 as an exclusive actress for SODクリエイト under their \"副職AV女優\" (part-time AV actress) label, with her stated day-job being elementary school music teacher. From January 2016 she concurrently became an exclusive actress at E-BODY, where she works under the alias 能美ちなつ (Nomi Chinatsu) with a persona presented as a former idol and married woman. She has additionally appeared across a wide range of labels as a freelance performer. Her hobbies and special skills include playing piano and violin."
+  primary_studios:
+  - name: SODクリエイト
+    company: SOD Create
+    from: 2015-09-01
+    to: null
+    role: Exclusive contract actress (二宮和香 name)
+  - name: E-BODY
+    company: E-BODY
+    from: 2016-01-01
+    to: null
+    role: Exclusive contract actress (能美ちなつ name)
+  awards: []
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 54
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated.
+  confidence: "HIGH for DOB (1991-04-19), blood type O (explicit 血液型 field in Wikipedia infobox), height 155 cm, measurements 85-58-85, cup F — all from Wikipedia AV女優 infobox (2015年時点). Birthplace not stated in Wikipedia article. Active-from 2015-09-01 is approximate (month confirmed, exact day estimated as 01). Alternate names list from Wikipedia 別名 field. Minnano-av search URL patterns returned 404; profile data sourced from Wikipedia only."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E4%BA%8C%E5%AE%AE%E5%92%8C%E9%A6%99
+  portfolio_listed: 0
