@@ -1,0 +1,58 @@
+profile:
+  name:
+    family_name: Kiritani
+    given_name: Matsuri
+    stage_name: 桐谷 まつり
+    reading: きりたに まつり
+    alternate_names: null
+  date_of_birth: 1996-08-15
+  birthplace: Akita Prefecture, Japan
+  blood_type: B
+  height_cm: 165
+  measurements:
+    bust: 91
+    waist: 59
+    hip: 88
+  cup: H
+  active_from: 2016-12-08
+  active_to: 2023-02-20
+  retirement_announced: 2023-02-20
+  biography: "Matsuri Kiritani (桐谷まつり) is a Japanese AV actress born on August 15, 1996, in Akita Prefecture. She was discovered on the famous Magic Mirror van (マジックミラー号) while wearing only hand covers, after which SOD staff partnered with Weekly Playboy magazine to pursue her all the way to Akita for an exclusive interview; she debuted in gravure before her AV debut in December 2016 under SOD Star. After a successful exclusive run with SOD Create (2016–2019), she moved simultaneously to OPPAI (February 2019–July 2020) and WANZ Factory (March 2019–August 2020), then transitioned to Tameike Goro's label in August 2020. She was selected as a trainee for the idol unit Ebisu Muscats 1.5 in 2018 and co-founded the three-person idol unit 'un panopticon girl' that same year, releasing a CD that charted at #20 on the Oricon Indies ranking. On February 20, 2023, she announced her de facto retirement via Twitter, stating that the works already in release would be her last."
+  primary_studios:
+  - name: SOD Star
+    company: SOD Create
+    from: 2016-12-01
+    to: 2019-01-31
+    role: Exclusive contract actress
+  - name: OPPAI
+    company: Deeps
+    from: 2019-02-01
+    to: 2020-07-31
+    role: Exclusive contract actress
+  - name: Wands
+    company: WANZ Factory
+    from: 2019-03-01
+    to: 2020-08-31
+    role: Exclusive contract actress
+  - name: "Tameike Goro"
+    company: WILL Co., Ltd.
+    from: 2020-08-01
+    to: 2023-02-20
+    role: Exclusive contract actress
+  awards: null
+  legacy: "Kiritani Matsuri was one of SOD Star's prominent H-cup exclusive actresses of the late 2010s, known for her natural figure and energetic screen presence. Her simultaneous dual-label contracts with OPPAI and WANZ Factory (2019–2020) reflected her broad appeal across big-bust and planning-oriented AV genres."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 65
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not yet researched.
+  confidence: "HIGH — kanji stage name confirmed via Japanese Wikipedia infobox (桐谷まつり); identity verified via studio match (SOD Create, OPPAI, WANZ Factory all match DB top labels STAR/PPPD/WANZ), title count ballpark (DB 65 vs Wikipedia 80+ entries), and name match. Blood type B sourced from explicit 血液型 infobox field dated 2022. Measurements (91-59-88, H cup) from Wikipedia 2022 公称サイズ. Retirement date from Twitter statement 2023-02-20 per Wikipedia citation."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E6%A1%90%E8%B0%B7%E3%81%BE%E3%81%A4%E3%82%8A"
+  - "organizer3 SQLite DB (actress id 179, 65 owned titles)"
+  portfolio_listed: 0
