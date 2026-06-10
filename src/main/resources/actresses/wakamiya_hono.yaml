@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Wakamiya
+    given_name: Hono
+    stage_name: 若宮穂乃
+    reading: わかみや ほの
+    alternate_names:
+    - name: Hono Wakana
+      note: alias reading; DB canonical_name is Hono Wakamiya (わかみやほの), DB stage_name uses non-standard kana/kanji mix わか菜ほの
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: 162
+  measurements:
+    bust: 93
+    waist: 61
+    hip: 88
+  cup: G
+  active_from: 2019-06-28
+  active_to: null
+  biography: "Hono Wakamiya (若宮穂乃, わかみやほの) is a Japanese AV actress who debuted in June 2019. She is known for her voluptuous G-cup figure (93-61-88, 162 cm) and appeared across a wide range of labels, with a notable concentrated run at MAXING (MXGS label) from 2021 to 2023. Her career spans over 100 known titles across labels including MAXING, MADV, SQTE, SAN, KAM, and many others. As of 2025 she remains active."
+  primary_studios:
+  - name: MAXING
+    company: MAXING
+    from: 2021-05-16
+    to: 2023-08-16
+    role: Contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 67
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: 8
+  total_known_releases: 112
+  coverage_note: "67 of 112 known javdb titles owned. Release dates available for 8 titles only."
+  confidence: "MEDIUM. Physical profile data (height 162 cm, B93/W61/H88, G cup) sourced from MAXING official site (maxing.jp/actress/pd/ACT10261.html). DOB, birthplace, and blood_type not disclosed on any available source. No Wikipedia article found. No minnano-av entry found under either わか菜ほの or 若宮穂乃. active_from based on earliest enriched DB title (SIV-038, 2019-06-28). MAXING contract window confirmed 2021-05-16 to 2023-08-16 from product listings. Stage_name note: MAXING uses 若宮穂乃 (standard kanji); javdb/DB use わか菜ほの (non-standard kana+kanji mix); both read わかみやほの."
+  data_sources:
+  - "https://www.maxing.jp/actress/pd/ACT10261.html (profile page)"
+  - "https://www.maxing.jp/shop/ac/ACT10261.html (filmography)"
+  - "https://www.maxing.jp/shop/pid/4112.html (MXGS-1184 product page, debut title at MAXING)"
+  - "organizer3 DB — actress_id 4332, javdb slug D2EJp, 67 owned titles"
+  portfolio_listed: 0

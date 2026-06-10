@@ -1,0 +1,66 @@
+profile:
+  name:
+    family_name: Mizutani
+    given_name: Kokone
+    stage_name: 水谷心音
+    reading: みずたに こころね
+    alternate_names:
+    - name: Rio Fujisaki
+      note: "early career name (藤崎りお); used 2009–2011 on MAX-A and IDEA POCKET"
+    - name: Fumika Toda
+      note: "additional alias (戸田文香); minor usage"
+  date_of_birth: 1988-12-29
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: O
+  height_cm: 155
+  measurements:
+    bust: 84
+    waist: 58
+    hip: 84
+  cup: E
+  active_from: 2009-07-10
+  active_to: null
+  retirement_announced: null
+  biography: "Kokone Mizutani (水谷心音) is a Japanese AV actress from Kanagawa Prefecture, born December 29, 1988. She debuted in 2009 under the stage name Rio Fujisaki (藤崎りお) at MAX-A, then moved to IDEA POCKET in late 2010 before transitioning to Prestige in mid-2011 under her current name Mizutani Kokone. At Prestige she held an exclusive contract through 2012, followed by a prolific run at MOODYZ (2013–2014) and kira☆kira (2014), where she was known for the 'BLACK GAL' tanned gyaru series. She subsequently worked across numerous labels including Attackers, Wands Factory, and Glory Quest, demonstrating a long and varied freelance career that continued through at least 2023. Her hobbies include watching movies, playing piano, reading manga, and playing Reversi."
+  primary_studios:
+  - name: MAX-A
+    company: MAX-A
+    from: 2009-07-10
+    to: 2010-06-11
+    role: Exclusive contract actress (as Rio Fujisaki)
+  - name: IDEA POCKET
+    company: WILL Co., Ltd.
+    from: 2010-10-01
+    to: 2011-07-01
+    role: Exclusive contract actress (as Rio Fujisaki)
+  - name: Prestige
+    company: Prestige
+    from: 2011-07-01
+    to: 2012-12-21
+    role: Exclusive contract actress (as Kokone Mizutani)
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2013-03-01
+    to: 2014-06-13
+    role: Exclusive contract actress
+  - name: kira☆kira
+    company: kira☆kira
+    from: 2014-03-19
+    to: 2015-04-19
+    role: Exclusive contract actress (BLACK GAL series)
+  awards: null
+  legacy: "Mizutani Kokone is notable for her dual-identity career spanning more than a decade, transitioning from the fresh-faced idol persona of Rio Fujisaki to the darker, more versatile Mizutani Kokone brand. Her prolific freelance phase from 2015 onward, crossing drama labels (Attackers, Madonna), planning labels (Wands Factory, Glory Quest), and VR, reflects a sustained relevance rare among actresses of her generation."
+
+meta:
+  total_owned_titles: 58
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "DB contains 58 titles (actress_id=338). Wikipedia filmography lists significantly more. Portfolio not yet researched."
+  confidence: "High. All profile fields sourced directly from Wikipedia ja infobox (藤崎りお / 水谷心音 redirect confirmed). Blood type O from explicit 血液型 field. Measurements from official T-Powers agency profile cited in Wikipedia. Identity verified: DB top labels (ABS=Prestige, IPTD=IDEA POCKET, WANZ=WILL, XV=MAX-A, BLK=kira☆kira) all match Wikipedia filmography studios. DB title count 58 within expected range of Wikipedia total. Third alias 戸田文香 (Toda Fumika) noted from Wikipedia infobox; minor usage, no DB alias yet."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E8%97%A4%E5%B4%8E%E3%82%8A%E3%81%8A (redirects from 水谷心音)"
+  - "T-Powers agency official profile (cited in Wikipedia infobox)"
+  - "Local DB actress_id=338"
+  portfolio_listed: 0

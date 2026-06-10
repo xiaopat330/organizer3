@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Nanashima
+    given_name: Mai
+    stage_name: 七嶋舞
+    reading: ななしま まい
+    alternate_names:
+    - name: Mai Nanshima
+      note: alternate romaji spelling (alias in organizer DB)
+  date_of_birth: 2000-09-02
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 160
+  measurements:
+    bust: 84
+    waist: 58
+    hip: 85
+  cup: D
+  active_from: 2021-06-01
+  active_to: null
+  retirement_announced: null
+  biography: "Mai Nanashima is a Japanese AV actress born on September 2, 2000 in Tokyo, who debuted as a Prestige exclusive actress in June 2021. In October 2022, one of her works topped the FANZA weekly rental floor ranking. Active across the Prestige ABW and ABF flagship exclusive lines, she has built a substantial catalog of over 60 titles since debut. Her growing profile extended internationally when she was invited to the AEE Asia Entertainment Expo 2024 in Thailand. Alongside her AV career she pursues music performance, having performed solo live sets in 2024 under Milky Pop Generation events. She has been represented by Arrows, then Lister Pro (from October 2023), and T-Powers (from July 2024)."
+  primary_studios:
+  - name: ABSOLUTELY WONDERFUL / ABSOLUTELY FANTASIA
+    company: Prestige
+    from: 2021-06-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: "Nanashima Mai represents Prestige's post-2021 generation of exclusive actresses, building a sizeable catalog across the ABW and ABF flagship lines while expanding her activities into music performance and live events, demonstrating notable popularity across Asian markets."
+
+meta:
+  total_owned_titles: 66
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile only; portfolio not yet researched.
+  confidence: high (Wikipedia infobox; blood_type from explicit 血液型 field; measurements 2021年時点; debut month from 略歴 text)
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/七嶋舞"
+  - "organizer3 DB actress_id=2726"
+  portfolio_listed: 0

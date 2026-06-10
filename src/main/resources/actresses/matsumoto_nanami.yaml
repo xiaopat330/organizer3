@@ -1,0 +1,85 @@
+profile:
+  name:
+    family_name: Matsumoto
+    given_name: Nanami
+    stage_name: 松本菜奈実
+    reading: まつもと ななみ
+    alternate_names:
+    - name: ななみん
+      note: common nickname / fan name
+  date_of_birth: 1994-08-23
+  birthplace: Hiroshima Prefecture, Japan
+  blood_type: null
+  height_cm: 165
+  measurements:
+    bust: 100
+    waist: 62
+    hip: 100
+  cup: J
+  active_from: 2017-03-01
+  active_to: null
+  biography: "Nanami Matsumoto (松本菜奈実) is a Japanese AV actress and former gravure
+    idol from Hiroshima Prefecture, born August 23, 1994. She debuted as a gravure
+    idol in 2015 with a 100 cm bust, earning the nickname 乳神様 (Breast Goddess),
+    and won the Gravuran Tamashii Award 2016 Renoir Painting Prize. In March 2017
+    she made her AV debut with MUTEKI, then became an exclusive actress at S1 NO.1
+    STYLE from June 2017 through January 2019, amassing numerous high-charting FANZA
+    titles in the big-bust genre. After leaving S1 she worked as a freelance actress
+    across many labels including PPPD, HND, and others before signing as a Materiall
+    exclusive in March 2024, then a Fitch exclusive from January 2025. In January
+    2026 she announced her departure from regulated AV production while continuing
+    her strip performer career at Asakusa Rock-za."
+  primary_studios:
+  - name: MUTEKI
+    company: MUTEKI
+    from: 2017-03-01
+    to: 2017-05-31
+    role: AV debut
+  - name: S1 NO.1 STYLE
+    company: S1 NO.1 STYLE
+    from: 2017-06-01
+    to: 2019-01-31
+    role: Exclusive contract actress
+  - name: Materiall
+    company: All Pro
+    from: 2024-03-21
+    to: null
+    role: Exclusive contract actress
+  - name: Fitch
+    company: Fitch
+    from: 2025-01-17
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: グラビアン魂アワード2016
+    year: 2016
+    category: ルノアールの絵画で賞 (Renoir Painting Prize — みうらじゅん individual award)
+  - event: DMM R-18 アダルトアワード2018
+    year: 2018
+    category: 特別賞 (Special Award)
+  - event: ピンク映画ベストテン2020
+    year: 2020
+    category: 桃熊・新人女優賞 (Momokuma New Actress Award)
+  legacy: "Matsumoto Nanami is one of the leading big-bust genre actresses of the
+    late 2010s–2020s, distinguished by an H-cup at high school graduation that grew
+    to a J-cup during her S1 exclusive tenure. Her consistent FANZA chart performance
+    across multiple label affiliations and her parallel career as a strip performer
+    at Asakusa Rock-za mark her as a durable multi-platform entertainer."
+
+meta:
+  total_owned_titles: 67
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only. Portfolio not yet researched.
+  confidence: HIGH — Wikipedia infobox confirms DOB, birthplace, measurements, cup,
+    AV debut year, and all exclusive contract periods. No blood type field present
+    in infobox (null is correct). Kanji stage_name 松本菜奈実 confirmed by Wikipedia
+    article title and body text. Identity verification passed all three heuristics
+    (studio match S1/Materiall vs DB SSNI/MTALL, title count ballpark 67 DB vs large
+    Wikipedia filmography, name match exact).
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%9D%BE%E6%9C%AC%E8%8F%9C%E5%A5%88%E5%AE%9F
+  - local DB (actress_id 1292, label distribution query)
+  portfolio_listed: 0
