@@ -1,0 +1,50 @@
+profile:
+  name:
+    family_name: Kirishima
+    given_name: Sakura
+    stage_name: 霧島さくら
+    reading: きりしま さくら
+    alternate_names:
+    - name: 霧ちゃん
+      note: nickname
+    - name: 霧島パイセン
+      note: nickname
+  date_of_birth: 1995-03-03
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: A
+  height_cm: 157
+  measurements:
+    bust: 92
+    waist: 59
+    hip: 98
+  cup: I
+  active_from: 2014-10-13
+  active_to: 2020-04-01
+  retirement_announced: null
+  biography: "Sakura Kirishima (霧島さくら) is a Japanese AV actress and stage actress from Kanagawa Prefecture, born March 3, 1995. She encountered theater in high school and enrolled in an acting school, funding her studies by debuting exclusively with E-BODY on October 13, 2014. Her AV career spanned three active periods (2014–2016, 2017–2018, and 2019–2020), during which she worked across numerous labels including E-BODY, Attackers, Madonna, OPPAI, and KMP, among others. In 2017, she formed the unit \"ルルディ\" (Lurdi) with label-mate Noa Eikawa (栄川乃亜), serving as its leader. She received the New Actress Award at the 30th Pink Grand Prix (ピンク大賞) and has also pursued work as a mainstream stage actress and in pink films."
+  primary_studios:
+  - name: E-BODY
+    company: E-BODY
+    from: 2014-10-13
+    to: 2016-10-01
+    role: Exclusive contract actress (debut period)
+  awards:
+  - event: ピンク大賞（第30回）
+    year: 2015
+    category: 新人女優賞 (Best New Actress)
+  legacy: "Sakura Kirishima is noted for her I-cup figure and distinctive combination of AV and stage actress careers. Her unit \"ルルディ\" with Noa Eikawa and her multiple career comeback periods made her a recognizable figure across multiple label rosters throughout the 2010s."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 57
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated.
+  confidence: 'HIGH — all key fields sourced directly from Japanese Wikipedia 基礎情報 infobox. DOB 1995-03-03 confirmed. Blood type A from explicit 血液型 field (not inferred). Measurements from 2014年時点 infobox note. Active periods from 出演期間 field. Minnano-av cross-check confirmed name/identity match.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E9%9C%A7%E5%B3%B6%E3%81%95%E3%81%8F%E3%82%89
+  - https://www.minnano-av.com/actress920939.html
+  portfolio_listed: 0

@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Yokomiya
+    given_name: Nanami
+    stage_name: 横宮七海
+    reading: よこみや ななみ
+    alternate_names:
+    - name: 真島 奈央
+      note: alternate stage name used in some releases
+    - name: 天音 美羽
+      note: alternate stage name used in some releases
+  date_of_birth: 2002-02-17
+  birthplace: null
+  blood_type: null
+  height_cm: 150
+  measurements:
+    bust: 88
+    waist: 58
+    hip: 84
+  cup: E
+  active_from: 2021-04-10
+  active_to: 2023-12-10
+  retirement_announced: null
+  biography: "Nanami Yokomiya (横宮七海, よこみや ななみ; 2002-02-17 – 2023-12-10) was a Japanese AV actress affiliated with the Krone talent agency (クローネ). She debuted on April 10, 2021 and was known as a petite loli-type performer standing 149.5 cm tall with an E-cup figure. She worked prolifically across dozens of labels in her short career, including MOODYZ, アイエナジー, ナチュラルハイ, Prestige, 溜池ゴロー, and many others; in early 2022 a VR title she appeared in was ranked #1 in a half-year ranking. She passed away on December 10, 2023 at the age of 21; her death was announced by a friend via social media and was reported widely in Asia, particularly in Taiwan, though not covered by Japanese mainstream media. Posthumous compilation releases continued to appear into 2024."
+  primary_studios:
+  - name: クローネ (Krone)
+    company: クローネ
+    from: 2021-04-10
+    to: 2023-12-10
+    role: Talent agency affiliation; released across multiple labels without exclusive studio contract
+  awards: []
+  legacy: "Yokomiya was a prolific multi-label actress who released an unusually large volume of titles in under three years of activity. Her passing at 21 in late 2023 drew significant attention in Asian entertainment media."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 57
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated.
+  confidence: "MEDIUM-HIGH. DOB 2002-02-17 from Japanese Wikipedia infobox (生年月日). NOTE: prior audit entry cited 2002-02-27 as DOB — Wikipedia explicitly says 2月17日; the 27 figure may be a transcription error. Blood type field is empty in Wikipedia infobox (血液型 blank) — null per guardrail. Measurements (88-58-84, E-cup, 149.5 cm) from Wikipedia 基礎情報 infobox, citing 2021年 data point. Death date 2023-12-10 confirmed by Wikipedia 没年月日 and wgCategories '2023年没'. Active-from 2021-04-10 from article body (デビュー日). Birthplace not listed in infobox. minnano-av search did not return a matching page (search returned unrelated results). Identity confirmed: Wikipedia article is explicitly 横宮七海 (slug negAX in DB), distinct from 冨安れおな per prior disambiguation."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%A8%AA%E5%AE%AE%E4%B8%83%E6%B5%B7
+  portfolio_listed: 0
