@@ -1,0 +1,59 @@
+profile:
+  name:
+    family_name: Imanaga
+    given_name: Sana
+    stage_name: 今永さな
+    reading: いまなが さな
+    alternate_names:
+    - name: 松永さな
+      note: "stage name used from 2018 after agency move to SF-FRATE; reading: まつなが さな"
+    - name: 桜井ゆかり
+      note: "alias used for a small number of Prestige group releases (2016-2017)"
+  date_of_birth: 1996-02-09
+  birthplace: Nagano Prefecture, Japan
+  blood_type: O
+  height_cm: 164
+  measurements:
+    bust: 89
+    waist: 58
+    hip: 88
+  cup: G
+  active_from: 2016-06-10
+  active_to: 2020-01-01
+  biography: "Sana Imanaga (今永さな) is a former Japanese AV actress from Nagano Prefecture, born February 9, 1996. She debuted in June 2016 as a Prestige exclusive, noted for her short hair and G-cup bust, and released more than a dozen titles under the Prestige ABP flagship line through 2017. In 2018 she moved agencies to SF-FRATE and adopted the stage name Matsunaga Sana (松永さな), signing a dual exclusive contract with IdeaPocket and Attackers. Later in 2018 she transitioned to a Tameike Gorō exclusive while maintaining her Attackers affiliation, before leaving exclusive contracts in February 2019 to work as a freelance actress across multiple labels. Her active career spanned approximately 2016 to 2020."
+  primary_studios:
+  - name: Prestige
+    company: Prestige
+    from: 2016-06-10
+    to: 2018-03-01
+    role: Exclusive contract actress (ABP line)
+  - name: IDEA POCKET
+    company: WILL
+    from: 2018-04-01
+    to: 2018-10-01
+    role: Exclusive contract actress (as 松永さな)
+  - name: Attackers
+    company: WILL
+    from: 2018-04-01
+    to: 2019-02-01
+    role: Exclusive contract actress (as 松永さな)
+  - name: Tameike Gorō
+    company: WILL
+    from: 2018-10-01
+    to: 2019-02-01
+    role: Exclusive contract actress (as 松永さな)
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 81
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched."
+  confidence: "HIGH — Wikipedia 基礎情報 infobox confirmed all biographic fields. Blood type O from explicit 血液型 field. Stage name 今永さな confirmed via Wikipedia article title; 松永さな alternate name confirmed via infobox 別名 field and biography section. Identity confirmed via studio match (Prestige/ABP, IdeaPocket/IPX, Attackers/ADN all present in both DB and Wikipedia)."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/今永さな"
+  - "organizer3 local DB (actress id 474)"
+  portfolio_listed: 0

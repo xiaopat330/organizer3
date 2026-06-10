@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Kuruki
+    given_name: Rei
+    stage_name: 久留木 玲
+    reading: くるき れい
+    alternate_names:
+    - name: くるるん
+      note: "nickname used by fans and in promotional materials"
+  date_of_birth: 1999-12-12
+  birthplace: "Sendai, Miyagi, Japan"
+  blood_type: O
+  height_cm: 156
+  measurements:
+    bust: 83
+    waist: 59
+    hip: 85
+  cup: C
+  active_from: 2019-07-11
+  active_to: 2023-02-01
+  biography: "Rei Kuruki (久留木玲) is a Japanese AV actress born December 12, 1999 in Sendai, Miyagi. She debuted in July 2019 as an exclusive actress for SOD's 青春時代 label, releasing seven titles through February 2020 before transitioning to freelance work in March 2020. Though her debut persona was a loli-style schoolgirl, she quickly expanded into hard play, housewife scenarios, and a wide range of genres as a freelance actress. She ranked 9th in FANZA's 2020 annual actress ranking and 8th in the Monthly FANZA 2021 first-half ranking, establishing herself as one of the more popular freelance actresses of her era. She served as campaign girl for the Triple HAPPY 2021 campaign and was affiliated with talent agency ティーパワーズ throughout her active career, which wound down around early 2023."
+  primary_studios:
+  - name: 青春時代
+    company: SODクリエイト
+    from: 2019-07-11
+    to: 2020-02-01
+    role: Exclusive contract actress
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2020-03-01
+    to: 2023-02-01
+    role: Freelance actress (primary label)
+  awards: null
+  legacy: "Kuruki Rei debuted during the surge of young SOD-affiliated talent in 2019 and quickly became one of the more prolific freelance performers of 2020–2022, appearing across nearly every major label. Her FANZA top-10 rankings in both 2020 and 2021 reflect genuine fan enthusiasm for her versatility."
+
+meta:
+  total_owned_titles: 80
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched."
+  confidence: HIGH
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E4%B9%85%E7%95%99%E6%9C%A8%E7%8E%B2"
+  portfolio_listed: 0
