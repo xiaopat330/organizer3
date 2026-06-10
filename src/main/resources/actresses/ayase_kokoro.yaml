@@ -1,0 +1,59 @@
+profile:
+  name:
+    family_name: Ayase
+    given_name: Kokoro
+    stage_name: 綾瀬こころ
+    reading: あやせ こころ
+    alternate_names:
+    - name: 杉崎あん
+      note: alternate name (Sugizaki An)
+  date_of_birth: 2003-09-20
+  birthplace: null
+  blood_type: AB
+  height_cm: 160
+  measurements:
+    bust: 94
+    waist: 62
+    hip: 90
+  cup: H
+  active_from: 2022-06-21
+  active_to: null
+  retirement_announced: null
+  biography: "Kokoro Ayase (綾瀬こころ) debuted in June 2022 under MOODYZ, quickly establishing herself as a prolific multi-label performer known for her slender figure and large bust. She held debut-exclusive contracts with E-BODY, kawaii*, and Fitch for their respective first releases, while working freely across a wide range of labels. She is affiliated with the NAX (New Actor Experience) talent agency. Active across MOODYZ/MIAA, FALENO/PPPE, JUFE, HMN, and many other labels, she has released over 60 titles in under three years. She is also a noted Chunichi Dragons baseball fan."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2022-06-21
+    to: null
+    role: Free/multi-label actress; debut exclusive for first title
+  - name: E-BODY
+    company: E-BODY
+    from: 2022-07-19
+    to: 2022-07-19
+    role: Debut exclusive (one title)
+  - name: kawaii*
+    company: kawaii*
+    from: 2022-08-02
+    to: 2022-08-02
+    role: Debut exclusive (one title)
+  - name: Fitch
+    company: Fitch
+    from: 2022-08-02
+    to: null
+    role: Debut exclusive for first title; continued as free actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 58
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile only; portfolio not yet researched.
+  confidence: 'HIGH — Wikipedia infobox exact match on name, DOB, blood type (explicit 血液型 field = AB), height, measurements, cup (H per 2022年時点 infobox). Debut date 2022-06-21 from first filmography entry. Cup note: debut description says Gカップ but infobox explicit cup field says H; H is used as authoritative infobox value. Birthplace not listed in Wikipedia.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E7%B6%BE%E7%80%AC%E3%81%93%E3%81%93%E3%82%8D
+  portfolio_listed: 0

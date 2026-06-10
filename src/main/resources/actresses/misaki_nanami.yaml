@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Misaki
+    given_name: Nanami
+    stage_name: 岬ななみ
+    reading: みさき ななみ
+    alternate_names:
+    - name: Nanami Misaki
+      note: reversed-order romanization used in some Western catalogues
+  date_of_birth: 1996-06-09
+  birthplace: Shizuoka Prefecture, Japan
+  blood_type: O
+  height_cm: 150
+  measurements:
+    bust: 83
+    waist: 57
+    hip: 87
+  cup: D
+  active_from: 2017-11-01
+  active_to: 2023-08-01
+  biography: "Nanami Misaki (岬ななみ) is a retired Japanese AV actress born on June 9, 1996 in Shizuoka Prefecture. She debuted in November 2017 under exclusive contract with IDEA POCKET (アイデアポケット), quickly establishing a reputation for intimate, story-driven works and was noted for her resemblance to former Nogizaka46 idol Nanami Hashimoto. She was managed by talent agency T-Powers throughout her career. In 2020 she began making appearances on the Attackers label alongside her IDEA POCKET exclusivity, and in July 2022 she transitioned to a full exclusive contract with Attackers, primarily working on the ADN NTR-drama series. Her final release appeared in August 2023, after which she entered an inactive status with her social media accounts deleted and her agency profile removed."
+  primary_studios:
+  - name: IDEA POCKET
+    company: Hokuto Corporation (WILL Group)
+    from: 2017-11-01
+    to: 2022-07-01
+    role: Exclusive contract actress
+  - name: Attackers
+    company: Hokuto Corporation (WILL Group)
+    from: 2022-07-01
+    to: 2023-08-01
+    role: Exclusive contract actress
+  awards: null
+  legacy: "Misaki was among IDEA POCKET's popular exclusive actresses of the late 2010s, placing 31st in Asahi Geino magazine's 2022 active AV actress popularity poll. Her career arc — debuting as a fresh-faced romantic lead at IDEA POCKET and maturing into heavier NTR-drama roles at Attackers — is representative of the trajectory of many top-tier exclusive actresses of her generation."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 56
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only; portfolio not yet researched."
+  confidence: "High — all profile fields sourced from Japanese Wikipedia 基礎情報 infobox (accessed 2026-06-10). Blood type O explicitly stated in 血液型 field. Measurements qualified as 2021年時点 per Wikipedia. Active_to set to 2023-08-01 per Wikipedia's last listed release date."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E5%B2%AC%E3%81%AA%E3%81%AA%E3%81%BF"
+  - "organizer3 local DB (actress id=255)"
+  portfolio_listed: 0
