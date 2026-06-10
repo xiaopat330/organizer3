@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Nishimiya
+    given_name: Yume
+    stage_name: 西宮ゆめ
+    reading: にしみやゆめ
+    alternate_names: null
+  date_of_birth: 1996-11-04
+  birthplace: null
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: 2016-09-19
+  active_to: null
+  retirement_announced: null
+  biography: "Yume Nishimiya is a Japanese AV actress who has been an exclusive performer for Idea Pocket (アイデアポケット) since her debut in September 2016 at age 19, where she was introduced under the concept of a current idol candidate. She quickly became one of Idea Pocket's flagship performers, appearing in the studio's flagship IPZ and IPX series before transitioning to the IPZZ series in 2023. By January 2025 she released her 100th title, and milestone best-of compilations have been released on her first, third, fifth, seventh, and eighth anniversaries. As of 2026 she remains one of Idea Pocket's most prolific active exclusive actresses with over 100 solo titles across a decade-long career."
+  primary_studios:
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2016-09-19
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not yet compiled. Wikipedia filmography lists approximately 110+ solo titles plus best-of compilations across IPZ (2016), IPX (2017–2023), IPZZ (2023–present), IDBD best collections, and streaming-only IPBZ series."
+  confidence: "DOB 1996-11-04 sourced from Wikidata (Q47580560), cross-confirmed by Wikipedia category '1996年生' and debut title description '19歳' (September 2016 = age 19, turns 20 in November 1996). Reading sourced from Minnano-AV actress973203. Physical stats (height, measurements, cup, blood type, birthplace) not found — Wikipedia infobox was inaccessible via markdown renderer; Minnano-AV profile section was empty. These fields require DMM/FANZA access (Japan VPN) or a direct Puppeteer scrape of the Wikipedia page HTML."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/西宮ゆめ
+  - https://www.wikidata.org/wiki/Q47580560
+  - https://www.minnano-av.com/actress973203.html
+  portfolio_listed: 0

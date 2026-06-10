@@ -1,0 +1,70 @@
+profile:
+  name:
+    family_name: Akari
+    given_name: Tsumugi
+    stage_name: 明里つむぎ
+    reading: あかり つむぎ
+    alternate_names: null
+  date_of_birth: 1998-03-31
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: O
+  height_cm: 157
+  measurements:
+    bust: 80
+    waist: 58
+    hip: 83
+  cup: B
+  active_from: 2017-03-19
+  active_to: null
+  retirement_announced: null
+  biography: "Tsumugi Akari is a Japanese AV actress from Kanagawa Prefecture who debuted on March 19, 2017 with IdeaPocket as an exclusive under the 'miracle beauty' concept, quickly establishing herself as one of the studio's top performers. In October 2018 she transferred exclusively to Attackers, then from May 2019 returned to IdeaPocket in a dual-exclusive arrangement, a W-contract she maintained for several years. Her range across genre — femdom / chiijo roles at IdeaPocket and violation / drama roles at Attackers — drew critical praise for her acting versatility, and she expanded into further dual contracts with Madonna (from late 2022) and PREMIUM (from May 2025). In late 2025 she announced a move to the FALENOstar label, capping an eight-year tenure at IdeaPocket commemorated by a 12-disc complete-best release. She has released multiple photobooks and maintains an active fanbase across Japan and internationally."
+  primary_studios:
+  - name: IdeaPocket
+    company: IdeaPocket
+    from: 2017-03-19
+    to: null
+    role: Exclusive contract actress (initial period, to 2018-10 transfer)
+  - name: Attackers
+    company: Attackers
+    from: 2018-10-07
+    to: null
+    role: Exclusive contract actress (W-exclusive with IdeaPocket from 2019-05)
+  - name: IdeaPocket
+    company: IdeaPocket
+    from: 2019-05-13
+    to: null
+    role: Exclusive contract actress (W-exclusive with Attackers)
+  - name: Madonna
+    company: Madonna
+    from: 2022-11-01
+    to: null
+    role: Exclusive contract actress (W-exclusive)
+  - name: PREMIUM
+    company: PREMIUM
+    from: 2025-05-01
+    to: null
+    role: Exclusive contract actress (W-exclusive with IdeaPocket)
+  - name: FALENO
+    company: FALENO
+    from: 2025-11-01
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: "DMM R-18 アダルトアワード2018"
+    year: 2018
+    category: "スペシャルプレゼンター・武井壮賞"
+  legacy: "Tsumugi Akari is regarded as one of IdeaPocket's defining stars of the late 2010s and 2020s, known for her slender build, cool and composed screen persona, and exceptional range across femdom and drama genres. Her eight-year tenure at IdeaPocket — commemorated by a 87-title complete-best set — and simultaneous dual contracts at multiple top labels mark her as one of the most consistently prominent exclusive actresses of her generation."
+
+portfolio: []
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only. Portfolio not populated. Representative codes from DB: ADN-188, ATID-368, IPX-101, JUQ-138, MEYD-664, PRED-771, SHKD-836, SAME-008, RBD-917, IPZZ-009."
+  confidence: "High confidence on all profile fields sourced directly from Japanese Wikipedia infobox (measurements labelled 2022年時点). DOB, birthplace, blood type, height, cup all from infobox. Studio affiliations and contract dates from Wikipedia biography section — exact end dates for Attackers and IdeaPocket W-exclusive contracts are approximate (last confirmed titles), not formally announced retirement dates. active_to set to null as actress is currently active at FALENO (2026 releases confirmed). Minnano-AV not accessible (site returned errors); cross-check of measurements not completed — Wikipedia values used as authoritative per guide rules."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/明里つむぎ
+  portfolio_listed: 0

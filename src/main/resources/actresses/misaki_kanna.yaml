@@ -1,0 +1,57 @@
+profile:
+  name:
+    family_name: Misaki
+    given_name: Kanna
+    stage_name: 美咲かんな
+    reading: みさき かんな
+    alternate_names: null
+  date_of_birth: 1994-07-03
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: O
+  height_cm: 158
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 88
+  cup: D
+  active_from: 2014-12-01
+  active_to: null
+  retirement_announced: null
+  biography: "Kanna Misaki (美咲かんな) is a Japanese AV actress from Kanagawa Prefecture, born July 3, 1994. She debuted in December 2014 as an exclusive actress with S1 NO.1 STYLE, then transferred to Honchu (本中) exclusive in December 2015. In 2016 she became strongly associated with VR content through KMPVR (KM Produce), releasing one of the earliest adult VR titles — a massive hit that earned her the nickname 'VR Queen' (ドスケベVRクイーン). After a hiatus from 2021 to mid-2022 due to creative uncertainty, she returned as a freelance actress and joined agency GG (Prime Agency). She has since maintained a highly prolific freelance career across dozens of labels, and in 2023 launched her own CS Sky PerfecTV variety series 美咲かめら and published her first photobook 'Naturale' (Tokuma Shoten). In December 2024 she made her mainstream film debut as lead actress in 離れられない君へ."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: S1 NO.1 STYLE
+    from: 2014-12-01
+    to: 2015-11-30
+    role: Exclusive contract actress (debut)
+  - name: 本中 (Honchu)
+    company: Honchu
+    from: 2015-12-01
+    to: 2016-12-31
+    role: Exclusive contract actress
+  - name: KMPVR (KM Produce)
+    company: KM Produce
+    from: 2016-01-01
+    to: 2021-12-31
+    role: "Exclusive VR specialist; nicknamed 'VR Queen'"
+  awards:
+  - event: SOD AWARD
+    year: 2019
+    category: 優秀女優賞 (Outstanding Actress Award)
+  legacy: "Kanna Misaki is recognized as one of the pioneers of adult VR content in Japan, credited with helping establish the format through her landmark 2016 KMPVR debut 生中出しスペシャル!! VRセックスだから、すごくリアルでしょ? — which became a genre-defining hit. Her sustained multi-decade freelance career, mainstream film debut, and own television program demonstrate a rare crossover profile in the industry."
+
+meta:
+  total_owned_titles: 115
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "115 owned titles across 74 labels in DB. Major label clusters: MIAB×7, CEMD×7, NGOD×6, GVH×6, MKMP×5, plus many single-title appearances reflecting prolific freelance career."
+  confidence: "Profile data sourced from Japanese Wikipedia infobox (measurements noted as 2014年時点 公称). DOB 1994-07-03, Kanagawa Prefecture birthplace, blood type O, height 158 cm, measurements 85-58-88, D-cup all confirmed from Wikipedia. Studio history: S1 debut Dec 2014 → Honchu Dec 2015 → KMPVR VR specialist 2016+ → hiatus 2021-2022 → GG agency freelance 2022+. active_to set null: actress is confirmed active through at least mid-2026 per Wikipedia filmography. active_from set 2014-12-01 (month confirmed, exact day unknown — day set to 01). primary_studios from/to dates for KMPVR are approximate — Wikipedia does not state precise contract end; set to Dec 2021 based on hiatus start. SOD AWARD 2019 優秀女優賞 confirmed from Wikipedia article text (2019年3月21日). Minnano-AV profile page fetched but returned only filmography listing, no structured measurement data to cross-check."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/美咲かんな
+  - https://www.minnano-av.com/actress526890.html
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=419 (canonical 'Kana Misaki', stage_name 美咲かんな, tier GODDESS, 115 owned titles)"
+  portfolio_listed: 0
+
+portfolio: []

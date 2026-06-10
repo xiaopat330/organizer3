@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: Hoshina
+    given_name: Ai
+    stage_name: 星奈あい
+    reading: ほしな あい
+    alternate_names:
+    - name: "あい"
+      note: "Abbreviated stage name used in some early 2017 titles"
+    - name: "竹内しずか"
+      note: "Pseudonym used in at least one 2017 title"
+    - name: "羽村絵里菜"
+      note: "Pseudonym used in at least one 2017 title"
+    - name: "佐藤真奈"
+      note: "Pseudonym used in at least one 2017 title"
+  date_of_birth: 1995-10-29
+  birthplace: "Tokyo, Japan"
+  blood_type: O
+  height_cm: 156
+  measurements:
+    bust: 83
+    waist: 59
+    hip: 87
+  cup: C
+  active_from: 2017-09-19
+  active_to: 2022-09-20
+  retirement_announced: null
+  biography: "Ai Hoshina is a Japanese former AV actress from Tokyo, known as the 'chameleon actress' for her ability to portray roles ranging from high school girls to housewives. Prior to entering the industry she worked as a dental hygienist. She debuted in September 2017 with kawaii* and quickly became prolific, filming up to 15 titles per month at her peak while working across dozens of independent labels. In March 2019 she was nominated for the FANZA Adult Award Best Actress of the Year. She announced a hiatus in September 2019 for personal recharging, returning in November 2020 as an exclusive actress for PREMIUM, where she shifted focus to quality over volume. She ended her PREMIUM exclusive contract in September 2022, releasing occasional titles thereafter before announcing her full retirement on Fantia in September 2024."
+  primary_studios:
+  - name: PREMIUM
+    company: "プレミアム (アダルトビデオ)"
+    from: 2020-11-01
+    to: 2022-09-20
+    role: Exclusive contract actress
+  awards:
+  - event: FANZAアダルトアワード
+    year: 2019
+    category: 最優秀女優賞 (ノミネート)
+  legacy: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 445
+  coverage_note: "Minnano-AV lists 445 titles as of 2026-06. Career spanned many independent labels before PREMIUM exclusive (2020-2022); post-2022 occasional releases. Does not include pseudonymous titles not attributed to main stage name."
+  confidence: "Profile data sourced from Japanese Wikipedia infobox (measurements noted as of 2018). DOB, birthplace, blood type, height, measurements, cup, active dates, and awards all from Wikipedia. active_to is the final PREMIUM solo release date from Wikipedia filmography (2022-09-20); Minnano-AV confirms continued occasional appearances through 2025. Pseudonyms listed are a selection from Wikipedia filmography footnotes — not exhaustive. Minnano-AV profile section was empty (no user-submitted structured data); cross-check not possible for physical stats."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/星奈あい
+  - https://www.minnano-av.com/actress509771.html
+  portfolio_listed: 0

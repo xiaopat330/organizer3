@@ -1,0 +1,59 @@
+profile:
+  name:
+    family_name: Hoshi
+    given_name: Nako
+    stage_name: 星なこ
+    reading: ほし なこ
+    alternate_names:
+    - name: 天月あず
+      note: "Current working name (renamed 2022; reading あまつき あず / Azu Amatsuki). Active under this name from March 2023. Wikipedia article is indexed under 天月あず with 星なこ listed as 旧名 (former name)."
+    - name: Azu Amatsuki
+      note: "Romanization of current name 天月あず"
+    - name: STAR CHILD
+      note: "Promotional alias used during the 星なこ era at Million"
+  date_of_birth: 2000-07-19
+  birthplace: "Kanagawa Prefecture, Japan"
+  blood_type: A
+  height_cm: 162
+  measurements:
+    bust: 90
+    waist: 62
+    hip: 86
+  cup: F
+  active_from: 2020-09-11
+  active_to: 2025-12-31
+  retirement_announced: 2025-12-20
+  biography: "Nako Hoshi (星なこ), later known as Azu Amatsuki (天月あず), is a Japanese AV actress from Kanagawa Prefecture who debuted in September 2020 as an exclusive at Million under the star-themed persona 星なこ (STAR CHILD). She released approximately ten titles for Million before announcing a surprise retirement in October 2021, citing no dissatisfaction with AV but a desire to explore other directions. In August 2022 she reopened a social media presence under the new name 天月あず and returned to AV in March 2023, taking a dual exclusive contract with E-BODY and Fitch simultaneously. She quickly re-established herself, achieving multiple top-ten FANZA rental chart placements in 2023 and reaching the FANZA monthly female actress ranking top-two in November 2023. After her dual exclusive period ended in early 2024 she transitioned to a freelance (企画単体) career with numerous labels. She announced the conclusion of her AV activity via X post on 20 December 2025, with final releases expected through summer 2026."
+  primary_studios:
+  - name: Million
+    company: "KM Produce (ケイ・エム・プロデュース)"
+    from: 2020-09-01
+    to: 2021-10-01
+    role: "Exclusive contract actress (星なこ name)"
+  - name: E-BODY
+    company: E-BODY
+    from: 2023-03-01
+    to: 2024-04-01
+    role: "Exclusive contract actress (天月あず name, dual contract with Fitch)"
+  - name: Fitch
+    company: Fitch
+    from: 2023-03-01
+    to: 2024-03-01
+    role: "Exclusive contract actress (天月あず name, dual contract with E-BODY)"
+  awards: null
+  legacy: "Notable for a two-phase career under different names with a roughly 18-month hiatus in between; the 天月あず comeback became one of the more commercially successful re-entries of the mid-2020s, charting consistently on FANZA rental rankings across 2023–2024."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 106
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "106 owned titles across both career phases. Labels include EBWH/EBOD (E-BODY), MKMP/FPRE/SQTE/PPPE (Fitch and related), ADN (Attackers), MIAB (MOODYZ), NACR, JUFE, EKDV and many single-label guest appearances. The 星なこ-era Million titles (approx. 10) are likely coded under MKMP or similar Fitch/KM codes — exact Million label codes not separately confirmed from DB."
+  confidence: "All profile fields sourced from Japanese Wikipedia 天月あず article (accessed 2026-06-09 via both /wiki/星なこ and /wiki/天月あず — both resolve to the same article). DOB: Wikipedia gives 2000-07-19 as the authoritative date; the infobox備考 notes that the 星なこ era publicly stated 2000-07-20 (one day off — treat 2000-07-19 as the corrected value per Wikipedia). Birthplace Kanagawa Prefecture confirmed. Measurements (90-62-86 F) are from the 2023-03-04 snapshot per the infobox citation. active_from 2020-09-11 is the debut title date per Wikipedia filmography. active_to 2025-12-31 is inferred from the announced end-of-December-2025 activity; retirement_announced 2025-12-20 is the X post date per Wikipedia citation. Studio dates use month precision (day set to 01) per guide convention. Awards: none found in Wikipedia. Minnano-AV not reachable (HTTP 404 on search endpoint; Puppeteer not available). DB label breakdown not definitively matched to 星なこ vs 天月あず era — all 106 titles are attributed to actress_id 4206 in the DB."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/天月あず (also resolves from /wiki/星なこ)"
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=4206 (canonical_name='Nako Hoshi', stage_name='星なこ', tier=GODDESS, 106 titles)"
+  portfolio_listed: 0

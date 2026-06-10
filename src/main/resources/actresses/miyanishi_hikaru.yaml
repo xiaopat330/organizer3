@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Miyanishi
+    given_name: Hikaru
+    stage_name: 宮西ひかる
+    reading: みやにし ひかる
+    alternate_names: null
+  date_of_birth: 1999-08-22
+  birthplace: null
+  blood_type: null
+  height_cm: 161
+  measurements:
+    bust: 88
+    waist: 61
+    hip: 86
+  cup: E
+  active_from: 2022-01-11
+  active_to: null
+  biography: "Hikaru Miyanishi (宮西ひかる) is a Japanese AV actress born August 22, 1999, affiliated with the talent agency LIGHT. She made her AV debut in January 2022 as an exclusive actress with Idea Pocket (FIRST IMPRESSION 152), quickly earning praise from industry observers for her natural appeal and expressive performances. In May 2023 she transferred to Attackers as an exclusive, and in December 2023 she transitioned to non-exclusive freelance status, thereafter appearing across a wide range of labels including MAXING, VENUS, Madonna, S-Cute, SOD Create, and many others. She maintains an active presence across both regular and VR productions and has been ranked in FANZA monthly actress charts multiple times from 2024 onward. Her inspirational figure for entering the industry was actress Arina Hashimoto (now Arina Shin)."
+  primary_studios:
+  - name: Idea Pocket (アイデアポケット)
+    company: Idea Pocket
+    from: 2022-01-11
+    to: 2023-04-30
+    role: Exclusive contract actress (debut)
+  - name: Attackers (アタッカーズ)
+    company: Attackers
+    from: 2023-05-02
+    to: 2023-12-31
+    role: Exclusive contract actress
+  awards: []
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 102
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "102 owned titles across ADN (5), ATID (2), AVSA, BAB, BF (2), CRNX, DFE, DRPT, EKDV, FOCS, GMA, GVH (3), HALE, HALT, HAWA, HONB (2), HOWY, HUNTC (2), IPX (10), JERA, JJDA, JUFE (2), JUQ, JUTA, KTB, MADM, MADV (2), MANX, MEYD (2), MGMJ, MIAB (2), MIBB, MILK, MKMP, MKON, MOON, MRPA, MVSD, MXGS (3), NACR, NACT (2), NGOD (3), NMSL (2), NSODN, OKY, PASN, PKPR, PRED (2), PRTD, RBK (2), REXD (3), SAME, SAN, SOAV, SORA, SQTE (3), SVFLA, SW, T38, URKK, VAGU, VEC (2), VEMA, VENX (2), VENZ. Portfolio section not researched (no DMM scrape)."
+  confidence: "Profile data sourced from Japanese Wikipedia (宮西ひかる). DOB 1999-08-22, height 161 cm, measurements 88-61-86 E-cup confirmed from infobox (公称サイズ 2022年時点). active_from = 2022-01-11 from first Wikipedia filmography entry (FIRST IMPRESSION 152, Idea Pocket). Studio affiliations: Idea Pocket exclusive Jan 2022 – Apr 2023 (debut); Attackers exclusive from May 2023; non-exclusive 企画単体 from Dec 2023, sourced from Wikipedia article body. Agency LIGHT confirmed from Wikipedia citations (lightpro.jp). UNVERIFIED: birthplace, blood type — not present in Wikipedia infobox. Minnano-AV cross-check not performed (Puppeteer unavailable). active_to is null as she remains active as of article content. No awards listed in Wikipedia."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/宮西ひかる
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=4080 (canonical 'Hikaru Miyanishi', stage_name 宮西ひかる, tier GODDESS, 102 owned titles)"
+  portfolio_listed: 0

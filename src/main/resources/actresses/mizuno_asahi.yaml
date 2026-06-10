@@ -1,0 +1,53 @@
+profile:
+  name:
+    family_name: Mizuno
+    given_name: Asahi
+    stage_name: 水野朝陽
+    reading: みずの あさひ
+    alternate_names:
+    - name: Honda Tsubasa
+      note: "Early non-exclusive alias (本多翼) used on select titles in 2013–2014 era."
+    - name: Shirase Maki
+      note: "Alias 白瀬真希 used on ラグジュTV label releases."
+    - name: Horie Mariko
+      note: "Alias 堀江麻里子 used on 舞ワイフ label releases."
+  date_of_birth: 1990-11-12
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 165
+  measurements:
+    bust: 90
+    waist: 58
+    hip: 96
+  cup: H
+  active_from: 2013-02-13
+  active_to: null
+  retirement_announced: null
+  biography: "Asahi Mizuno (水野朝陽) is a Japanese AV actress and nail artist from Tokyo, born November 12, 1990, known for her tall stature (165 cm), H-cup figure, and short-haired clean-cut (清楚系) image. She debuted in February 2013 after applying to her agency herself, initially working without showing her face and intending to quit quietly, but became fully media-active after bonding with fans at events. Throughout her pre-retirement career (2013–2019) she worked as a freelance actress across dozens of labels including Moodyz, E-BODY, Attackers, Wanz Factory, and many others, all while maintaining a part-time retail job. She announced retirement via Twitter on December 1, 2018, with her final activity in February 2019. On November 17, 2020, she announced her comeback on YouTube and signed an exclusive contract with Madonna, where she has worked since December 2020, balancing AV work with her career as a nail artist. As of 2025 she is on an activity hiatus."
+  primary_studios:
+  - name: "Freelance (multiple labels)"
+    company: null
+    from: 2013-02-13
+    to: 2019-02-01
+    role: "Non-exclusive freelance actress across Moodyz, Attackers, Wanz Factory, E-BODY, HMP, SOD, Fitch, and many others"
+  - name: "Madonna (マドンナ)"
+    company: Madonna
+    from: 2020-12-26
+    to: null
+    role: "Exclusive contract actress (comeback exclusive)"
+  awards: []
+  legacy: "Asahi Mizuno is regarded as one of the most prolific and versatile AV actresses of the 2013–2019 generation, notable for her H-cup figure combined with a tall, lean build and distinctive short-hair presentation. Her comeback and Madonna exclusive career from 2020 extended her profile into the married-woman (人妻) genre, where she achieved renewed popularity ranked in annual Asahi Geino polls."
+
+meta:
+  total_owned_titles: 115
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "115 owned titles across ADN, AVOP, BBI, BBZA, BF, BKKG, CEAD, CESD, CETD, CJOD, CORE, DASD, DDK, DVAJ, EKBE, EKDV, FIV, FLAV, GKD, GTJ, GVG, HMBL, HND, HNDS, HODV, HQIS, HZGD, ICMN, IENE, JUFD, JUL, JUX, JUY, LID, LXV, MANE, MDBK, MEYD, MIAA, MIAD, MIAE, MIGD, MKMP, MRSS, MVSD, NHDTA, NIMA, NITR, PGD, PPPD, PRTD, RCT, REAL, REBD, SVDVD, TAMM, TKI, TOMN, VENU, WANZ, WLT, WSS, WWK, XRW, XVSR, YMDD and others. Pre-retirement career (2013–2019) was entirely freelance; post-comeback (2020+) Madonna exclusive. Portfolio section not researched (no DMM scrape)."
+  confidence: "Profile fields sourced from Japanese Wikipedia (水野朝陽 infobox and biography). High confidence on DOB (1990-11-12), birthplace Tokyo, blood type A, height 165 cm, measurements 90-58-96, H-cup (all from Wikipedia infobox). Identity confirmed: Wikipedia article describes debut Feb 2013, short-hair/tall/H-cup actress, Moodyz/Attackers/Madonna career, retirement announcement Dec 2018, comeback Nov 2020 — exactly matching DB label distribution (MIGD=Moodyz, ADN=Attackers, JUL/JUX/JUY=Madonna). All three alternate names sourced verbatim from Wikipedia infobox 別名 field (本多翼、白瀬真希（ラグジュTV）、堀江麻里子（舞ワイフ）). active_from = 2013-02-13 (first listed title in Wikipedia filmography). active_to = null (2025 activity hiatus per Wikipedia, no formal retirement announced). Madonna exclusive from = 2020-12-26 (電撃復活 専属 release date). Minnano-AV profile page loaded but did not return structured measurement data; Wikipedia infobox is the sole measurement source. Minnano-AV confirmed Minnano ID 689323 and debut month 2013-02."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/水野朝陽
+  - https://www.minnano-av.com/actress689323.html
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=351 (canonical 'Asahi Mizuno', stage_name 水野朝陽, tier GODDESS, 115 titles)"
+  portfolio_listed: 0

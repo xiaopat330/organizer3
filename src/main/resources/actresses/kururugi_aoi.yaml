@@ -1,0 +1,66 @@
+profile:
+  name:
+    family_name: Kururugi
+    given_name: Aoi
+    stage_name: 枢木あおい
+    reading: くるるぎ あおい
+    alternate_names:
+    - name: Kuroki Aoi
+      note: "KUKI label alias (くろき葵), used from September 2020 under separate persona"
+    - name: Yamauchi Ai
+      note: "山内愛 — amateur/Luxury TV pseudonym used in several non-exclusive shoots"
+  date_of_birth: 1998-03-20
+  birthplace: "Kyoto Prefecture, Japan"
+  blood_type: B
+  height_cm: 154
+  measurements:
+    bust: 84
+    waist: 59
+    hip: 93
+  cup: D
+  active_from: 2017-05-14
+  active_to: 2023-11-10
+  retirement_announced: 2023-04-14
+  biography: "Aoi Kururugi is a Japanese AV actress, singer, and talent from Kyoto Prefecture who debuted on May 14, 2017 with Candy label under the concept of 'a refined Kyoto-born beauty who works at a high-class restaurant.' Before her AV career she was active as an underground solo idol in the Kansai region. After two exclusive works each with Candy and Muku she transitioned to a freelance multi-maker career, becoming one of the most decorated actresses of her era — ranked 7th in FANZA's 2019 annual AV actress rankings and winning the SOD Award 2019 Outstanding Actress prize. She was particularly acclaimed for her VR work, ranking number one in S-cute's annual girls ranking for three consecutive years (2017–2019) and achieving multiple chart-topping VR releases. On April 14, 2023 she announced she would join S-Cute as an exclusive and retire from AV within one year; her final AV filming was completed on November 10, 2023 and she held a retirement live event 'eternally' on May 25, 2024. Post-retirement she continues as a singer and pachinko/pachislot entertainer under LIGHT talent agency."
+  primary_studios:
+  - name: Candy / Muku (early exclusive)
+    company: Candy, Muku
+    from: 2017-05-01
+    to: 2017-08-01
+    role: "Exclusive contract actress (2 works each; brief initial run)"
+  - name: Freelance multi-maker
+    company: null
+    from: 2017-09-01
+    to: 2023-04-30
+    role: "Non-exclusive 企画単体女優 across dozens of makers including MOODYZ, Honnaka, KMP, Muku, Attackers, Real, Alice Japan, SODCreate, S-Cute, and others"
+  - name: S-Cute
+    company: S-Cute
+    from: 2023-05-01
+    to: 2024-04-30
+    role: Exclusive contract actress (final exclusive period before retirement)
+  awards:
+  - event: "このAV女優がすごい!"
+    year: 2018
+    category: "2018冬・女優部門1位"
+  - event: SOD AWARD
+    year: 2019
+    category: 優秀女優賞
+  - event: "スカパー!アダルト放送大賞"
+    year: 2022
+    category: "Valuable Actress of Vanilla Sky Channel"
+  legacy: "Aoi Kururugi is regarded as one of the standout actresses of the late 2010s, distinguished by exceptional VR performance, genuine Kyoto accent appeal, and unusually broad multi-maker range spanning hardcore through soft romance. Her consistent chart presence across six-plus years of freelance work — without a major exclusive contract until her final year — makes her career a rare example of independent longevity at top-tier popularity."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 102
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Portfolio section not yet researched. Owned titles include codes from multiple labels: ATID, BLK, CAWD, EKDV, HND, MIAA, SQTE, DASD, JUFE, MUDR, REAL, MXGS and others."
+  confidence: "Profile data sourced exclusively from Japanese Wikipedia (2020 measurements snapshot per infobox). Minnano-AV Phase-3 cross-check was NOT completed — the site returned the homepage (geo-block) for actress ID 89452 from Wikidata. A secondary web source reported measurements as B82(C)-W59-H88; Wikipedia values (84-59-93, D) are used per guide conflict rules. Birthplace is prefecture-only (京都府); no city-level data found. active_to set to 2023-11-10 (last AV filming per Wikipedia article narrative) to align with infobox 出演期間 end year 2023; S-Cute exclusivity ran to 2024-04 and retirement live was 2024-05-25 — these are noted here but active_to reflects last filmed content. DB canonical_name field stores 'Kururigi Aoi' (typo — single 'u' in second syllable); correct Hepburn romanization is 'Kururugi' (くるるぎ = ku-ru-ru-gi)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/枢木あおい
+  - https://www.wikidata.org/wiki/Q38279230
+  portfolio_listed: 0

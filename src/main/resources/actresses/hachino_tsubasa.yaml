@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Hachino
+    given_name: Tsubasa
+    stage_name: 八乃つばさ
+    reading: はちの つばさ
+    alternate_names:
+    - name: めぐみ
+      note: "Omnibus alias used in SCPX-361 (2019-06-14, SCOOP). Same person."
+    - name: つかさ
+      note: "Omnibus alias used in HAWA-181 (2019-07-11, Cosmos). Same person."
+  date_of_birth: 1994-09-30
+  birthplace: null
+  blood_type: A
+  height_cm: 153
+  measurements:
+    bust: 96
+    waist: 70
+    hip: 102
+  cup: G
+  active_from: 2017-12-25
+  active_to: 2024-10-14
+  retirement_announced: 2024-08-31
+  biography: "Tsubasa Hachino (八乃つばさ) is a retired Japanese AV actress who debuted in December 2017 as an exclusive with MOODYZ, her debut title billing her as a current female university student who had placed first in a swimsuit contest. She left the MOODYZ exclusive contract in April 2018 and transitioned to a freelance 'kikatan' (non-exclusive) career, working extensively with MOODYZ, Madonna, Fitch, PREMIUM, Attackers, Celeb no Tomo, and numerous other labels. Her freelance period produced a prolific catalog spanning NTR, femdom, incest-scenario, soap, and lesbian genres, and a VR title she appeared in won the 'Kono Ero VR ga Sugoi! 2018 second-half work' award in 2019. She was affiliated with All Pro talent agency but departed the agency before her retirement. She announced her retirement on 2024-08-31 with a planned final event, which was postponed to October 14, 2024 due to Typhoon 10 (Shanshan), and she formally retired at the Osaka event on that date."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2017-12-25
+    to: 2018-03-31
+    role: "Exclusive contract actress (debut work MIDE-497)"
+  - name: Freelance (kikatan)
+    company: null
+    from: 2018-04-01
+    to: 2024-10-14
+    role: "Non-exclusive freelance actress across multiple labels"
+  awards:
+  - event: このエロVRがすごい!
+    year: 2019
+    category: "2018年下半期作品部門 1位 (KMP VR 2周年記念作品！究極のピースフルオフパコ開催スペシャル！！)"
+  legacy: "A prolific 'kikatan' (non-exclusive) actress of the late 2010s–early 2020s known for her G-cup figure and wide genre range, Tsubasa Hachino compiled one of the larger freelance catalogs of her era, working with virtually every major label in the industry over her seven-year career before retiring in October 2024."
+
+meta:
+  total_owned_titles: 113
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not researched. DB id=628 holds 113 owned titles across MOODYZ, Madonna (JUY), Fitch (JUFE/JUFD), PREMIUM (PRED), Attackers (ATID), Celeb no Tomo (CESD), VENUS (VENU/VEC), GVG, BeFree, HODV, MIAA/MIAE, DASD, MEYD, PPPD, IPX, EKDV, WANZ, XRW, SPRD, CADV, and others. Covers debut (MIDE-497, 2017-12-25) through retirement era."
+  confidence: "Profile data sourced from Japanese Wikipedia infobox (八乃つばさ, 2022-10-12 snapshot as cited in article). DOB 1994-09-30 from infobox; Wikipedia body also notes a secondary source citing 1995-09-30 and different measurements (B92 G-cup W62 H92) — infobox values (1994-09-30, 96-70-102, G) treated as authoritative per data guide. Birthplace not listed in Wikipedia infobox — null. Active period: active_from = 2017-12-25 per Wikipedia debut entry (MIDE-497); active_to = 2024-10-14 per Wikipedia retirement event (postponed from 2024-08-31 due to typhoon). retirement_announced = 2024-08-31 (original planned retirement date). Alternate omnibus aliases (めぐみ, つかさ) sourced directly from Wikipedia filmography notes. Minnano-AV not cross-checked (Puppeteer unavailable in this session)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/八乃つばさ
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=628 (canonical 'Tsubasa Hachino', stage_name 八乃つばさ, 113 titles)"
+  portfolio_listed: 0
+
+portfolio: []

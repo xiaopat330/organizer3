@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Satsuki
+    given_name: Ena
+    stage_name: 沙月恵奈
+    reading: さつき えな
+    alternate_names: null
+  date_of_birth: 1999-06-11
+  birthplace: Chiba Prefecture, Japan
+  blood_type: A
+  height_cm: 152
+  measurements:
+    bust: 85
+    waist: 67
+    hip: 95
+  cup: E
+  active_from: 2020-09-29
+  active_to: null
+  biography: "Ena Satsuki (沙月恵奈) is a Japanese AV actress from Chiba Prefecture, born 11 June 1999, who debuted in September 2020 as an exclusive FALENOstar actress under the streaming-first label FALENO (FSDSS-117). After a one-year exclusive contract she transitioned to freelance (企画単体) work in October 2021, rapidly expanding her output across dozens of labels and earning a reputation for range, ad-lib ability, and expressive performance — industry media nicknamed her 'tensai enachi' (genius Enachi) and 'queen of the freelancers.' From January 2026 she returned to exclusive contract status under KMP's newly created 'sugar' sub-label (Million). She is affiliated with the talent agency LINX and has appeared in VR titles, mainstream gaming/anime-fan adjacent media, and live stage events alongside her AV career."
+  primary_studios:
+  - name: "FALENOstar (FALENO)"
+    company: FALENO
+    from: 2020-09-01
+    to: 2021-09-30
+    role: Exclusive contract actress
+  - name: "Freelance / 企画単体"
+    company: null
+    from: 2021-10-01
+    to: 2025-12-31
+    role: Independent freelance actress across multiple labels
+  - name: "Million / sugar (KMP)"
+    company: "ケイ・エム・プロデュース"
+    from: 2026-01-01
+    to: null
+    role: Exclusive contract actress (sugar sub-label)
+  awards:
+  - event: ADULTOPIA (台湾 Messe Taoyuan)
+    year: 2026
+    category: BEST HEALING SMILE AWARD
+  legacy: "Ena Satsuki is notable as one of the most prolific and versatile freelance AV actresses of the early 2020s, consistently ranking in FANZA's monthly top-10 actress charts from 2024 onward despite competing primarily as an independent against exclusive contract stars. Her wide genre coverage — spanning solo, lesbian, VR, anal, bondage/SM, and series work across rival labels — and her recognized improvisational ability ('tensai enachi') earned her a dedicated fanbase and led to her return to exclusive status at KMP in 2026."
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not researched. DB record id 2285 holds titles under labels including FSDSS/FCDSS (FALENO), MIAA/MIRD (MOODYZ), DASS, HMN (本中), MKMP (Million), WAAA, SORA, DVDMS, EKDV, PFES, YMDD and others spanning her career from 2020 onward."
+  confidence: "All profile fields sourced from Japanese Wikipedia infobox (沙月恵奈 article, 2026 snapshot). Measurements are 2020年公称 (declared 2020 figures). DOB 1999-06-11 confirmed from infobox. Birthplace Chiba Prefecture confirmed from infobox and article body. Blood type A confirmed from infobox. Height 152 cm confirmed from infobox. Bust/waist/hip 85-67-95 confirmed from infobox. Cup E confirmed from infobox. active_from 2020-09-29 = FALENO streaming debut date for FSDSS-117 (FALENO is streaming-first; retail date was 2020-10-22). FALENO exclusive end September 2021 per Wikipedia infobox 専属契約 field. KMP/Million exclusive start January 2026 per Wikipedia. active_to null — actress currently active as of 2026. Awards: Taiwan ADULTOPIA BEST HEALING SMILE AWARD sourced from Wikipedia body text (2026-03). IDENTITY CONFIRMED: article title 沙月恵奈 (さつきえな) matches exactly; debut FSDSS-117 explicitly listed; birth year 1999 matches FALENO-era debut. This is NOT さつき芽衣 (Mei Satsuki) — entirely different kanji and different person. Minnano-AV not scraped (no Japan VPN available for this session); Wikipedia values used as authoritative. No weight data available (listed as ― in Wikipedia)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/沙月恵奈
+  - "Local DB ~/.organizer3/organizer.db — actresses.id=2285 (canonical 'Ena Satsuki', stage_name 沙月恵奈, GODDESS tier)"
+  portfolio_listed: 0
+
+portfolio: []
