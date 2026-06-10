@@ -1,0 +1,63 @@
+profile:
+  name:
+    family_name: Kusakabe
+    given_name: Kana
+    stage_name: 日下部加奈
+    reading: くさかべ かな
+    alternate_names:
+    - name: 元トリンプ下着販売員
+      note: "Profile descriptor used after SOD resignation — 'former Triumph lingerie saleswoman'"
+    - name: SOD女子社員・日下部加奈
+      note: "On-screen credit used for 3 SOD employee debut titles (2019)"
+  date_of_birth: 1995-07-11
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 160
+  measurements:
+    bust: 95
+    waist: 60
+    hip: 95
+  cup: J
+  active_from: 2019-03-21
+  active_to: null
+  retirement_announced: null
+  biography: "Kana Kusakabe is a Japanese AV actress born July 11, 1995 in Tokyo. She joined Soft On Demand (SOD) in April 2018 as a PR department employee and debuted on-screen in March 2019 while still employed there, billed as 'SOD female employee Kana Kusakabe.' After resigning from SOD in July 2019, she signed an exclusive contract with MOODYZ in September 2019, winning their Best New Actress award that December. In January 2021 she moved to Attackers as an exclusive, then in August 2022 transferred to Madonna, where she has remained as an exclusive into 2026. Known for her J-cup bust (she grew from I-cup to J-cup after her debut), she has become one of Madonna's most prominent exclusive actresses."
+  primary_studios:
+  - name: SODクリエイト
+    company: Soft On Demand
+    from: 2019-03-21
+    to: 2019-07-25
+    role: Actress (SOD employee on-screen talent — 3 titles)
+  - name: "Moody's Diva"
+    company: MOODYZ
+    from: 2019-09-13
+    to: 2020-12-13
+    role: Exclusive contract actress
+  - name: Adult Drama
+    company: Attackers (WILL)
+    from: 2021-01-07
+    to: 2022-08-02
+    role: Exclusive contract actress
+  - name: Madonna
+    company: Madonna (WILL)
+    from: 2022-09-13
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: MOODYZ大賞
+    year: 2019
+    category: 最優秀新人賞 (Best New Actress)
+  legacy: "One of the most prominent 'SOD female employee turned actress' success stories, Kana Kusakabe's transition from PR staff to exclusive AV actress became a widely covered story in Japanese entertainment media. Her sustained exclusive contracts across three major labels (MOODYZ, Attackers, Madonna) over more than six years marks her as a top-tier performer in the 2020s era."
+
+meta:
+  total_owned_titles: 72
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only. Portfolio not yet researched.
+  confidence: "High. Japanese Wikipedia article has explicit infobox with blood type (O), measurements (95-60-95), cup (J), height (160 cm), DOB (1995-07-11), birthplace (Tokyo). All three identity heuristics passed: studio match (MOODYZ/Attackers/Madonna all confirmed), title count ballpark (72 DB vs ~80+ Wikipedia), name match (日下部加奈). Minnano-av returned 404; Wikipedia is sole external source but it is detailed and well-cited. Measurements noted as of 2019 per Wikipedia footnote."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E6%97%A5%E4%B8%8B%E9%83%A8%E5%8A%A0%E5%A5%88"
+  - "organizer3 DB actress id=2621"
+  portfolio_listed: 0

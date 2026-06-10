@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Nozomi
+    given_name: Mayu
+    stage_name: 希美まゆ
+    reading: のぞみ まゆ
+    alternate_names: null
+  date_of_birth: 1989-10-05
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 153
+  measurements:
+    bust: 84
+    waist: 60
+    hip: 85
+  cup: C
+  active_from: 2009-11-01
+  active_to: 2017-10-01
+  retirement_announced: null
+  biography: "Mayu Nozomi (希美まゆ) debuted in November 2009 as an exclusive contract actress for IdeaPocket, quickly gaining popularity as a loli-type performer marketed with the catchphrase 'born in Heisei Year 1, age 19.' She maintained a prolific solo career at IdeaPocket for over six years, releasing a new title nearly every month from 2009 through 2016. In March 2016 she transitioned to an Attackers exclusive contract, shifting her image toward harder SM and violation scenarios, before also releasing titles through Madonna in 2017. She ranked 34th in the AV 30th Anniversary all-time popularity vote held in 2012. Her last new AV title was released in October 2017; she has not formally announced retirement and has continued as a singer and content creator since then."
+  primary_studios:
+  - name: IdeaPocket
+    company: "IdeaPocket (アイデアポケット)"
+    from: 2009-11-01
+    to: 2016-03-19
+    role: Exclusive contract actress
+  - name: Attackers
+    company: "Attackers (アタッカーズ)"
+    from: 2016-03-07
+    to: 2017-10-01
+    role: Exclusive contract actress
+  awards:
+  - event: "AV30 オールタイムベスト女優人気投票"
+    year: 2012
+    category: "34位 (34th place all-time)"
+  legacy: "A veteran IdeaPocket solo actress of the early-to-mid 2010s, Nozomi Mayu was known for her approachable cuteness and prolific output before pivoting to Attackers' darker aesthetic near the end of her active career."
+
+meta:
+  total_owned_titles: 70
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched."
+  confidence: "High confidence. DOB, birthplace, blood type, height, measurements, cup all from Japanese Wikipedia AV女優 infobox (explicit 血液型 field for blood type). Active dates from Wikipedia filmography section. Studio periods from biography section and infobox. Identity verified via 3-heuristic check (studio match, title count, name match — all PASS)."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E5%B8%8C%E7%BE%8E%E3%81%BE%E3%82%86"
+  - "https://www.minnano-av.com/actress209432.html"
+  portfolio_listed: 0
