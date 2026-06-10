@@ -9,7 +9,7 @@ profile:
       note: "alternate credit used on 舞ワイフ titles (読み: かみばやし ここな, Kamibayashi Kokona)"
   date_of_birth: 2000-11-15
   birthplace: null
-  blood_type: S
+  blood_type: null
   height_cm: 153
   measurements:
     bust: 88
@@ -37,7 +37,7 @@ meta:
   titles_with_release_date: 0
   total_known_releases: null
   coverage_note: "Profile section only; portfolio research deferred. Owned titles span multiple labels including MOODYZ family, LEO, WANZ, Fitch, MAXING, UMANAMI, K-Tribe, JUKUJO99, and various compilation titles."
-  confidence: "Profile data sourced from minnano-av actress282293 (fetched 2026-06-10): DOB 2000-11-15 (CORRECTED from prior assumption of 2000-11-05 — JSON-LD and infobox both show 11-15), height 153 cm, measurements B88/W56/H88, cup G, blood type S, agency Mines (マインズ), debut May 2021. Alternate name 上林ここな from minnano infobox. Birthplace not listed on minnano — set to null. No Japanese Wikipedia article found for 朝倉ここな. active_from uses 2021-05-01 as a first-of-month placeholder (minnano states '2021年' for career start and '2021年05月01日' for debut title release). primary_studios from field uses 2021-05-01 placeholder."
+  confidence: "Profile data sourced from minnano-av actress282293 (fetched 2026-06-10): DOB 2000-11-15 (CORRECTED from prior assumption of 2000-11-05 — JSON-LD and infobox both show 11-15), height 153 cm, measurements B88/W56/H88, cup G, agency Mines (マインズ), debut May 2021. Blood type null — minnano's size row ends in a trailing '/ S' token that is part of the サイズ field, NOT a 血液型 value (no blood-type field is listed); A/B/O/AB are the only valid types. Alternate name 上林ここな from minnano infobox. Birthplace not listed on minnano — set to null. No Japanese Wikipedia article found for 朝倉ここな. active_from uses 2021-05-01 as a first-of-month placeholder (minnano states '2021年' for career start and '2021年05月01日' for debut title release). primary_studios from field uses 2021-05-01 placeholder."
   data_sources:
   - https://www.minnano-av.com/actress282293.html
   portfolio_listed: 0

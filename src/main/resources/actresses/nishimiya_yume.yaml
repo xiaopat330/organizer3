@@ -8,12 +8,12 @@ profile:
   date_of_birth: 1996-11-04
   birthplace: null
   blood_type: null
-  height_cm: null
+  height_cm: 158
   measurements:
-    bust: null
-    waist: null
-    hip: null
-  cup: null
+    bust: 85
+    waist: 56
+    hip: 86
+  cup: D
   active_from: 2016-09-19
   active_to: null
   retirement_announced: null
@@ -36,7 +36,7 @@ meta:
   titles_with_release_date: null
   total_known_releases: null
   coverage_note: "Profile section only. Portfolio not yet compiled. Wikipedia filmography lists approximately 110+ solo titles plus best-of compilations across IPZ (2016), IPX (2017–2023), IPZZ (2023–present), IDBD best collections, and streaming-only IPBZ series."
-  confidence: "DOB 1996-11-04 sourced from Wikidata (Q47580560), cross-confirmed by Wikipedia category '1996年生' and debut title description '19歳' (September 2016 = age 19, turns 20 in November 1996). Reading sourced from Minnano-AV actress973203. Physical stats (height, measurements, cup, blood type, birthplace) not found — Wikipedia infobox was inaccessible via markdown renderer; Minnano-AV profile section was empty. These fields require DMM/FANZA access (Japan VPN) or a direct Puppeteer scrape of the Wikipedia page HTML."
+  confidence: "DOB 1996-11-04 sourced from Wikidata (Q47580560), cross-confirmed by Wikipedia category '1996年生' and debut title description '19歳'. Reading sourced from Minnano-AV actress973203. height_cm=158, bust=85, waist=56, hip=86, cup=D: sourced from Wikipedia ja infobox raw HTML (AV女優 template fields 身長/バスト/ウエスト/ヒップ/カップ) and independently confirmed by Minnano-AV サイズ field ('T158 / B85(Dカップ) / W56 / H86'). blood_type: Wikipedia infobox 血液型 field is explicitly empty (not recorded); not present on Minnano-AV either — genuine dead-end, not a scrape failure. birthplace: not present in Wikipedia template (出身地 field absent) or Minnano-AV profile — genuine dead-end."
   data_sources:
   - https://ja.wikipedia.org/wiki/西宮ゆめ
   - https://www.wikidata.org/wiki/Q47580560
