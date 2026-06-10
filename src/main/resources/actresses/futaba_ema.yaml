@@ -1,0 +1,53 @@
+profile:
+  name:
+    family_name: Futaba
+    given_name: Ema
+    stage_name: 二葉エマ
+    reading: ふたば えま
+    alternate_names:
+    - name: 二葉 惠麻
+      note: Chinese-market transliteration
+  date_of_birth: 1998-08-07
+  birthplace: Yokosuka, Kanagawa, Japan
+  blood_type: A
+  height_cm: 149
+  measurements:
+    bust: 89
+    waist: 54
+    hip: 86
+  cup: F
+  active_from: 2020-08-13
+  active_to: null
+  retirement_announced: null
+  biography: "Ema Futaba (二葉エマ) is a Japanese AV actress and talent born on August 7, 1998, in Yokosuka, Kanagawa. She debuted as an image video model in December 2018, then made her AV debut with IdeaPocket on August 13, 2020, with the FIRST IMPRESSION 143 series. She became an exclusive actress at IdeaPocket and was selected as campaign girl for IdeaPocket campaigns in 2021 and 2023. In July 2023 she transferred exclusively to Attackers, and from November 2023 she became a freelance planning/solo actress. She maintains an active YouTube channel since 2021 and has experience in theatrical performance since 2023. In March 2026, she was awarded Best Performance Actress at the ADULTOPIA adult expo in Taiwan."
+  primary_studios:
+  - name: IDEA POCKET
+    company: WILL Co., Ltd.
+    from: 2020-08-13
+    to: 2023-07-04
+    role: Exclusive contract actress
+  - name: Attackers
+    company: WILL Co., Ltd.
+    from: 2023-07-04
+    to: 2023-11-30
+    role: Exclusive contract actress
+  awards:
+  - event: ADULTOPIA (大人國成人展)
+    year: 2026
+    category: 'BEST PERFORMANCE ACTRESS (最優秀演技賞)'
+  legacy: "Futaba Ema became one of IdeaPocket's most prominent exclusive actresses of the early 2020s, known for her petite frame combined with an F-cup bust. As a freelance actress from late 2023, she broadened her range across many labels and gained recognition for her performances, culminating in an international award at the 2026 Taiwan ADULTOPIA expo."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 86
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Portfolio section not yet researched. Profile only.
+  confidence: HIGH — all key profile fields sourced from Japanese Wikipedia 基礎情報 infobox (explicit 血液型 field for blood type, explicit 公称サイズ 2019年時点 for measurements). Studio affiliations and career timeline verified from Wikipedia 略歴 section. DB label distribution (IPX 28, MISM 13, MIAB 6, IPZZ 4) confirms IdeaPocket/WILL Co. era matches Wikipedia. All three identity heuristics pass.
+  data_sources:
+  - https://ja.wikipedia.org/wiki/二葉エマ
+  - Local DB: actress id=4054, canonical_name=Ema Futaba, stage_name=二葉エマ
+  portfolio_listed: 0

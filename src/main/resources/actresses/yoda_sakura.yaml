@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: Yoda
+    given_name: Sakura
+    stage_name: 与田さくら
+    reading: よだ さくら
+    alternate_names:
+    - name: Erika Ozaki
+      note: current stage name (尾崎えりか / おざき えりか); renamed August 2022; Wikipedia canonical article title; Million exclusive from October 2025
+  date_of_birth: 2000-03-30
+  birthplace: null
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 84
+    waist: 56
+    hip: 88
+  cup: C
+  active_from: 2021-08-01
+  active_to: null
+  retirement_announced: null
+  biography: "Erika Ozaki (born March 30, 2000), known at debut as Sakura Yoda, is a Japanese AV actress affiliated with the LIGHT talent agency. She entered the industry in August 2021 as a PREMIUM exclusive under the name 与田さくら, completing five exclusive titles before fulfilling her contract in September 2022. She adopted her current stage name 尾崎えりか in August 2022 and transitioned to freelance (企画単体) work from October 2022, quickly attracting offers from numerous studios with her natural eroticism and versatile performance style. From 2024 onward her VR output became particularly acclaimed and she gained the nickname 'New VR Queen' (新・VRの女王). In September 2025 she announced an exclusive contract with the Million label (KM Produce), beginning in October 2025."
+  primary_studios:
+  - name: PREMIUM
+    company: WILL Co., Ltd.
+    from: 2021-08-01
+    to: 2022-09-30
+    role: Exclusive contract actress (与田さくら name)
+  - name: Million
+    company: K.M. Produce
+    from: 2025-10-01
+    to: null
+    role: Exclusive contract actress (尾崎えりか name)
+  awards: null
+  legacy: "One of the few actresses to rebuild and significantly expand her career after leaving an exclusive contract, transitioning from a modestly-received PREMIUM debut into a prolific freelance presence across dozens of labels. Her reputation as a reliable, skilled performer — particularly in VR productions — earned her a second exclusive deal with Million in 2025, capping a four-year ascent from debut to top-tier recognition."
+
+meta:
+  total_owned_titles: 82
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not yet researched. DB title count 82 as of 2026-06-10."
+  confidence: "HIGH — Wikipedia infobox directly sourced; DOB, height, measurements, cup all from explicit infobox fields. Blood type and birthplace fields are blank in the infobox (not null-by-absence — genuinely unpublished). Name chain 与田さくら→尾崎えりか confirmed by Wikipedia redirect and explicit 旧名 annotation in infobox. Active-from set to 2021-08-01 (debut month per Wikipedia 略歴); active_to null (still active, Million exclusive from 2025-10). Measurements dated 2022年時点 per infobox header."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/尾崎えりか (redirected from 与田さくら)"
+  - "Local DB actress id=2601, alias Erika Ozaki confirmed"
+  portfolio_listed: 0

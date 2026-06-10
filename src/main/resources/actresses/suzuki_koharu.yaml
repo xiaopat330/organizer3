@@ -1,0 +1,62 @@
+profile:
+  name:
+    family_name: Suzuki
+    given_name: Koharu
+    stage_name: 鈴木心春
+    reading: すずき こはる
+    alternate_names:
+    - name: オタサーの姫
+      note: event alias used briefly around October 2018
+  date_of_birth: 1993-12-01
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: A
+  height_cm: 160
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 85
+  cup: F
+  active_from: 2013-03-01
+  active_to: 2018-07-01
+  retirement_announced: 2018-07-01
+  biography: "Koharu Suzuki (鈴木心春) is a retired Japanese AV actress born on December 1, 1993 in Kanagawa Prefecture. She debuted in March 2013 with Candy, where she was promoted alongside three other actresses under the 'Suzuki sisters' (鈴木心4姉妹) campaign. After passing through D☆Collection and MOODYZ, she returned to kawaii* in October 2015 and later signed an exclusive contract with S1 (エスワン) from December 2017. She retired in July 2018, having been managed throughout her career by Capsule Agency (カプセルエージェンシー). Off-screen, she was known for her flexibility from rhythmic gymnastics training, her love of modern Japanese literature (favouring Osamu Dazai), and a meticulous approach to physical conditioning."
+  primary_studios:
+  - name: Candy
+    company: Candy
+    from: 2013-03-01
+    to: 2013-06-30
+    role: Debut actress
+  - name: D☆Collection
+    company: D☆Collection
+    from: 2013-07-01
+    to: 2014-07-31
+    role: Exclusive contract actress
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2014-08-01
+    to: 2015-10-24
+    role: Contract actress
+  - name: kawaii*
+    company: kawaii*
+    from: 2015-10-25
+    to: 2017-11-30
+    role: Exclusive contract actress
+  - name: S1 NO.1 STYLE
+    company: S1 NO.1 STYLE
+    from: 2017-12-01
+    to: 2018-07-01
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+meta:
+  total_owned_titles: 85
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: 6
+  total_known_releases: null
+  coverage_note: "Profile only. Portfolio not yet researched."
+  confidence: HIGH — Wikipedia infobox provides explicit 血液型 A型; all three identity heuristics passed (studio match kawaii*/S1, title count ballpark, name match); measurements dated 2014 per infobox note.
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E9%88%B4%E6%9C%A8%E5%BF%83%E6%98%A5
+  portfolio_listed: 0

@@ -1,0 +1,61 @@
+profile:
+  name:
+    family_name: Maki
+    given_name: Kyoko
+    stage_name: 真木今日子
+    reading: まき きょうこ
+    alternate_names:
+    - name: Aikawa Kyoko
+      note: 愛川恭子 — early alias
+    - name: Matsuoka Maya
+      note: 松岡麻耶 — alias
+    - name: Kyoko
+      note: "\"KYOKO\" name used on some Momotaro releases"
+    - name: Kyoko (きょうこ)
+      note: 'きょうこ — kana name used on Hayabusa releases'
+  date_of_birth: 1990-09-03
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: B
+  height_cm: 160
+  measurements:
+    bust: 99
+    waist: 60
+    hip: 88
+  cup: H
+  active_from: 2011-01-14
+  active_to: null
+  retirement_announced: null
+  biography: "Kyoko Maki (真木今日子, born September 3, 1990, Kanagawa Prefecture) is a Japanese AV actress who debuted in January 2011 as an exclusive with MAX-A. She subsequently moved to OPPAI as an exclusive from May through August 2011, then transitioned to a prolific freelance career spanning dozens of labels including Prestige, OPPAI, Chijo Heaven, Aurora Project, and many others. Before entering the AV industry she worked as a patissier at a multinational company, continuing that work part-time for around six months after her debut. In 2015 she joined the idol unit Gingin Girls (ギンギン♂ガールズ) formed by adult broadcasting channel NukiMIX, and the unit made a CD debut in August 2016. In May 2026 she announced she would become an exclusive actress for Madonna starting June 2026."
+  primary_studios:
+  - name: MAX-A
+    company: WILL/JHV Group
+    from: 2011-01-01
+    to: 2011-04-30
+    role: Exclusive contract actress
+  - name: OPPAI
+    company: WILL Co., Ltd.
+    from: 2011-05-01
+    to: 2011-08-31
+    role: Exclusive contract actress
+  - name: Madonna
+    company: WILL Co., Ltd.
+    from: 2026-06-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: "Kyoko Maki is a long-running H-cup busty actress whose career spans over 15 years of continuous freelance work across the major busty and mature-woman labels, culminating in a Madonna exclusive contract in 2026 — a notable late-career move to one of Japan's most prestigious mature-woman labels."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 86
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not yet researched."
+  confidence: HIGH
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E7%9C%9F%E6%9C%A8%E4%BB%8A%E6%97%A5%E5%AD%90"
+  - "Local DB actress ID 466"
+  portfolio_listed: 0
