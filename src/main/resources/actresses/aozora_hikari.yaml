@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: Aozora
+    given_name: Hikari
+    stage_name: 青空ひかり
+    reading: あおぞら ひかり
+    alternate_names:
+    - name: Hikaru Aozora
+      note: alternate romanization used in some releases
+    - name: 青空光
+      note: alternate kanji form used in Chinese-language sources
+  date_of_birth: 1999-01-08
+  birthplace: Yamagata Prefecture, Japan
+  blood_type: null
+  height_cm: 153
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 83
+  cup: D
+  active_from: 2019-10-01
+  active_to: null
+  retirement_announced: null
+  biography: "Hikari Aozora (青空ひかり) is a Japanese AV actress and YouTuber from Yamagata Prefecture, born January 8, 1999. She was a nursing student before contacting an AV agency on her own initiative after struggling with her studies and seeking a new path. She debuted in October 2019 as an exclusive actress under SODクリエイト's SODstar label, with her debut cover chosen via fan contest. A 2nd-dan karate black belt (全空連 system, 9 years of training) who also competed in cheerleading in high school, she is known for her energetic personality and strong physicality, with cowgirl position as a signature strength. She is managed by C-more ENTERTAINMENT and remains active as of 2026, consistently ranking in FANZA monthly actress charts."
+  primary_studios:
+  - name: SOD Star
+    company: SODクリエイト
+    from: 2019-10-01
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: スカパー!アダルト放送大賞
+    year: 2022
+    category: Valuable Actress of Midnight blue
+  legacy: "Aozora Hikari is one of the most consistent mid-to-upper tier performers in the SODstar stable, maintaining steady FANZA chart presence across her six-year career. Her karate background and athletic physique have been recurring talking points, and her cheerful, approachable image has earned her a loyal fanbase with the nickname ぴかキン."
+
+meta:
+  total_owned_titles: 68
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 68 owned titles across STARS (39), START (28), REBD (1). Portfolio not yet researched.
+  confidence: "HIGH — Wikipedia infobox directly provides DOB, birthplace, height, measurements, cup, debut period, studio affiliation, and award. Blood type field is explicitly empty in infobox (null). Active_from set to 2019-10-01 per Wikipedia debut month. Identity confirmed via studio match (SODクリエイト), title count ballpark, and name match."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E9%9D%92%E7%A9%BA%E3%81%B2%E3%81%8B%E3%82%8A"
+  - "Local DB actress id=1073, label distribution: STARS(39), START(28), REBD(1)"
+  portfolio_listed: 0
