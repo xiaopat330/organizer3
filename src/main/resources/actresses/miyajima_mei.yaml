@@ -1,0 +1,40 @@
+profile:
+  name:
+    family_name: Miyajima
+    given_name: Mei
+    stage_name: 宮島めい
+    reading: みやじま めい
+    alternate_names: null
+  date_of_birth: 2000-10-17
+  birthplace: Matsuyama, Ehime, Japan
+  blood_type: A
+  height_cm: 155
+  measurements:
+    bust: 90
+    waist: 59
+    hip: 80
+  cup: F
+  active_from: 2020-07-09
+  active_to: null
+  retirement_announced: null
+  biography: "Mei Miyajima (宮島めい) is a Japanese AV actress born October 17, 2000 in Matsuyama, Ehime. She originally enrolled in a university early-childhood education program with plans to become a kindergarten teacher, and applied to SOD Create's actress recruitment to fund a study-abroad trip, beating approximately 1,000 applicants. She debuted in July 2020 billed as a '100-day-only AV actress,' but the COVID-19 pandemic cancelled her overseas plans; she announced her return in October 2020 and has remained an exclusive SOD Create actress ever since. Her debut work reached #4 on the FANZA weekly sales chart, and her planned retirement work hit #1; critics have singled out her acting ability and emotionally authentic performances in drama-format productions."
+  primary_studios:
+  - name: SOD Star
+    company: SOD Create
+    from: 2020-07-09
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: "Miyajima is notable for an unconventional debut arc — originally recruited as a one-time participant, the cancellation of her study-abroad plan due to COVID-19 led to a permanent career change. Her natural screen presence and strong dramatic instincts have been praised by AV journalists, and she has remained one of SOD Create's flagship exclusive actresses since 2020."
+
+meta:
+  total_owned_titles: 70
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not yet researched.
+  confidence: "High. All profile fields sourced from Japanese Wikipedia infobox (explicit 血液型 field for blood type). Identity confirmed via studio match (STARS/START = SOD Create), title count ballpark (70 DB vs 60+ Wikipedia), and name match. Active as of 2026."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E5%AE%AE%E5%B3%B6%E3%82%81%E3%81%84"
+  portfolio_listed: 0

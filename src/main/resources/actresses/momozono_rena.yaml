@@ -1,0 +1,64 @@
+profile:
+  name:
+    family_name: Momozono
+    given_name: Rena
+    stage_name: 桃園怜奈
+    reading: ももぞの れな
+    alternate_names:
+    - name: ももちゃん
+      note: nickname
+    - name: 怜奈ちゃん
+      note: nickname
+  date_of_birth: 1996-07-27
+  birthplace: Hyogo Prefecture, Japan
+  blood_type: B
+  height_cm: 155
+  measurements:
+    bust: 97
+    waist: 56
+    hip: 91
+  cup: I
+  active_from: 2016-01-01
+  active_to: null
+  retirement_announced: null
+  biography: "Rena Momozono (桃園怜奈) is a Japanese AV actress and talent from Hyogo Prefecture, born July 27, 1996. She debuted in January 2016 as a Fitch exclusive while attending Kansai University, but retired after only three releases that March, intending it as a short stint. After graduating she worked for two years as an accountant at a major Kansai real-estate developer before discovering online fan demand for her return. She made a widely anticipated comeback in September 2020 with Fitch and rapidly became one of the label's top sellers, credited with pioneering the 'reverse-bunny' (逆バニー) costume trend in the industry. In 2025 she added Madonna as a second exclusive studio, and in 2026 further expanded to a dual exclusive with ダスッ!."
+  primary_studios:
+  - name: Fitch
+    company: WILL
+    from: 2016-01-01
+    to: 2016-03-01
+    role: Exclusive contract actress
+  - name: Fitch
+    company: WILL
+    from: 2020-09-12
+    to: 2026-02-27
+    role: Exclusive contract actress
+  - name: Madonna
+    company: WILL
+    from: 2025-06-01
+    to: null
+    role: Exclusive contract actress
+  - name: "ダスッ!"
+    company: WILL
+    from: 2026-02-27
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: 週プレアダルトアワード
+    year: 2021
+    category: メディア賞 (Media Award — 週刊プレイボーイ)
+  legacy: "Momozono is best known for popularizing the 'reverse-bunny' (逆バニー) AV subgenre, with her 2021 Fitch title becoming that label's best-selling release of the year. Her two-year industry hiatus followed by a high-profile comeback, combined with her Kansai University graduate background, made her a widely covered figure in the genre press during the early 2020s."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 71
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only. Portfolio not yet researched.
+  confidence: "High. All profile fields sourced from Japanese Wikipedia AV女優 infobox (explicit fields for DOB, birthplace, blood_type, height, measurements, cup). Blood type confirmed from explicit 血液型 field (B型). Measurements are noted as of 2020年9月. Active_to is null — actress is confirmed still active as of 2026. Wikipedia article title matches DB stage_name exactly."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E6%A1%83%E5%9C%92%E6%80%9C%E5%A5%88"
+  portfolio_listed: 0
