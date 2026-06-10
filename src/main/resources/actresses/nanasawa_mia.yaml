@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Nanasawa
+    given_name: Mia
+    stage_name: 七沢みあ
+    reading: ななさわ みあ
+    alternate_names:
+    - name: みゃーちゃん
+      note: nickname used in MOODYZ marketing and interviews
+  date_of_birth: 1998-12-13
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 145
+  measurements:
+    bust: 79
+    waist: 54
+    hip: 80
+  cup: C
+  active_from: 2017-11-25
+  active_to: null
+  retirement_announced: null
+  biography: "Mia Nanasawa (七沢みあ) is a Japanese AV actress born on December 13, 1998 in Tokyo. She made her exclusive debut with MOODYZ on November 25, 2017, at age 18, billed as a current college student with the catchphrase 'little sister to all AV fans.' She has maintained an exclusive contract with MOODYZ throughout her career, releasing titles primarily under the MIDE, MIDV, and MIDA labels. In July 2020 she ranked first in the FANZA video floor monthly actress ranking, and in 2024 she ranked 13th in the Shukan Asahi Geino active AV actress sexy election. As of 2025 she is still active, marking her seventh anniversary with MOODYZ with a 82-work complete-box release. Beyond AV, she participates in gravure swimsuit events and has cultivated a female fanbase through swimwear modeling work."
+  primary_studios:
+  - name: "Moody's Diva"
+    company: MOODYZ
+    from: 2017-11-25
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: "One of MOODYZ's longest-serving exclusive contract actresses of the 2010s-2020s generation, Nanasawa Mia built a loyal fanbase through consistent output across the MIDE, MIDV, and MIDA label lines. Her petite 145 cm frame became a signature trait recognized in FANZA rankings and FLASH magazine polls throughout the late 2010s and 2020s."
+
+meta:
+  total_owned_titles: 88
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile-only research. Portfolio section not yet researched. DB count 88 titles (MIDE:35, MIDV:31, MIDA:15, IPX:3, MIZD:2, MIMK:1, FWAY:1). A 7th-anniversary 82-work BOX released in 2025 implies total catalog approximately 82+ works through 2024."
+  confidence: "High. DOB, height, measurements, cup, birthplace, debut date, and studio all confirmed from Japanese Wikipedia infobox (sourced to Capsule Agency official profile, 2020). Blood type field is explicitly empty in the Wikipedia template — null is correct, not an omission. Active-to is null because actress is confirmed still active as of 2025."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E4%B8%83%E6%B2%A2%E3%81%BF%E3%81%82"
+  - "Local DB: actresses id=1253, title label distribution"
+  portfolio_listed: 0
