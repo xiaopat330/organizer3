@@ -1,0 +1,71 @@
+profile:
+  name:
+    family_name: Toda
+    given_name: Makoto
+    stage_name: 戸田真琴
+    reading: とだ まこと
+    alternate_names:
+    - name: 戸田 真琴
+      note: full spaced form used in official credits
+  date_of_birth: 1996-10-09
+  birthplace: Shizuoka Prefecture, Japan
+  blood_type: null
+  height_cm: 158
+  measurements:
+    bust: 83
+    waist: 58
+    hip: 83
+  cup: C
+  active_from: 2016-06-23
+  active_to: 2023-01-31
+  retirement_announced: 2021-12-14
+  biography: "Toda Makoto (戸田真琴) is a former AV actress, writer, and filmmaker born October 9, 1996 in Shizuoka Prefecture. She debuted on June 23, 2016 under SOD's 青春時代 label before moving to SOD Star in November 2016, remaining a SOD exclusive for approximately five years. In December 2021 she announced her retirement, transitioning to a year-long FALENO exclusive run in 2022 before formally retiring as an AV actress on January 31, 2023 at a live event in Tokyo. Alongside her AV career she cultivated a parallel identity as an essayist and filmmaker, crowdfunding ¥6 million in 2019 to produce her directorial debut short film anthology 『永遠が通り過ぎていく』. After retirement she continued under the same stage name as an author and filmmaker, releasing her debut novel 『そっちにいかないで』 in May 2023."
+  primary_studios:
+  - name: SOD Create / SOD Star
+    company: SODクリエイト
+    from: 2016-06-23
+    to: 2021-12-31
+    role: Exclusive contract actress
+  - name: FALENO
+    company: FALENO
+    from: 2022-01-01
+    to: 2023-01-31
+    role: Exclusive contract actress
+  awards:
+  - event: 東京スポーツ あの娘で抜きたい裏通りWebグランプリ2016
+    year: 2017
+    category: 新人賞 (Best New Actress)
+  - event: 東京スポーツ あの娘で抜きたい裏通りWebグランプリ2016
+    year: 2017
+    category: 作品賞 (Best Work — SOD青春時代)
+  - event: 大森靖子賞
+    year: 2017
+    category: 第1回大森靖子賞
+  - event: ミスiD2018
+    year: 2017
+    category: ミスiD2018受賞者
+  - event: DMM R-18 アダルトアワード2018
+    year: 2018
+    category: 話題賞 (Buzz Award)
+  - event: 第30回ピンク映画大賞
+    year: 2018
+    category: 新人女優賞 (Best New Actress)
+  - event: スカパー！アダルト放送大賞2019
+    year: 2019
+    category: 女優賞 (Best Actress)
+  legacy: "Toda Makoto is notable for simultaneously pursuing an AV career and a creative identity as an essayist and filmmaker, winning multiple mainstream and industry awards. Her announced retirement attracted significant press attention, and she went on to build a post-AV career as an author and director while continuing under the same stage name."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 60
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile section only. Portfolio not yet researched."
+  confidence: "HIGH. Wikipedia article confirmed identity via DOB (1996-10-09), SOD/FALENO studio match, and name match. Measurements from minnano-av (confirmed SOD official profile: T158/B83/W58/H83/C cup). Birthplace from Wikipedia categories (静岡県出身の人物). Blood type not found in any explicit 血液型 field — set null. Note: an earlier agency promo listed DOB 1992-10-19 but SOD's official profile (1996-10-09) is authoritative and matches Wikipedia."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E6%88%B8%E7%94%B0%E7%9C%9F%E7%90%B4"
+  - "https://www.minnano-av.com/search_result.php?search_scope=actress&search_word=%E6%88%B8%E7%94%B0%E7%9C%9F%E7%90%B4"
+  portfolio_listed: 0
