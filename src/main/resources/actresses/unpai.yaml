@@ -1,0 +1,67 @@
+profile:
+  name:
+    family_name: null
+    given_name: Unpai
+    stage_name: うんぱい
+    reading: うんぱい
+    alternate_names:
+    - name: いとうさやか
+      note: real name (Itou Sayaka), used during early gravure and live-streaming career
+    - name: 伊藤彩
+      note: name used during 17LIVE streaming career before AV debut
+  date_of_birth: null
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 165
+  measurements:
+    bust: 92
+    waist: 59
+    hip: 98
+  cup: H
+  active_from: 2022-02-01
+  active_to: null
+  retirement_announced: null
+  biography: "Unpai (born August 1, year undisclosed, Tokyo) is a Japanese AV actress,
+    live-streamer, influencer, TikToker, and gravure idol. She studied classical piano
+    at Senzoku Gakuen College of Music and became a popular live streamer on 17LIVE
+    under the name Itou Aya, reaching the world #2 ranking. After a gravure debut
+    in 2019, she announced her AV debut on January 25, 2022 under the mononym うんぱい
+    and signed as an exclusive actress with S1 NO.1 STYLE (February 2022), with her
+    debut work becoming S1's biggest hit of that year. She transferred to MOODYZ in
+    December 2024. For AV work she is managed by the talent agency Mines (マインズ)."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: エスワン ナンバーワン スタイル
+    from: 2022-02-01
+    to: 2024-11-30
+    role: Exclusive contract actress
+  - name: MOODYZ
+    company: ムーディーズ
+    from: 2024-12-01
+    to: null
+    role: Exclusive contract actress
+  awards: []
+  legacy: "Unpai is notable as a cross-platform personality who built a social media
+    following of over 340,000 TikTok followers and 355,000 YouTube subscribers before
+    her AV debut, translating online fame into one of S1's top-selling debuts of 2022.
+    Her H-cup figure and established influencer brand made her one of the more prominent
+    SUPERSTAR-tier actresses of the early 2020s."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 51
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only. Portfolio not yet researched.
+  confidence: 'HIGH — Wikipedia 基礎情報 infobox confirmed: mononym うんぱい, birth date
+    8月1日 (year withheld), Tokyo birthplace, H cup, measurements 92-59-98 (2022年時点),
+    S1 NO.1 STYLE exclusive Feb 2022 - Nov 2024, MOODYZ Dec 2024-. DB labels SSIS+SONE
+    (S1) and MIDA (MOODYZ) match exactly. No 血液型 field in infobox — blood type null.
+    Mononym: given_name=Unpai, family_name=null, reconstructed romaji = "Unpai"
+    matches canonical_name exactly.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E3%81%86%E3%82%93%E3%81%B1%E3%81%84
+  portfolio_listed: 0

@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: Matsuoka
+    given_name: Suzu
+    stage_name: 松岡すず
+    reading: まつおか すず
+    alternate_names: null
+  date_of_birth: 1995-08-11
+  birthplace: Kyoto, Japan
+  blood_type: O
+  height_cm: 160
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 89
+  cup: D
+  active_from: 2020-05-01
+  active_to: null
+  retirement_announced: null
+  biography: "Suzu Matsuoka (松岡すず) is a Japanese AV actress born on August 11, 1995 in Kyoto Prefecture. She is a graduate of a well-known private university in the Kansai region (literature faculty) and prior to her AV debut worked at a steel trading company in a specialized division handling molybdenum and forged products — an experience that inspired her stage name (鈴/すず, read as tin or bell). She debuted at Prestige in May 2020 under an exclusive contract, quickly establishing herself as one of the studio's flagship ABW-label performers. In July 2022 she moved to the boutique label KANBi, where she has remained one of its primary exclusive actresses. She holds certifications in English, French, and Korean, as well as secretarial and real estate qualifications. She ranked 13th in Asahi Geino's 2023 AV Actress Sexy Election and 17th in the 2024 edition."
+  primary_studios:
+  - name: Prestige
+    company: Prestige
+    from: 2020-05-01
+    to: 2022-07-01
+    role: Exclusive contract actress (ABW/ABP flagship line)
+  - name: KANBi
+    company: KANBI
+    from: 2022-07-01
+    to: null
+    role: Exclusive contract actress
+  awards: []
+  legacy: "Suzu Matsuoka is notable for a career built on two extended exclusive contracts — first with Prestige's flagship ABW actress line, then with KANBi — and for bringing an unusual intellectual and professional background to the industry that has become part of her public persona."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 52
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated.
+  confidence: 'HIGH. Kanji stage_name 松岡すず confirmed via Japanese Wikipedia article titled 松岡すず (exact match to javdb co-cast seed {"slug":"zK4N5","name":"松岡すず"}) plus minnano-av actress7590 (2020-05-debut, Prestige/KANBi affiliations match DB label distribution ABW x21, KBR x13, KBI x10). DOB 1995-08-11 from Wikipedia infobox. Blood type O from 血液型 field in Wikipedia infobox. Height 160 cm, measurements 85/58/89, cup D from Wikipedia AV-era infobox. Identity verification: studio match PASS (Prestige+KANBi confirmed), title count ballpark PASS (minnano lists 45 domestic titles vs 52 in DB — ratio 0.87, within range), name match PASS.'
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%9D%BE%E5%B2%A1%E3%81%99%E3%81%9A
+  - https://www.minnano-av.com/actress7590.html
+  portfolio_listed: 0

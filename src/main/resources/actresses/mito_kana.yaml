@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Mito
+    given_name: Kana
+    stage_name: 水戸かな
+    reading: みとかな
+    alternate_names: null
+  date_of_birth: 1984-11-01
+  birthplace: null
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 83
+    waist: 60
+    hip: 85
+  cup: C
+  active_from: 2017-11-01
+  active_to: null
+  retirement_announced: null
+  biography: "Kana Mito (水戸かな) is a Japanese AV actress born on November 1, 1984, who debuted as a Madonna exclusive on November 1, 2017, at the age of 32. Before entering AV, she worked as a dance instructor and had aspired to become a professional dancer. She made her debut title with JUY-285, introduced as a top-tier Madonna exclusive, and has maintained that exclusive relationship continuously since. In 2019 she joined the BStar Production talent agency (affiliated with Bambi Promotion). By early 2024 she became the longest-serving exclusive actress in Madonna's history. She was ranked 13th in the FANZA 2024 first-half actress rankings and has also performed as a stripper at Asakusa Rock-za (November–December 2021) and runs an active YouTube channel (Mi_channel, 2020–present)."
+  primary_studios:
+  - name: Madonna
+    company: WILL Co., Ltd.
+    from: 2017-11-01
+    to: null
+    role: Exclusive contract actress
+  awards: []
+  legacy: "Kana Mito holds the distinction of being Madonna's longest-serving exclusive actress, maintaining her exclusive contract from her debut in November 2017 through the present. Her steady output of mature-woman (熟女) drama titles and her ranking in FANZA's top 15 actresses in 2024 reflect a durable appeal that has grown stronger over her career."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 51
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile section only; portfolio not enumerated. Titles in local DB as of 2026-06-10; career is ongoing.
+  confidence: "HIGH for DOB (1984-11-01), height (160 cm), measurements (83-60-85 cm as of 2017 per FANZA/Wikipedia infobox), cup (C), debut date (2017-11-01), and primary studio (Madonna). Birthplace not found in any source — set null. Blood type not present in Wikipedia 基礎情報 infobox and no explicit 血液型 field on minnano-av — set null per guardrail (trailing /S in size row is shoe size, not blood type). Agency BStar Production confirmed via minnano-av JSON-LD."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%B0%B4%E6%88%B8%E3%81%8B%E3%81%AA
+  - https://www.minnano-av.com/actress71117.html
+  portfolio_listed: 0
