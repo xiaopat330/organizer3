@@ -300,10 +300,12 @@ public class DraftPopulator {
 
     /**
      * Carries the outcome of {@link #autoLinkActress}: either a link to an existing Actress,
-     * or pre-filled English name parts from a fuzzy-matched romaji guess, or nothing.
+     * pre-filled English name parts from a fuzzy-matched romaji guess, or nothing.
+     * {@code via} records which pass fired (canonical/alias/stage_name/slug/fuzzy/prefill),
+     * or {@code null} if no match was found.
      */
-    public record AutoLinkResult(Long actressId, String englishFirst, String englishLast) {
-        public static final AutoLinkResult EMPTY = new AutoLinkResult(null, null, null);
+    public record AutoLinkResult(Long actressId, String englishFirst, String englishLast, String via) {
+        public static final AutoLinkResult EMPTY = new AutoLinkResult(null, null, null, null);
     }
 
     /** Atomically writes draft_actresses (upsert) and draft_title_actresses for each cast entry.
@@ -328,7 +330,7 @@ public class DraftPopulator {
             draftActressRepo.upsertBySlug(draftActress);
 
             String resolution = (linkResult.actressId() != null) ? RESOLUTION_PICK : RESOLUTION_UNRESOLVED;
-            slots.add(new DraftTitleActress(draftId, entry.slug(), resolution));
+            slots.add(new DraftTitleActress(draftId, entry.slug(), resolution, linkResult.via()));
         }
         draftCastRepo.replaceForDraft(draftId, slots);
     }
@@ -352,7 +354,10 @@ public class DraftPopulator {
         if (normalizedName != null) {
             Optional<Actress> byName = actressRepo.resolveByName(normalizedName);
             if (byName.isPresent() && !byName.get().isRejected()) {
-                return new AutoLinkResult(byName.get().getId(), null, null);
+                // Distinguish Pass 1 (canonical match) from Pass 2 (alias match).
+                String via = byName.get().getCanonicalName().equalsIgnoreCase(normalizedName)
+                        ? "canonical" : "alias";
+                return new AutoLinkResult(byName.get().getId(), null, null, via);
             }
         }
 
@@ -361,7 +366,7 @@ public class DraftPopulator {
         if (rawName != null && !rawName.isEmpty()) {
             Optional<Actress> byStage = actressRepo.findByStageName(rawName);
             if (byStage.isPresent()) {
-                return new AutoLinkResult(byStage.get().getId(), null, null);
+                return new AutoLinkResult(byStage.get().getId(), null, null, "stage_name");
             }
         }
 
@@ -370,7 +375,7 @@ public class DraftPopulator {
         if (actressIdOpt.isPresent()) {
             Optional<Actress> actress = actressRepo.findById(actressIdOpt.get());
             if (actress.isPresent() && !actress.get().isRejected()) {
-                return new AutoLinkResult(actress.get().getId(), null, null);
+                return new AutoLinkResult(actress.get().getId(), null, null, "slug");
             }
         }
 
@@ -401,12 +406,12 @@ public class DraftPopulator {
                         log.debug("autoLink: REVERSAL match — corrected romaji='{}' written for kanji='{}'",
                                 correctedRomaji, entry.name());
                     }
-                    return new AutoLinkResult(matched.get().getId(), null, null);
+                    return new AutoLinkResult(matched.get().getId(), null, null, "fuzzy");
                 }
             }
             // Pass 5a: romaji in hand but no unrejected actress match → pre-fill name fields
             String[] parts = ActressFuzzyMatcher.splitRomaji(romaji.get());
-            return new AutoLinkResult(null, parts[0], parts[1]);
+            return new AutoLinkResult(null, parts[0], parts[1], "prefill");
         }
 
         // Pass 5b: resolveStageNameBlocking returned empty → timed out or LLM unavailable

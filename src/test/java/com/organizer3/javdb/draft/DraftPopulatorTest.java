@@ -723,4 +723,142 @@ class DraftPopulatorTest {
 
         verify(stageNameSuggestionRepo, never()).recordFinalRomaji(any(), any());
     }
+
+    // ── resolved_via provenance tests ─────────────────────────────────────────
+
+    @Test
+    void autoLinkActress_pass1CanonicalMatch_viaIsCanonical() {
+        // Pass 1: resolveByName returns an actress whose canonical_name matches the normalized input.
+        var entry = new TitleExtract.CastEntry("slug-c", "Aika", "F");
+        Actress actress = Actress.builder().id(10L).canonicalName("Aika").build();
+        when(actressRepo.resolveByName("aika")).thenReturn(Optional.of(actress));
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertEquals(10L, result.actressId());
+        assertEquals("canonical", result.via(), "Pass 1 canonical match must set via='canonical'");
+    }
+
+    @Test
+    void autoLinkActress_pass2AliasMatch_viaIsAlias() {
+        // Pass 2: resolveByName returns an actress whose canonical_name DIFFERS from the lookup —
+        // meaning the match was via an alias.
+        var entry = new TitleExtract.CastEntry("slug-a", "Ai Kago", "F");
+        // The actress's canonical_name is "Aika" (≠ "ai kago"), so this is an alias match.
+        Actress actress = Actress.builder().id(20L).canonicalName("Aika").build();
+        when(actressRepo.resolveByName("ai kago")).thenReturn(Optional.of(actress));
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertEquals(20L, result.actressId());
+        assertEquals("alias", result.via(), "Pass 2 alias match must set via='alias'");
+    }
+
+    @Test
+    void autoLinkActress_pass2_5StageNameMatch_viaIsStageName() {
+        var entry = new TitleExtract.CastEntry("slug-sn", "森日向子", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        Actress matched = Actress.builder().id(321L).canonicalName("Hinako Mori")
+                .stageName("森日向子").build();
+        when(actressRepo.findByStageName("森日向子")).thenReturn(Optional.of(matched));
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertEquals(321L, result.actressId());
+        assertEquals("stage_name", result.via(), "Pass 2.5 stage_name match must set via='stage_name'");
+    }
+
+    @Test
+    void autoLinkActress_pass3SlugMatch_viaIsSlug() {
+        seedActress(7L, "SomeName");
+        var entry = new TitleExtract.CastEntry("known-slug-v", "Unknown Name", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(actressRepo.findByStageName(any())).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("known-slug-v")).thenReturn(Optional.of(7L));
+        Actress actress = Actress.builder().id(7L).canonicalName("SomeName").build();
+        when(actressRepo.findById(7L)).thenReturn(Optional.of(actress));
+        when(translationService.resolveStageNameBlocking(any(), anyLong(), anyLong())).thenReturn(Optional.empty());
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertEquals(7L, result.actressId());
+        assertEquals("slug", result.via(), "Pass 3 slug match must set via='slug'");
+    }
+
+    @Test
+    void autoLinkActress_pass4FuzzyMatch_viaIsFuzzy() {
+        seedActress(77L, "Yuma Asami");
+        var entry = new TitleExtract.CastEntry("slug-fz", "浅見ゆま", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(actressRepo.findByStageName(any())).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-fz")).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(eq("浅見ゆま"), anyLong(), anyLong()))
+                .thenReturn(Optional.of("Yuma Asami"));
+        Actress matched = Actress.builder().id(77L).canonicalName("Yuma Asami").build();
+        when(fuzzyMatcher.match("Yuma Asami"))
+                .thenReturn(Optional.of(new ActressFuzzyMatcher.MatchResult(77L, ActressFuzzyMatcher.Rule.EXACT)));
+        when(actressRepo.findById(77L)).thenReturn(Optional.of(matched));
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertEquals(77L, result.actressId());
+        assertEquals("fuzzy", result.via(), "Pass 4 fuzzy match must set via='fuzzy'");
+    }
+
+    @Test
+    void autoLinkActress_pass5aPrefill_viaIsPrefill() {
+        var entry = new TitleExtract.CastEntry("slug-pf", "田中みく", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(actressRepo.findByStageName(any())).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-pf")).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(eq("田中みく"), anyLong(), anyLong()))
+                .thenReturn(Optional.of("Miku Tanaka"));
+        when(fuzzyMatcher.match("Miku Tanaka")).thenReturn(Optional.empty());
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertNull(result.actressId());
+        assertEquals("Miku", result.englishFirst());
+        assertEquals("Tanaka", result.englishLast());
+        assertEquals("prefill", result.via(), "Pass 5a prefill must set via='prefill'");
+    }
+
+    @Test
+    void autoLinkActress_pass5bNoMatch_viaIsNull() {
+        var entry = new TitleExtract.CastEntry("slug-5bv", "木村花子", "F");
+        when(actressRepo.resolveByName(any())).thenReturn(Optional.empty());
+        when(actressRepo.findByStageName(any())).thenReturn(Optional.empty());
+        when(stagingRepo.findActressIdByJavdbSlug("slug-5bv")).thenReturn(Optional.empty());
+        when(translationService.resolveStageNameBlocking(any(), anyLong(), anyLong()))
+                .thenReturn(Optional.empty());
+
+        DraftPopulator.AutoLinkResult result = populator.autoLinkActress(entry);
+
+        assertSame(DraftPopulator.AutoLinkResult.EMPTY, result);
+        assertNull(result.via(), "Pass 5b total miss must have null via");
+    }
+
+    @Test
+    void writeCastSlots_pass1Match_persistsResolvedViaOnSlot() throws Exception {
+        seedActress(42L, "Aika");
+
+        when(titleRepo.findById(1L)).thenReturn(Optional.of(stubTitle(1L, "TST-1")));
+        stubSlugSuccess("TST-1", "tst-1");
+        when(javdbClient.fetchTitlePage("tst-1")).thenReturn("<html/>");
+        var cast = List.of(new TitleExtract.CastEntry("a1v", "Aika", "F"));
+        when(extractor.extractTitle(any(), any(), any())).thenReturn(stubExtract("TST-1", "tst-1", cast));
+
+        Actress actress = Actress.builder().id(42L).canonicalName("Aika").build();
+        when(actressRepo.resolveByName("aika")).thenReturn(Optional.of(actress));
+        when(translationService.resolveStageNameBlocking(any(), anyLong(), anyLong())).thenReturn(Optional.empty());
+        when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{0}, "jpg"));
+
+        var result = populator.populate(1L);
+        assertEquals(DraftPopulator.Status.CREATED, result.status());
+
+        var slots = draftCastRepo.findByDraftTitleId(result.draftTitleId());
+        assertEquals(1, slots.size());
+        assertEquals("canonical", slots.get(0).getResolvedVia(),
+                "slot persisted by Pass 1 must carry resolved_via='canonical'");
+    }
 }

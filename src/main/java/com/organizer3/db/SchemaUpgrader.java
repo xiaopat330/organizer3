@@ -358,6 +358,11 @@ public class SchemaUpgrader {
             setVersion(66);
         }
 
+        if (version < 67) {
+            applyV67();
+            setVersion(67);
+        }
+
         log.info("Schema upgrade complete");
     }
 
@@ -2250,6 +2255,22 @@ public class SchemaUpgrader {
     private void applyV66() {
         log.info("Applying migration v66: bookmark_on_promote on draft_titles");
         jdbi.useHandle(h -> addColumnIfMissing(h, "draft_titles", "bookmark_on_promote", "INTEGER DEFAULT 0"));
+    }
+
+    /**
+     * v67: {@code resolved_via} column on {@code draft_title_actresses}.
+     *
+     * <p>Records the provenance of each cast-slot resolution — which auto-link pass fired, or
+     * that the slot was resolved manually by a human. Valid values:
+     * {@code canonical}, {@code alias}, {@code stage_name}, {@code slug}, {@code fuzzy},
+     * {@code manual}, {@code prefill}. {@code NULL} means a legacy row created before this
+     * migration; consumers treat NULL as unknown/conservative.
+     *
+     * <p>Idempotent via {@link #addColumnIfMissing}. No backfill — legacy rows stay NULL.
+     */
+    private void applyV67() {
+        log.info("Applying migration v67: resolved_via on draft_title_actresses");
+        jdbi.useHandle(h -> addColumnIfMissing(h, "draft_title_actresses", "resolved_via", "TEXT"));
     }
 
     private static String leafOf(String path) {

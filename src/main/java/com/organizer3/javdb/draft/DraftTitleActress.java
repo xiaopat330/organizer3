@@ -1,5 +1,6 @@
 package com.organizer3.javdb.draft;
 
+import lombok.AllArgsConstructor;
 import lombok.Value;
 
 /**
@@ -21,6 +22,7 @@ import lombok.Value;
  * <p>See spec/PROPOSAL_DRAFT_MODE.md §5.2 and §12.4.
  */
 @Value
+@AllArgsConstructor
 public class DraftTitleActress {
 
     long draftTitleId;
@@ -33,4 +35,21 @@ public class DraftTitleActress {
      * {@code skip}, {@code sentinel:<id>}, {@code unresolved}.
      */
     String resolution;
+
+    /**
+     * Provenance of the resolution — how this slot was resolved.
+     * One of: {@code canonical}, {@code alias}, {@code stage_name}, {@code slug},
+     * {@code fuzzy}, {@code manual}, {@code prefill}.
+     * {@code null} for legacy rows created before V67 migration, or for unresolved/skip slots
+     * that were not prefilled.
+     */
+    String resolvedVia;
+
+    /**
+     * Legacy 3-arg constructor for backward-compatible call sites.
+     * Sets {@code resolvedVia} to {@code null}.
+     */
+    public DraftTitleActress(long draftTitleId, String javdbSlug, String resolution) {
+        this(draftTitleId, javdbSlug, resolution, null);
+    }
 }

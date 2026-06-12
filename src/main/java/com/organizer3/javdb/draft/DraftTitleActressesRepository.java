@@ -30,7 +30,8 @@ public class DraftTitleActressesRepository {
             return new DraftTitleActress(
                     rs.getLong("draft_title_id"),
                     rs.getString("javdb_slug"),
-                    rs.getString("resolution"));
+                    rs.getString("resolution"),
+                    rs.getString("resolved_via"));
         }
     };
 
@@ -52,12 +53,13 @@ public class DraftTitleActressesRepository {
 
             for (DraftTitleActress r : resolutions) {
                 h.createUpdate("""
-                        INSERT INTO draft_title_actresses (draft_title_id, javdb_slug, resolution)
-                        VALUES (:draftTitleId, :javdbSlug, :resolution)
+                        INSERT INTO draft_title_actresses (draft_title_id, javdb_slug, resolution, resolved_via)
+                        VALUES (:draftTitleId, :javdbSlug, :resolution, :resolvedVia)
                         """)
                         .bind("draftTitleId", draftTitleId)
                         .bind("javdbSlug",    r.getJavdbSlug())
                         .bind("resolution",   r.getResolution())
+                        .bind("resolvedVia",  r.getResolvedVia())
                         .execute();
             }
         });

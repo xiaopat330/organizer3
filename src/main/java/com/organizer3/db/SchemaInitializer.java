@@ -645,6 +645,7 @@ public class SchemaInitializer {
                         draft_title_id INTEGER NOT NULL REFERENCES draft_titles(id) ON DELETE CASCADE,
                         javdb_slug     TEXT NOT NULL REFERENCES draft_actresses(javdb_slug),
                         resolution     TEXT NOT NULL,
+                        resolved_via   TEXT,
                         PRIMARY KEY (draft_title_id, javdb_slug)
                     )""");
 
@@ -828,7 +829,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 65");
+                h.execute("PRAGMA user_version = 67");
             }
         });
         log.info("Schema initialization complete");
