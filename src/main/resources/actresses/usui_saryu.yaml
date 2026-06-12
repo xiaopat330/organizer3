@@ -1,0 +1,35 @@
+profile:
+  name:
+    family_name: Usui
+    given_name: Saryu
+    stage_name: 卯水咲流
+    reading: うすい さりゅう
+    alternate_names:
+      - {name: Moriyama Ayano, kanji: 森山綾乃, reading: もりやま あやの, note: former stage name}
+      - {name: Aiba Nanako, kanji: 相葉菜々子, reading: あいば ななこ, note: alias}
+  date_of_birth: '1985-12-25'
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 169
+  measurements: {bust: 84, waist: 59, hip: 87}
+  cup: C
+  active_from: '2013'
+  active_to: null
+  retirement_announced: null
+  biography: "Saryu Usui (born December 25, 1985, Tokyo) is a Japanese AV actress, talent, and model who originally entered entertainment under the name Moriyama Ayano, winning the Performance Prize at the 31st Clarion Girl contest in 2006 while affiliated with Oscar Promotion. She appeared in TV drama Kamen Rider Den-O (2007-2008) before transitioning to AV, making her debut on February 1, 2013 under MUTEKI with the title Sokkenmijin. From mid-2013 she worked exclusively with Idea Pocket (IPZ series), and from late 2014 also with Attackers, before expanding to a wide range of labels from 2015 onward including RBD, MEYD, Madonna, and many others. A self-described anime otaku whose motto is 'life is otaku,' she also has skills in ikebana and trumpet playing; she played trumpet at the Clarion Girl contest. In October 2018 she was crowned the 24th Queen at the Jukujo Queen Contest in Shinjuku, and she placed 99th in FANZA's 2018 annual actress ranking."
+  primary_studios:
+    - {name: MUTEKI, company: null, from: '2013', to: '2013', role: exclusive}
+    - {name: Idea Pocket, company: null, from: '2013', to: '2015', role: exclusive}
+    - {name: Attackers, company: null, from: '2014', to: '2015', role: exclusive}
+  awards:
+    - {event: Clarion Girl, year: 2006, category: Performance Prize (31st)}
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 37
+  confidence: "HIGH — DOB/birthplace/blood type confirmed across minnano-av.com (structured 血液型 field) and Wikipedia ja infobox; measurements confirmed by Wikipedia and javdatabase; biography drawn from Wikipedia 略歴 section with multiple cited sources"
+  data_sources:
+    - https://www.minnano-av.com/actress984058.html
+    - https://ja.wikipedia.org/wiki/%E5%8D%AF%E6%B0%B4%E5%92%B2%E6%B5%81
+    - https://www.javdatabase.com/idols/saryu-usui/
+  portfolio_listed: 0

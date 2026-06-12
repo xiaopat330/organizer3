@@ -1,0 +1,31 @@
+profile:
+  name:
+    family_name: Aso
+    given_name: Nozomi
+    stage_name: 麻生希
+    reading: あそう のぞみ
+    alternate_names:
+    - {name: のぞみん, context: nickname}
+  date_of_birth: '1984-12-20'
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 170
+  measurements: {bust: 89, waist: 58, hip: 89}
+  cup: G
+  active_from: '2012'
+  active_to: null
+  retirement_announced: null
+  biography: "Nozomi Aso is a Japanese AV actress of Filipino-Japanese heritage (母はフィリピン人), born December 20, 1984 in Tokyo. Standing 170 cm with a proportional figure, she was dubbed \"Japan's most beautiful nude\" at her June 2012 debut with SOD Create, with her debut title topping Amazon and DMM annual rankings and making her a million-selling actress. Praised for her ojou-sama (refined lady) image and likened in Chinese-speaking markets to Taiwanese actress Lin Chiling, she became a major star under SOD before a brief announced retirement in 2014; she returned the same year as a MAXING exclusive. In June 2016 she was arrested under the Narcotics and Psychotropics Control Act, received a suspended sentence, and MAXING subsequently ended her contract; she continued as a freelance performer. In March 2018 she was arrested again for stimulant possession and received a sentence of 1 year 8 months at Yokohama District Court. She has remained active in AV as a freelance performer."
+  primary_studios:
+  - {name: SOD Create, company: SOD, from: '2012', to: '2014', role: exclusive}
+  - {name: MAXING, company: MAXING, from: '2014', to: '2016', role: exclusive}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 28
+  confidence: "HIGH — DOB/height/measurements/blood type confirmed across minnano-av (JSON-LD) and Wikipedia (Maxing official profile 2014 citation); birthplace Tokyo from Wikipedia official source; cup size G from Wikipedia vs F on minnano-av (Wikipedia official wins); biography drawn from Wikipedia 略歴・人物 and 薬物事件 sections"
+  data_sources:
+  - https://www.minnano-av.com/actress438228.html
+  - https://ja.wikipedia.org/wiki/%E9%BA%BB%E7%94%9F%E5%B8%8C
+  portfolio_listed: 0

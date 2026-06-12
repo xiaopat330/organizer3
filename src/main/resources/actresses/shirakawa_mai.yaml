@@ -1,0 +1,26 @@
+profile:
+  name: {family_name: Shirakawa, given_name: Mai, stage_name: 白川麻衣, reading: しらかわ まい, alternate_names: [{name: 中村日咲, reading: なかむら ひなた, context: "renamed August 2017 after leaving Idea Pocket"}, {name: 白雪麻衣, reading: しらゆき まい, context: "renamed in 2018"}]}
+  date_of_birth: '1994-12-26'
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 162
+  measurements: {bust: 88, waist: 61, hip: 88}
+  cup: D
+  active_from: '2016'
+  active_to: null
+  retirement_announced: null
+  biography: "白川麻衣 (Shirakawa Mai) debuted in June 2016 as Idea Pocket's 100th exclusive actress, making an immediate impression with her refined, elegant looks in the FIRST IMPRESSION 100 debut title IPZ-774. She remained exclusive to Idea Pocket through mid-2017, releasing seven titles in the label's signature style. In August 2017 she announced a move to agency DINO and adopted the name 中村日咲 (Nakamura Hinata), subsequently working across multiple studios as a freelancer. She later renamed again to 白雪麻衣 (Shirayuki Mai) in 2018, continuing to appear in a wide range of productions. Her Idea Pocket era — marked by her 88-61-88 figure, D-cup, and 162 cm frame — established her as a polished, high-production-value performer within the classic IP house style."
+  primary_studios:
+  - {name: Idea Pocket, company: null, from: '2016', to: '2017', role: exclusive}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 8
+  confidence: "HIGH — kanji 白川麻衣 confirmed via Japanese Wikipedia (ja.wikipedia.org/wiki/白川麻衣) with hiragana reading しらかわ まい explicitly stated; debut title IPZ-774 (2016-06-18) cross-checked on javdatabase.com; IAFD confirms Tokyo birthplace, 162 cm, 35D-24-32; blood type A from Idea Pocket actress page cited in Wikipedia footnote. Note: the prompt said era ~2012-2014 but the actual debut is June 2016 per all sources. 白雪麻衣 is a post-2018 rename, not the original stage_name."
+  data_sources:
+    - "https://ja.wikipedia.org/wiki/%E7%99%BD%E5%B7%9D%E9%BA%BB%E8%A1%A3"
+    - "https://www.javdatabase.com/idols/mai-shirakawa/"
+    - "https://www.javdatabase.com/movies/ipz-774/"
+    - "https://www.iafd.com/person.rme/perfid=maishirakawa/gender=f/mai-shirakawa.htm"
+  portfolio_listed: 0

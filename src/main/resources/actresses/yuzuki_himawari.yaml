@@ -1,0 +1,32 @@
+profile:
+  name:
+    family_name: Yuzuki
+    given_name: Himawari
+    stage_name: 柚月ひまわり
+    reading: ゆづき ひまわり
+    alternate_names:
+    - {name: 柚月向日葵, note: Chinese-market name (中華圈)}
+  date_of_birth: '1996-09-23'
+  birthplace: null
+  blood_type: O
+  height_cm: 165
+  measurements: {bust: 86, waist: 60, hip: 88}
+  cup: E
+  active_from: '2016-11-25'
+  active_to: '2019-08-25'
+  retirement_announced: null
+  biography: "Himawari Yuzuki (柚月ひまわり) is a Japanese AV actress born September 23, 1996. She debuted in November 2016 as an exclusive contract actress with Idea Pocket, where her tall, glamorous figure and distinctive personality quickly attracted a following. In July 2018 she moved to Attackers on an exclusive contract before transferring again in October 2018 to Celebu no Tomo (セレブの友), where she remained until her retirement in 2019. Known for her striking 165 cm frame, E-cup figure, and wide range of on-screen personas spanning femdom, vanilla, and roleplay scenarios, she released over two dozen solo titles across her three-year career."
+  primary_studios:
+  - {name: Idea Pocket, company: null, from: '2016-11-25', to: '2018-06-19', role: Exclusive contract actress}
+  - {name: Attackers, company: null, from: '2018-07-07', to: '2018-10-05', role: Exclusive contract actress}
+  - {name: Celeb no Tomo, company: null, from: '2018-12-26', to: '2019-08-25', role: Exclusive contract actress}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 10
+  confidence: "HIGH — DOB, blood type (血液型: Ｏ), height, measurements, cup, and career timeline all confirmed from Japanese Wikipedia infobox; identity verified via Idea Pocket studio match (DB top labels IPX/IPZ = Idea Pocket); reading ゆづき per DB canonical (Wikipedia shows ゆずき, both valid romanizations of 柚月); birthplace not stated in any source"
+  data_sources:
+  - https://ja.wikipedia.org/wiki/柚月ひまわり
+  - https://www.minnano-av.com/actress102497.html
+  portfolio_listed: 0

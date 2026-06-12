@@ -1,0 +1,33 @@
+profile:
+  name:
+    family_name: Ichikawa
+    given_name: Masami
+    stage_name: 市川まさみ
+    reading: いちかわ まさみ
+    alternate_names:
+      - {name: いっちー, note: nickname}
+  date_of_birth: '1991-07-10'
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 162
+  measurements: {bust: 81, waist: 61, hip: 91}
+  cup: C
+  active_from: '2015'
+  active_to: '2022'
+  retirement_announced: '2022-04-11'
+  biography: "Masami Ichikawa (市川まさみ, born July 10, 1991, Tokyo) is a Japanese actress, talent, and singer, known for her unconventional path into AV. She joined Soft on Demand (SOD) as a company employee in 2014, assigned to the public relations department, and became briefly famous when she declared on-camera during a TV Tokyo program (Godtan) that she would 'absolutely never appear in AV.' She made her AV debut on January 8, 2015 with SODクリエイト under the title crediting her as a first-year PR staffer, then left SOD's employee rolls and relaunched as an exclusive SODstar actress in March 2015. From April 2015 she was a member of idol unit Ebisu Muscats, eventually becoming its 5th-generation leader in August 2018. She won the DMM.R18 Adult Award 話題賞 (Buzz Award) in 2016 and SOD AWARD 2019's Best Exclusive Actress award; she was also nominated for FANZA Adult Award 2019 Best Actress. She announced her AV retirement on April 11, 2022 citing ongoing lower-back issues (lumbar disc herniation diagnosed in her teens), with her final compilation release in May 2022. She continues as a talent and PR professional after retirement."
+  primary_studios:
+    - {name: SODクリエイト, company: Soft on Demand, from: '2015', to: '2022', role: exclusive}
+  awards:
+    - {event: DMM.R18アダルトアワード, year: 2016, category: 話題賞}
+    - {event: SOD AWARD, year: 2019, category: 最優秀専属女優}
+    - {event: FANZAアダルトアワード, year: 2019, category: 最優秀女優賞ノミネート}
+  legacy: "Famous as the 'SOD PR girl who said she would never do AV' — her reversal became a viral cultural moment in 2015. Led Ebisu Muscats as 5th-generation leader and remained a prominent SOD face for seven years."
+portfolio: []
+meta:
+  total_owned_titles: 42
+  confidence: "HIGH — Wikipedia ja infobox confirmed DOB/birthplace/blood type/measurements/studio/active dates; javdatabase.com corroborates SODstar filmography (104 censored titles). NOTE: task brief described era as 'S1/Idea Pocket ~2008-2015' but this actress debuted at SODクリエイト in 2015; brief era info was incorrect."
+  data_sources:
+    - https://ja.wikipedia.org/wiki/%E5%B8%82%E5%B7%9D%E3%81%BE%E3%81%95%E3%81%BF
+    - https://www.javdatabase.com/idols/masami-ichikawa/
+  portfolio_listed: 0

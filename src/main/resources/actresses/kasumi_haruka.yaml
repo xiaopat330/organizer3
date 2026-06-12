@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Kasumi
+    given_name: Haruka
+    stage_name: 香澄はるか
+    reading: かすみはるか
+    alternate_names: []
+  date_of_birth: '1994-03-07'
+  birthplace: Saga Prefecture
+  blood_type: null
+  height_cm: 164
+  measurements:
+    bust: 84
+    waist: 59
+    hip: 88
+  cup: F
+  active_from: '2015'
+  active_to: null
+  retirement_announced: null
+  biography: "Haruka Kasumi (香澄はるか) is a Japanese AV actress from Saga Prefecture, born
+    March 7, 1994. She debuted on the SOD Create SODstar label in September 2015, appearing
+    exclusively in the flagship STAR series throughout her career. Known for her tall
+    164 cm frame and F-cup figure (84-59-88), she appeared in seven STAR-series titles
+    ranging from STAR-627 through STAR-687 between 2015 and 2016. Her stated hobbies
+    include cooking, reading, and visiting aquariums. She remained a minor-tier SODstar
+    exclusive during her active period."
+  primary_studios:
+  - {name: SOD Create, company: null, from: '2015', to: null, role: exclusive}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 7
+  confidence: "MED — kanji 香澄はるか confirmed via Yahoo Chiebukuro Q&A (answered 2019,
+    2 upvotes) cross-referenced with HMV artist page listing same kanji; DOB/birthplace/height
+    corroborate javdatabase independently. Blood type not found in any explicit 血液型
+    source. Measurements from javdatabase only (single source)."
+  data_sources:
+    - https://detail.chiebukuro.yahoo.co.jp/qa/question_detail/q14212727144
+    - https://www.javdatabase.com/idols/haruka-kasumi/
+    - https://www.hmv.co.jp/en/artist_%E9%A6%99%E6%BE%84%E3%81%AF%E3%82%8B%E3%81%8B_600000000026298/
+    - https://www.javdatabase.com/movies/star-627/
+  portfolio_listed: 0

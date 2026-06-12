@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Asuka
+    given_name: Rin
+    stage_name: 飛鳥りん
+    reading: あすか りん
+    alternate_names:
+    - {name: 飛鳥リン, note: katakana variant of stage name}
+  date_of_birth: '1997-01-08'
+  birthplace: Kyoto Prefecture, Japan
+  blood_type: AB
+  height_cm: 150
+  measurements: {bust: 86, waist: 54, hip: 95}
+  cup: E
+  active_from: '2016'
+  active_to: '2020'
+  retirement_announced: '2019-12-30'
+  biography: "Rin Asuka (飛鳥りん) is a Japanese AV actress born January 8, 1997 in Kyoto Prefecture.\
+    \ A self-described idol enthusiast, she applied to SOD's project to produce its own idol and\
+    \ debuted as a SOD exclusive idol in March 2016; she had previously passed an audition for an\
+    \ unnamed idol group but declined it. She made her AV debut in September 2016 under SOD Create,\
+    \ placing second in the actress division of AV OPEN 2016 with her debut title. She remained an\
+    \ SOD Create exclusive until November 2018, after which she continued to work for multiple labels\
+    \ including S1 (STAR/STARS series), Maxing (MXGS), and Madonna (JUY/JUFE). On December 30, 2019\
+    \ she announced her retirement from AV, effective March 2020. Outside AV she was affiliated with\
+    \ Eightman Production and pursued idol activities."
+  primary_studios:
+  - {name: SOD Create, company: Soft on Demand, from: '2016', to: '2018', role: exclusive}
+  - {name: S1 No.1 Style, company: Soft on Demand, from: '2018', to: '2020', role: null}
+  - {name: Maxing, company: null, from: '2018', to: '2020', role: null}
+  - {name: Madonna, company: null, from: '2018', to: '2020', role: null}
+  awards:
+  - {event: AV OPEN, year: 2016, category: 女優部門2位 (Actress Division Runner-up)}
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 36
+  confidence: "HIGH — DOB/birthplace/blood type/measurements all from Japanese Wikipedia infobox\
+    \ with cited SOD source; cross-confirmed by title list (STAR/STARS/MXGS/JUY series match\
+    \ 2016-2020 SOD/post-SOD era). Note: task description stated era as 2008-2014 Idea Pocket\
+    \ classic but DB titles and Wikipedia confirm this is the 2016-2020 SOD actress."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E9%A3%9B%E9%B3%A5%E3%82%8A%E3%82%93
+  portfolio_listed: 0

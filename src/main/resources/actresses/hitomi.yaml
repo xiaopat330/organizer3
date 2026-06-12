@@ -1,0 +1,38 @@
+profile:
+  name:
+    family_name: null
+    given_name: Hitomi
+    stage_name: Hitomi
+    reading: ひとみ
+    alternate_names:
+    - {name: "田中 瞳", reading: "たなか ひとみ", note: "gravure idol name (pre-AV debut)"}
+    - {name: "Hitomi Tanaka", reading: null, note: "overseas marketing name"}
+  date_of_birth: '1986-07-18'
+  birthplace: Kumamoto Prefecture, Japan
+  blood_type: AB
+  height_cm: 156
+  measurements: {bust: 113, waist: 59, hip: 83}
+  cup: O
+  active_from: '2008'
+  active_to: '2022'
+  retirement_announced: '2022-02-28'
+  biography: "Hitomi (born July 18, 1986 in Kumamoto Prefecture) is a Japanese former AV actress and gravure idol known internationally as one of the most prominent large-bust performers in the industry. She began her career as gravure idol Tanaka Hitomi (田中瞳) in 2007, debuting with the image video Bakunyuu no Shougeki, before announcing her AV debut under the mononym Hitomi via SOD Create in November 2008. Her early career measurements of 97 cm J-cup grew over time to a claimed 113 cm O-cup, making her a flagship performer for the OPPAI label from 2010 onward, where she held an exclusive contract from 2016. She received international recognition through the US-based big-bust site SCORELAND, winning Model of the Year three consecutive times and being named Model of the Decade for 2010-2019. She announced her retirement on February 28, 2022, with her final works released in April 2022."
+  primary_studios:
+  - {name: SOD Create, company: SOD, from: '2008', to: '2009', role: exclusive}
+  - {name: OPPAI, company: null, from: '2010', to: '2022', role: exclusive}
+  - {name: MOODYZ, company: null, from: '2010', to: '2016', role: null}
+  - {name: Tameike Goro, company: null, from: '2013', to: '2015', role: null}
+  awards:
+  - {event: SCORELAND Model of the Year, year: 2012, category: null}
+  - {event: SCORELAND Model of the Year, year: 2013, category: null}
+  - {event: SCORELAND Model of the Year, year: 2014, category: null}
+  - {event: SCORELAND Model of the Decade, year: 2019, category: "2010-2019"}
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 20
+  confidence: "HIGH — identity confirmed via Japanese Wikipedia (Hitomi AV女優) + javdatabase.com; DOB/birthplace/blood type/measurements from Wikipedia infobox; retirement date from Wikipedia citing Twitter announcement"
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/Hitomi_(AV%E5%A5%B3%E5%84%AA)"
+  - "https://www.javdatabase.com/idols/hitomi-hitomi-tanaka/"
+  portfolio_listed: 0
