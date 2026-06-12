@@ -6,6 +6,7 @@ import com.organizer3.enrichment.plan.ActressChange;
 import com.organizer3.enrichment.plan.ActressYamlPlan;
 import com.organizer3.enrichment.plan.FieldChange;
 import com.organizer3.enrichment.plan.PortfolioChange;
+import com.organizer3.javdb.enrichment.CastPresenceCheck;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Title;
@@ -13,8 +14,8 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.TitleTagRepository;
 import com.organizer3.sync.TitleCodeParser;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jdbi.v3.core.Jdbi;
 
 import java.io.File;
 import java.io.IOException;
@@ -45,7 +46,6 @@ import java.util.jar.JarFile;
  * Tags are always replaced atomically per title.
  */
 @Slf4j
-@RequiredArgsConstructor
 public class ActressYamlLoader {
 
     private static final String RESOURCE_PREFIX = "actresses/";
@@ -53,8 +53,34 @@ public class ActressYamlLoader {
     private final ActressRepository actressRepo;
     private final TitleRepository titleRepo;
     private final TitleTagRepository tagRepo;
+    /** Jdbi instance used to read {@code cast_json} from {@code title_javdb_enrichment}. */
+    private final Jdbi jdbi;
+    /** Shared cast-presence predicate; {@code null} disables the guard (test convenience). */
+    private final CastPresenceCheck castPresenceCheck;
     private final ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
     private final TitleCodeParser codeParser = new TitleCodeParser();
+
+    /**
+     * Full constructor including cast-mismatch guard dependencies.
+     */
+    public ActressYamlLoader(ActressRepository actressRepo, TitleRepository titleRepo,
+                             TitleTagRepository tagRepo, Jdbi jdbi,
+                             CastPresenceCheck castPresenceCheck) {
+        this.actressRepo = actressRepo;
+        this.titleRepo = titleRepo;
+        this.tagRepo = tagRepo;
+        this.jdbi = jdbi;
+        this.castPresenceCheck = castPresenceCheck;
+    }
+
+    /**
+     * Convenience constructor without cast-mismatch guard (guard disabled; used in tests that
+     * do not need the enrichment-row check).
+     */
+    public ActressYamlLoader(ActressRepository actressRepo, TitleRepository titleRepo,
+                             TitleTagRepository tagRepo) {
+        this(actressRepo, titleRepo, tagRepo, null, null);
+    }
 
     /**
      * Load a single actress YAML by romanized name slug (e.g. "nana_ogura").
@@ -357,6 +383,23 @@ public class ActressYamlLoader {
                 final long titleId;
                 if (existing.isPresent()) {
                     titleId = existing.get().getId();
+
+                    // Cast-mismatch guard: if this title has enrichment with a cast_json,
+                    // verify the actress appears in it before overwriting metadata.
+                    if (castPresenceCheck != null && jdbi != null) {
+                        String castJson = fetchCastJson(titleId);
+                        if (castJson != null && !castJson.isBlank()) {
+                            CastPresenceCheck.Result presence = castPresenceCheck.check(actress.getId(), castJson);
+                            boolean enforced = castPresenceCheck.guardEnforced(titleId, castJson);
+                            if (presence == CastPresenceCheck.Result.ABSENT && enforced) {
+                                log.warn("cast-mismatch guard: skipping metadata write for {} (actress {} not in enriched cast)",
+                                        code, actress.getCanonicalName());
+                                unresolved.add(code + ": cast-mismatch — actress kanji not in enriched cast; skipped");
+                                continue;
+                            }
+                        }
+                    }
+
                     titlesEnriched++;
                 } else {
                     // Create a minimal title stub so enrichment data is not lost
@@ -395,6 +438,20 @@ public class ActressYamlLoader {
         }
 
         return new LoadResult(actress.getCanonicalName(), actress.getId(), titlesCreated, titlesEnriched, unresolved, created);
+    }
+
+    /**
+     * Returns the {@code cast_json} blob for the given title's javdb enrichment row,
+     * or {@code null} if no enrichment row exists.
+     */
+    private String fetchCastJson(long titleId) {
+        if (jdbi == null) return null;
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT cast_json FROM title_javdb_enrichment WHERE title_id = :id")
+                        .bind("id", titleId)
+                        .mapTo(String.class)
+                        .findFirst()
+                        .orElse(null));
     }
 
     /**

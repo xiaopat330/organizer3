@@ -353,7 +353,8 @@ public class Application {
         commands.add(new ActressSearchCommand(actressRepo, titleRepo, labelRepo, nameLookup));
         commands.add(new FavoritesCommand(actressRepo, titleRepo));
 
-        ActressYamlLoader yamlLoader = new ActressYamlLoader(actressRepo, titleRepo, tagRepo);
+        ActressYamlLoader yamlLoader = new ActressYamlLoader(actressRepo, titleRepo, tagRepo, jdbi,
+                new com.organizer3.javdb.enrichment.CastPresenceCheck(jdbi));
         new com.organizer3.translation.StageNameSeeder(yamlLoader, stageNameLookupRepo).seed();
         commands.add(new LoadActressCommand(yamlLoader));
         commands.add(new CheckNamesCommand(actressRepo, new ActressNameCheckService()));
