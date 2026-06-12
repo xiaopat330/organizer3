@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: Akane
+    given_name: Azusa
+    stage_name: 茜あずさ
+    reading: あかねあずさ
+    alternate_names: []
+  date_of_birth: '1994'
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 86
+    waist: 58
+    hip: 85
+  cup: G
+  active_from: '2013'
+  active_to: null
+  retirement_announced: null
+  biography: "Azusa Akane (茜あずさ) is a Japanese AV actress born in 1994 in Tokyo who
+    debuted in June 2013 at age 19 under Idea Pocket, where she had been a gravure
+    idol before transitioning to AV. Her debut title, FIRST IMPRESSION 69 (IPZ-130),
+    showcased her G-cup figure and her naturally sweet, soft-spoken personality, establishing
+    her quickly as a fan favourite within the Idea Pocket stable. Over the following
+    two years she released a series of solo titles for Idea Pocket's Dish label, including
+    the soapland-themed IPZ-333 and the nymphomaniac-concept IPZ-401, while also lending
+    her figure to big-bust specialist labels OPPAI (PPPD-315) and E-Body (EBOD-394).
+    She is noted for her full, rounded bust, fair complexion, and enthusiastic performance
+    style across a filmography spanning at least 57 titles."
+  primary_studios:
+    - {name: Idea Pocket, company: null, from: '2013', to: null, role: exclusive}
+    - {name: OPPAI, company: null, from: null, to: null, role: null}
+    - {name: E-Body, company: null, from: null, to: null, role: null}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 8
+  confidence: "HIGH — kanji 茜あずさ confirmed from DMM/FANZA API (r18.dev JSON) for
+    IPZ-130, IPZ-238, IPZ-401, EBOD-394, PPPD-315 all returning DMM actress ID 1019869
+    with name_kanji=茜あずさ and name_kana=あかねあずさ; cross-checked against minnano-av.com
+    actress 959410 (same romanization and kana reading); birth year 1994 and measurements
+    from javdatabase.com; exact DOB unknown (year only)"
+  data_sources:
+    - "https://r18.dev/videos/vod/movies/detail/-/combined=ipz00130/json"
+    - "https://r18.dev/videos/vod/movies/detail/-/combined=ipz00238/json"
+    - "https://r18.dev/videos/vod/movies/detail/-/combined=ipz00401/json"
+    - "https://r18.dev/videos/vod/movies/detail/-/combined=pppd00315/json"
+    - "https://r18.dev/videos/vod/movies/detail/-/combined=ebod00394/json"
+    - "https://www.minnano-av.com/actress959410.html"
+    - "https://www.javdatabase.com/idols/azusa-akane/"
+  portfolio_listed: 0

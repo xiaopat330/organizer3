@@ -1,0 +1,40 @@
+profile:
+  name:
+    family_name: Aisaka
+    given_name: Haruna
+    stage_name: 逢坂はるな
+    reading: あいさかはるな
+    alternate_names: []
+  date_of_birth: '1993-08-13'
+  birthplace: null
+  blood_type: null
+  height_cm: 163
+  measurements:
+    bust: 83
+    waist: 57
+    hip: 85
+  cup: D
+  active_from: '2014'
+  active_to: null
+  retirement_announced: null
+  biography: "Haruna Aisaka (逢坂はるな) is a Japanese AV actress born on August 13, 1993. She made her industry debut in May 2014 with Idea Pocket, where she was promoted as a fresh national-idol-type newcomer in her debut title IPZ-387. During her active period she appeared under both the Idea Pocket label (IPZ series) and SOD's STAR series, working with two of Japan's most prominent AV studios. Slender with a height of 163 cm and D-cup measurements, she brought a youthful, girl-next-door image to her work. Her career spanned titles into the mid-2010s before she appears to have quietly retired."
+  primary_studios:
+  - {name: Idea Pocket, company: null, from: '2014', to: null, role: null}
+  - {name: SOD Create, company: null, from: null, to: null, role: null}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 6
+  confidence: "MED — kanji 逢坂はるな confirmed via minnano-av.com search result (actress362184 labeled
+    逢坂はるなあいさかはるな / Aisaka Haruna) cross-matched with her IPZ titles; minnano-av bio text
+    was corrupted (AKB48 idol content for a different person, disregarded); DOB/height/measurements
+    from IAFD + javdatabase; birthplace omitted (javdatabase ambiguous Kanagawa/Saitama tags,
+    IAFD no data)"
+  data_sources:
+  - https://www.minnano-av.com/actress362184.html
+  - https://www.minnano-av.com/search_result.php?search_scope=actress&search_word=Aisaka+Haruna
+  - https://www.javdatabase.com/idols/haruna-aisaka/
+  - https://www.iafd.com/person.rme/perfid=harunaaisaka/gender=f/haruna-aisaka.htm
+  - https://www.javdatabase.com/movies/ipz-387/
+  portfolio_listed: 0

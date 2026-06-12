@@ -1,0 +1,35 @@
+profile:
+  name: {family_name: Hasegawa, given_name: Miku, stage_name: 長谷川ミク, reading: はせがわ みく, alternate_names: []}
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: null
+  measurements: null
+  cup: null
+  active_from: '2012'
+  active_to: '2013'
+  retirement_announced: null
+  biography: "Miku Hasegawa (長谷川ミク) made her AV debut in February 2012 with SOD Create's STAR-328, a 200-minute debut release. She quickly transitioned to Idea Pocket, appearing across the IPTD and IPZ series throughout 2012 and into 2013, with titles including her facial specialty release IPTD-975 and a role-play feature IPZ-086 (Secret Female Investigation). Her output also extended to Prestige (CHN-002), Ranmaru (TYOD-195), and Mitsu Getsu (SMT-011), suggesting she worked across multiple labels during her short but active career. She appears to have retired around late 2013 after roughly a dozen solo releases."
+  primary_studios:
+  - {name: SOD Create, company: SOD, from: '2012', to: '2012', role: null}
+  - {name: Idea Pocket, company: null, from: '2012', to: '2013', role: null}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 14
+  confidence: "LOW — no DOB/physical stats found for this actress; the major javdatabase
+    entry for 'Miku Hasegawa' (330 titles, debut 2003, born 1985, Fukuoka) is a different
+    actress and those stats were excluded. Career dates confirmed from javdatabase
+    movie-level data cross-referenced against DB filmography."
+  data_sources:
+  - https://www.javdatabase.com/movies/star-328/
+  - https://www.javdatabase.com/movies/iptd-958/
+  - https://www.javdatabase.com/movies/ipz-012/
+  - https://www.javdatabase.com/movies/ipz-026/
+  - https://www.javdatabase.com/movies/ipz-066/
+  - https://www.javdatabase.com/movies/ipz-086/
+  - https://www.javdatabase.com/movies/tyod-195/
+  - https://www.javdatabase.com/movies/smt-011/
+  - https://www.javdatabase.com/movies/chn-002/
+  portfolio_listed: 0

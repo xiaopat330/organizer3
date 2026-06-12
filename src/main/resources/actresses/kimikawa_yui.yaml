@@ -1,0 +1,39 @@
+profile:
+  name:
+    family_name: Kimikawa
+    given_name: Yui
+    stage_name: "きみかわ結衣"
+    reading: "きみかわ ゆい"
+    alternate_names: []
+  date_of_birth: '1997-04-22'
+  birthplace: Tokyo
+  blood_type: O
+  height_cm: 171
+  measurements:
+    bust: 88
+    waist: 59
+    hip: 87
+  cup: E
+  active_from: '2017'
+  active_to: '2017'
+  retirement_announced: null
+  biography: "きみかわ結衣 (Yui Kimikawa) is a Japanese AV actress who made her debut with Idea Pocket in January 2017 (IPZ-872, the studio's FIRST IMPRESSION debut series). Born on April 22, 1997 in Tokyo, she stood out for her tall, slender figure (171 cm) and athletic build, with basketball listed as her special skill. Her Idea Pocket career was brief but prolific, spanning roughly eight solo or semi-solo titles across 2017 under the IPZ and SUPD labels. She retired from the industry after approximately one year of activity. NOTE: DB record 5589 conflates her titles with those of Reina Kashima (ABP series, Prestige, debut 2018-05-18), who is a different person — the two records should be separated."
+  primary_studios:
+  - {name: Idea Pocket, company: null, from: '2017', to: '2017', role: exclusive}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 17
+  confidence: "MED — stage_name confirmed as hiragana+kanji hybrid (きみかわ結衣) from official
+    Idea Pocket actress page (ideapocket.com/actress/detail/72595); DOB/birthplace/blood
+    type from same official source. Cup E from javdatabase.com and IAFD cross-check.
+    DB record 5589 is conflated: IPZ/SUPD titles are Yui Kimikawa; ABP titles belong
+    to Reina Kashima (different person, different DOB 1996 vs 1997, Prestige studio)."
+  data_sources:
+  - "https://ideapocket.com/actress/detail/72595"
+  - "https://www.javdatabase.com/idols/yui-kimikawa/"
+  - "https://www.iafd.com/person.rme/perfid=yuikimikawa/gender=f/yui-kimikawa.htm"
+  - "https://www.javdatabase.com/movies/ipz-872/"
+  - "https://www.javdatabase.com/movies/supd-140/"
+  portfolio_listed: 0

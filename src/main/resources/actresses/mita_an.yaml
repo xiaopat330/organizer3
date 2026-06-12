@@ -1,0 +1,35 @@
+profile:
+  name:
+    family_name: Mita
+    given_name: An
+    stage_name: 三田杏
+    reading: みた あん
+    alternate_names:
+      - {name: 川田みはる, reading: かわた みはる, note: "post-retirement comeback name, Body Corporation 2019-2020"}
+      - {name: 深田咲良, reading: ふかだ さくら, note: "additional alias"}
+  date_of_birth: '1999-02-16'
+  birthplace: Tohoku region, Japan
+  blood_type: null
+  height_cm: 166
+  measurements:
+    bust: 84
+    waist: 59
+    hip: 87
+  cup: D
+  active_from: '2017'
+  active_to: '2020'
+  retirement_announced: '2019-01-31'
+  biography: "An Mita (三田杏) was born on February 16, 1999, in the Tohoku region of Japan, the seventh of eight siblings. Her parents divorced when she was three years old, and her mother worked four jobs to support the family, eventually developing depression. Mita enrolled in a welfare-track high school intending to become a care worker, but withdrew within three days when the family could not pay tuition; she then moved out and began working at a care facility without qualifications. Determined to support her family and repay debts, she entered the AV industry at eighteen, debuting on November 2, 2017 under SOD Create's SOD star label. She quickly gained recognition, receiving a nomination for the DMM Adult Award Best New Actress and winning the SOD AWARD 2018 Best New Actress prize. After graduating from SOD star in May 2018, she announced her retirement as An Mita on January 31, 2019; she returned to the industry on May 13, 2019 under the name Kawata Miharu (川田みはる) with Body Corporation before announcing a final retirement on September 9, 2020. She paid off her family's debts in full by 2019."
+  primary_studios:
+    - {name: SOD Create, company: null, from: '2017', to: '2018', role: exclusive}
+  awards:
+    - {event: SOD AWARD, year: 2018, category: Best New Actress (新人女優賞)}
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 21
+  confidence: "HIGH — DOB, measurements, career dates, and biography sourced from Japanese Wikipedia infobox and article text; cross-checked against minnano-av.com career history. Minor DOB discrepancy noted: Wikipedia infobox template shows February 16 while article prose says February 6; infobox data used. Blood type not available in any source. User-specified studio (Idea Pocket) not confirmed by research; SOD Create is the documented exclusive."
+  data_sources:
+    - "https://ja.wikipedia.org/wiki/%E4%B8%89%E7%94%B0%E6%9D%8F"
+    - "https://www.minnano-av.com/actress487988.html"
+  portfolio_listed: 0

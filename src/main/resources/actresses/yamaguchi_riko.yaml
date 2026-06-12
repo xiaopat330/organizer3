@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: Yamaguchi
+    given_name: Riko
+    stage_name: やまぐちりこ
+    reading: やまぐち りこ
+    alternate_names:
+      - {name: Nakanishi Rina, note: "real name / former AKB48 stage name (中西里菜)"}
+      - {name: Rico Yamaguchi, note: "romanization variant"}
+  date_of_birth: '1988-06-26'
+  birthplace: Oita City, Oita Prefecture, Japan
+  blood_type: O
+  height_cm: 158
+  measurements: {bust: 88, waist: 59, hip: 85}
+  cup: F
+  active_from: '2010'
+  active_to: '2012'
+  retirement_announced: '2012-03-08'
+  biography: >
+    やまぐちりこ (stage name) is a retired Japanese AV actress, known outside the
+    industry as Rina Nakanishi (中西里菜), an original founding member of AKB48's
+    Team A who debuted with the idol group on December 8, 2005, and graduated in
+    November 2008. After leaving AKB48 she worked briefly as a gravure idol before
+    announcing her AV debut in June 2010; her debut title (DV-1184, Alice JAPAN,
+    August 27, 2010) sold over 80,000 copies in its first month, an exceptional
+    figure in the industry. She subsequently signed exclusively with SOD Create
+    (STAR series, 2011-2012), releasing seven solo titles before retiring in
+    March 2012 with a farewell work. Rights to her catalogue are held by her
+    management company BELLTECH. She has a younger sister, やまぐちりく, who also
+    appeared in AV. She married in November 2012 and announced the birth of a
+    child in February 2013.
+  primary_studios:
+    - {name: Alice JAPAN, company: null, from: '2010', to: '2010', role: exclusive}
+    - {name: SOD Create, company: "Soft on Demand", from: '2011', to: '2012', role: exclusive}
+  awards: null
+  legacy: >
+    One of the most commercially successful AKB48 alumni transitions into AV;
+    debut title sold 80,000+ copies in one month.
+portfolio: []
+meta:
+  total_owned_titles: 14
+  confidence: "HIGH — DOB/birthplace/blood type/measurements confirmed from minnano-av.com
+    (actress59674) and ja.wikipedia.org/wiki/やまぐちりこ; studio and filmography
+    from Wikipedia article and cross-checked against owned title codes (DV-*, STAR-* series)"
+  data_sources:
+    - "https://www.minnano-av.com/actress59674.html"
+    - "https://ja.wikipedia.org/wiki/やまぐちりこ"
+  portfolio_listed: 0

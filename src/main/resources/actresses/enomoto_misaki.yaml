@@ -1,0 +1,32 @@
+profile:
+  name:
+    family_name: Enomoto
+    given_name: Misaki
+    stage_name: 榎本美咲
+    reading: えのもと みさき
+    alternate_names: null
+  date_of_birth: '1988-05-03'
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 157
+  measurements: {bust: 90, waist: 58, hip: 87}
+  cup: F
+  active_from: 2017
+  active_to: 2019
+  retirement_announced: null
+  biography: "Misaki Enomoto (榎本美咲, えのさん) is a Japanese adult video actress born on May 3, 1988 in Tokyo. She grew up attending all-girls schools from middle school through university and had long harbored a desire to enter the industry, but marriage delayed her debut. She entered AV in January 2017 at age 28 as an exclusive talent of SODクリエイト's \"本物人妻\" (Real Housewife) label, making a strong impression as a married woman with a striking contrast between her respectable appearance and on-screen uninhibited sexuality. In August 2017 she moved to SOD's higher-profile \"SOD star\" label and continued releasing solo titles. She was also active as a member of the Bstar-affiliated idol unit 原宿☆バンビーナ from 2018. After ending her SOD star contract in November 2018 she signed simultaneously with Attackers and 溜池ゴロー in January 2019, but announced an indefinite activity hiatus on January 25, 2019, and formally left 原宿☆バンビーナ in August 2019."
+  primary_studios:
+    - {name: "本物人妻 / SOD star", company: SODクリエイト, from: 2017, to: 2018, role: exclusive actress}
+    - {name: Attackers, company: null, from: 2019, to: 2019, role: exclusive actress}
+    - {name: 溜池ゴロー, company: null, from: 2019, to: 2019, role: exclusive actress}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 18
+  confidence: "HIGH — DOB, birthplace, blood type, height, measurements, cup size, studio affiliations, and career timeline all confirmed from Japanese Wikipedia infobox (1988-05-03, Tokyo, A, 157cm, 90-58-87, F cup, SOD 2017-2019); corroborated by minnano-av.com actress page; NAMESAKE NOTE: there is at least one other actress using the name 榎本美咲 (born 1989-08-20, Saitama, debut 2017-01-19, MEYD/RBD labels per javdatabase.com) — the DB actress here is identified by matching SDNM/STAR/SDMU/MEYD title codes against the SOD actress"
+  data_sources:
+    - https://ja.wikipedia.org/wiki/%E6%A6%8E%E6%9C%AC%E7%BE%8E%E5%92%B2
+    - https://www.minnano-av.com/actress318855.html
+    - https://www.javdatabase.com/idols/misaki-enomoto/
+  portfolio_listed: 0

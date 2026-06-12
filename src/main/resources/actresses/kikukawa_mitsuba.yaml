@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Kikukawa
+    given_name: Mitsuba
+    stage_name: 菊川みつ葉
+    reading: きくかわ みつは
+    alternate_names:
+    - {name: Natsuna Hayama, kanji: 葉山夏菜, note: alias used in some titles}
+    - {name: Mitsuha, kanji: みつ葉, note: shortened stage name used after MAX-A move}
+  date_of_birth: '1998-07-20'
+  birthplace: Tokyo
+  blood_type: O
+  height_cm: 165
+  measurements: {bust: 94, waist: 61, hip: 93}
+  cup: F
+  active_from: '2017'
+  active_to: null
+  retirement_announced: null
+  biography: "Mitsuba Kikukawa (菊川みつ葉) debuted in March 2017 as an exclusive actress\
+    \ under SOD Create (SOD Star label), entering the industry with the stage name\
+    \ by which she is known in this library. She worked primarily within the SOD Star\
+    \ imprint across a compact run of solo and compilation titles through 2018. Following\
+    \ her exclusive contract, she transferred to MAX-A in March 2018, at which point\
+    \ she briefly used the shortened name Mitsuha (みつ葉) before adopting the stage\
+    \ name Honjo Hina (本庄ひな), under which she has continued an active career. She\
+    \ has also performed under the aliases Hayama Natsuna (葉山夏菜) and Ori Mitsuha.\
+    \ Her measurements throughout her career have been consistently listed as T165\
+    \ cm, B94 cm (F cup), W61 cm, H93 cm."
+  primary_studios:
+  - {name: SOD Create, company: SOD, from: '2017', to: '2018', role: exclusive}
+  - {name: MAX-A, company: null, from: '2018', to: null, role: null}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 11
+  confidence: "MED — DOB and measurements sourced from minnano-av.com structured\
+    \ profile table (actress39230); debut/studio history from editorial biography\
+    \ on same page. Reading is きくかわ みつは (not みつば as stated in task prompt;\
+    \ minnano-av lists romaji as Kikukawa Mitsuha). No second independent source\
+    \ confirmed physical stats; minnano-av is the sole quantitative data source."
+  data_sources:
+  - https://www.minnano-av.com/actress39230.html
+  portfolio_listed: 0

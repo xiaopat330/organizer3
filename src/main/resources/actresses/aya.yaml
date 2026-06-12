@@ -1,0 +1,66 @@
+profile:
+  name:
+    family_name: null
+    given_name: Aya
+    stage_name: 彩
+    reading: あや
+    alternate_names:
+    - name: AYA
+      note: "AV mononym stage name used throughout her Idea Pocket career (romaji rendering of 彩)"
+    - name: 牧野田彩
+      note: "Full birth name (legal name); 牧野田 family name + 彩 given name"
+  date_of_birth: 1980-02-17
+  date_of_death: 2010-10-23
+  birthplace: Hirakata, Osaka Prefecture, Japan
+  blood_type: A
+  height_cm: 162
+  measurements:
+    bust: 79
+    waist: 59
+    hip: 86
+  cup: null
+  active_from: 2009-05-01
+  active_to: 2010-07-23
+  biography: "AYA (牧野田彩, born Makinoda Aya, 1980-02-17) was a Japanese entertainer
+    and AV actress from Hirakata, Osaka Prefecture, with a prior career spanning over
+    a decade before her adult film debut. She first gained public attention in 1996
+    as a contestant on the television audition program ASAYAN, where a judge compared
+    her looks to actress Kumiko Goto; she subsequently debuted as a singer as a member
+    of the limited-run idol unit L IS with the single Running On, and after the unit
+    disbanded that same year she worked as a talent and race queen for several years,
+    including as an image girl for motorcycle gear brand Yellow Corn in 2003. In December
+    2008 she posed nude for the weekly magazine FLASH, and in May 2009 she made her
+    AV debut under the mononym AYA with First Impression 42 (IPTD-452) at Idea Pocket.
+    She was active primarily at Idea Pocket through 2009, later appearing at Prestige,
+    SOD Create, and other labels in 2010. She died on October 23, 2010 at the age
+    of 30."
+  primary_studios:
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2009-05-01
+    to: 2010-02-10
+    role: Actress
+  awards: []
+  legacy: null
+
+meta:
+  total_owned_titles: null
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only — portfolio not yet researched."
+  confidence: "HIGH. Full name 牧野田彩 (まきのだ あや) confirmed via Japanese Wikipedia article
+    and multiple secondary sources. AV debut title FIRST IMPRESSION 42 (IPTD-452,
+    2009-05-01, Idea Pocket) matches DB record exactly. DOB 1980-02-17 and birthplace
+    Hirakata, Osaka per Wikipedia. Blood type A from explicit 血液型 field in Wikipedia
+    infobox. Height 162 cm, measurements 79-59-86 cm from Wikipedia infobox. Cup size
+    not stated in any confirmed source — left null. Stage name kanji 彩 is her given
+    name character; AV mononym AYA is the romaji rendering. Date of death 2010-10-23
+    per Wikipedia and Tokyo Sports report. active_to set to her last confirmed release
+    date (2010-07-23 per Wikipedia filmography)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E7%89%A7%E9%87%8E%E7%94%B0%E5%BD%A9
+  - https://www.excite.co.jp/news/dictionary/person/PEe7f0b93b85e3c6333e1038ff9f0fa0e9dd3a150d/
+  - https://www.imdb.com/title/tt22169472/
+  portfolio_listed: 0

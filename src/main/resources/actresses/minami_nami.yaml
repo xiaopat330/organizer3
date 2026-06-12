@@ -1,0 +1,38 @@
+profile:
+  name:
+    family_name: Minami
+    given_name: Nami
+    stage_name: 美波なみ
+    reading: みなみなみ
+    alternate_names: []
+  date_of_birth: '1994-05-11'
+  birthplace: Nagano Prefecture, Japan
+  blood_type: null
+  height_cm: 163
+  measurements:
+    bust: 83
+    waist: 57
+    hip: 82
+  cup: E
+  active_from: '2014-03-01'
+  active_to: null
+  retirement_announced: null
+  biography: "Nami Minami (美波なみ) is a Japanese AV actress born on May 11, 1994, in Nagano Prefecture. She made her debut in March 2014 with Idea Pocket's signature FIRST IMPRESSION series (IPZ-330), quickly becoming a contract actress for the label under Diva Promotion management. During her active period with Idea Pocket (2014–2016), she appeared in solo features across the label's TISSUE and SUPREME sub-labels as well as the IDBD compilation series, noted for her slender figure, natural appeal, and energetic performance style. She accumulated approximately 25 titles in her career before fading from active release schedules after 2016."
+  primary_studios:
+  - {name: Idea Pocket, company: null, from: null, to: null, role: null}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 7
+  confidence: "HIGH — kanji 美波なみ confirmed via minnano-av actress366635 (filmography
+    cross-match: IPZ-330 First Impression 79, IPZ-355 matching DB codes; birthDate
+    1994-05-11 from JSON-LD structured data; measurements from minnano size row T163/B83
+    Eカップ/W57/H82; cup=E from minnano (javdatabase says G, minnano preferred as
+    JP-native source); blood_type null (no 血液型 field found); debut date from minnano
+    debut entry 2014-03-01)"
+  data_sources:
+  - 'https://www.minnano-av.com/actress366635.html'
+  - 'https://javdatabase.com/idols/nami-minami/'
+  - 'https://javdatabase.com/movies/ipz-330/'
+  portfolio_listed: 0

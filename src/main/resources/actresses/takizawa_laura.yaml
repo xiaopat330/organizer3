@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Takizawa
+    given_name: Laura
+    stage_name: 水咲ローラ
+    reading: みさき ローラ
+    alternate_names:
+    - name: 滝澤ローラ
+      note: "earlier stage name (Takizawa Rola) — used for PRESTIGE debut 2012-07-12 through early 2013"
+  date_of_birth: '1992-06-01'
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 172
+  measurements:
+    bust: 83
+    waist: 58
+    hip: 84
+  cup: C
+  active_from: '2012-07-12'
+  active_to: '2017-08-05'
+  retirement_announced: null
+  biography: "Laura Takizawa (水咲ローラ, みさきローラ) is a Japanese AV actress of Russian-Japanese mixed heritage, born June 1, 1992 in Tokyo. She made her AV debut in July 2012 under the name 滝澤ローラ (Takizawa Rola) as an exclusive actress with PRESTIGE, releasing four titles under that name before a brief announced retirement in November 2012. She returned in early 2013 under her new stage name 水咲ローラ (Mizusaki/Misaki Rola), continuing with PRESTIGE before signing an additional exclusive contract with IDEA POCKET in December 2013, where she became a prominent actress known for her tall frame, exotic mixed appearance, and passionate screen presence. Her career with IDEA POCKET spanned through 2017, during which she appeared in numerous solo works as well as high-profile compilation titles featuring the label's top actresses. She later became active on YouTube under the channel name 芳沢ローラ."
+  primary_studios:
+  - name: Prestige
+    company: null
+    from: '2012-07-12'
+    to: null
+    role: Exclusive actress (debut as 滝澤ローラ; returned as 水咲ローラ from 2013)
+  - name: Idea Pocket
+    company: null
+    from: '2013-12-19'
+    to: '2017-08-05'
+    role: Exclusive actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 15
+  confidence: "HIGH — DOB, birthplace, blood type, height, measurements, cup, and career timeline all sourced directly from Japanese Wikipedia infobox (template AV女優, citing T-Powers agency profile archived 2014-03-13). Earlier name 滝澤ローラ confirmed in Wikipedia 別名 field and filmography section. Reading みさき (not みずさき) confirmed by minnano-av.com heading 'みさきろーら / Misaki Rola'. Active period 2012-2017 confirmed by Wikipedia and minnano-av.com title list. Russian-Japanese heritage stated in Wikipedia lead paragraph."
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%B0%B4%E5%92%B2%E3%83%AD%E3%83%BC%E3%83%A9'
+  - 'https://www.minnano-av.com/actress883883.html'
+  portfolio_listed: 0

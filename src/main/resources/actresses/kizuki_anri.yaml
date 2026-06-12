@@ -1,0 +1,19 @@
+profile:
+  name: {family_name: Kizuki, given_name: Anri, stage_name: 輝月あんり, reading: きづき あんり, alternate_names: [{name: Yu Amaki, note: early career name}]}
+  date_of_birth: '1994-02-04'
+  birthplace: Chiba
+  blood_type: A
+  height_cm: 165
+  measurements: {bust: 83, waist: 56, hip: 87}
+  cup: C
+  active_from: '2015'
+  active_to: null
+  retirement_announced: null
+  biography: "Anri Kizuki (輝月あんり) is a Japanese AV actress from Chiba Prefecture, born February 4, 1994. She debuted in February 2015 at age 21, working primarily under Idea Pocket (IPZ series) and Prestige (ABP series) during her active years. Slender in build at 165 cm with a C-cup figure, she cultivated a youthful, soft-featured image and appeared in a modest catalogue of roughly 16 titles across labels including Moodyz and MAX-A. Her career ran through approximately 2015 to 2017."
+  primary_studios:
+  - {name: Idea Pocket, company: null, from: '2015', to: null, role: null}
+  - {name: Prestige, company: null, from: '2015', to: null, role: null}
+  awards: null
+  legacy: null
+portfolio: []
+meta: {total_owned_titles: 16, confidence: "MED — DOB/birthplace/blood type/measurements sourced from javdatabase.com; alt name Yu Amaki listed there; no retirement date found; active_to estimated from title code ranges (IPZ 600s-800s = 2015-2017); minnano-av search form unavailable (404)", data_sources: ["https://www.javdatabase.com/idols/anri-kizuki/"], portfolio_listed: 0}
