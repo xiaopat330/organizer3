@@ -24,7 +24,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 65;
+    private static final int CURRENT_VERSION = 67;
 
     private final Jdbi jdbi;
 
