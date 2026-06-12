@@ -1,0 +1,26 @@
+profile:
+  name: {family_name: Nikaido, given_name: Rei, stage_name: 二階堂麗, reading: にかいどう れい, alternate_names: [{name: 二階堂麗(うらら), note: "alt reading Urara Nikaido"}]}
+  date_of_birth: '2000-06-25'
+  birthplace: null
+  blood_type: null
+  height_cm: 162
+  measurements: {bust: 88, waist: 56, hip: 88}
+  cup: G
+  active_from: '2024-05-21'
+  active_to: null
+  retirement_announced: null
+  biography: "Rei Nikaido (二階堂麗, read うらら / Urara Nikaido) is a Japanese AV actress born June 25, 2000. She made her debut on May 21, 2024, via E-BODY (EBWH-085), entering the industry at age 23 after a career as a beauty-industry entrepreneur and hair stylist — she founded a beauty-related company and ran hair-and-makeup seminars before pivoting to AV. Her physical hallmarks are a G-cup bust (B88/W56/H88) and fair, smooth skin; she has been featured in Weekly Post and gravure-adjacent media for her figure. By mid-2024 she had already appeared in five releases, working across E-BODY (EBWH) and MOODYZ (MXGS) labels. Off-camera her listed hobbies are window shopping and she names hair setting as a special skill, consistent with her pre-industry background."
+  primary_studios:
+  - {name: E-BODY, company: null, from: '2024-05', to: null, role: null}
+  - {name: MOODYZ, company: null, from: null, to: null, role: null}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 22
+  confidence: "MED — DOB/height/measurements/cup/debut date confirmed from Weekly Post profile (2024-09 issue) cross-referenced with Facebook fan post (EBWH-085 debut May 21 2024); blood type and birthplace not found in any fetched primary source (AI summaries claimed O/Osaka but those were not substantiated by raw page content); career labels E-BODY + MOODYZ confirmed via DB task context"
+  data_sources:
+    - https://www.news-postseven.com/archives/20240908_1987994.html
+    - https://gravidia.jp/news/22930
+    - https://www.facebook.com/avidolfc2/posts/995596712573141/
+  portfolio_listed: 0

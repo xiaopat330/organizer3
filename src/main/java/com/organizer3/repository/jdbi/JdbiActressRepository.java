@@ -54,19 +54,20 @@ public class JdbiActressRepository implements ActressRepository {
         String hipStr = rs.getString("hip");
         String lastVisitedStr = rs.getString("last_visited_at");
         String bookmarkedAtStr = rs.getString("bookmarked_at");
+        long id = rs.getLong("id");
         return Actress.builder()
-                .id(rs.getLong("id"))
+                .id(id)
                 .canonicalName(rs.getString("canonical_name"))
                 .stageName(rs.getString("stage_name"))
                 .nameReading(rs.getString("name_reading"))
                 .tier(Actress.Tier.valueOf(rs.getString("tier")))
                 .favorite(rs.getInt("favorite") != 0)
                 .bookmark(rs.getInt("bookmark") != 0)
-                .bookmarkedAt(bookmarkedAtStr != null ? LocalDateTime.parse(bookmarkedAtStr) : null)
+                .bookmarkedAt(parseLocalDateTimeSafe(bookmarkedAtStr, id, "bookmarked_at"))
                 .grade(gradeStr != null ? Actress.Grade.fromDisplay(gradeStr) : null)
                 .rejected(rs.getInt("rejected") != 0)
-                .firstSeenAt(LocalDate.parse(rs.getString("first_seen_at")))
-                .dateOfBirth(dobStr != null ? LocalDate.parse(dobStr) : null)
+                .firstSeenAt(parseLocalDateSafe(rs.getString("first_seen_at"), id, "first_seen_at"))
+                .dateOfBirth(parseLocalDateSafe(dobStr, id, "date_of_birth"))
                 .birthplace(rs.getString("birthplace"))
                 .bloodType(rs.getString("blood_type"))
                 .heightCm(heightStr != null ? Integer.parseInt(heightStr) : null)
@@ -74,19 +75,46 @@ public class JdbiActressRepository implements ActressRepository {
                 .waist(waistStr != null ? Integer.parseInt(waistStr) : null)
                 .hip(hipStr != null ? Integer.parseInt(hipStr) : null)
                 .cup(rs.getString("cup"))
-                .activeFrom(activeFromStr != null ? LocalDate.parse(activeFromStr) : null)
-                .activeTo(activeToStr != null ? LocalDate.parse(activeToStr) : null)
-                .retirementAnnounced(retirementStr != null ? LocalDate.parse(retirementStr) : null)
+                .activeFrom(parseLocalDateSafe(activeFromStr, id, "active_from"))
+                .activeTo(parseLocalDateSafe(activeToStr, id, "active_to"))
+                .retirementAnnounced(parseLocalDateSafe(retirementStr, id, "retirement_announced"))
                 .biography(rs.getString("biography"))
                 .legacy(rs.getString("legacy"))
                 .alternateNames(readJson(rs.getString("alternate_names_json"), ALT_NAMES_TYPE))
                 .primaryStudios(readJson(rs.getString("primary_studios_json"), STUDIOS_TYPE))
                 .awards(readJson(rs.getString("awards_json"), AWARDS_TYPE))
                 .visitCount(rs.getInt("visit_count"))
-                .lastVisitedAt(lastVisitedStr != null ? LocalDateTime.parse(lastVisitedStr) : null)
+                .lastVisitedAt(parseLocalDateTimeSafe(lastVisitedStr, id, "last_visited_at"))
                 .needsProfiling(rs.getInt("needs_profiling") != 0)
                 .build();
     };
+
+    /**
+     * Parse an ISO date column defensively. Returns null for null/blank input, and on a
+     * malformed value logs a WARN (with actress id + column) and returns null rather than
+     * throwing — one bad row must not crash a whole dashboard query. Does not coerce or
+     * fabricate a date; null degrades honestly.
+     */
+    private static LocalDate parseLocalDateSafe(String raw, long id, String field) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return LocalDate.parse(raw);
+        } catch (Exception e) {
+            log.warn("Malformed date in actresses.{} for id={}: '{}' — treating as null", field, id, raw);
+            return null;
+        }
+    }
+
+    /** Same contract as {@link #parseLocalDateSafe} but for ISO date-time columns. */
+    private static LocalDateTime parseLocalDateTimeSafe(String raw, long id, String field) {
+        if (raw == null || raw.isBlank()) return null;
+        try {
+            return LocalDateTime.parse(raw);
+        } catch (Exception e) {
+            log.warn("Malformed datetime in actresses.{} for id={}: '{}' — treating as null", field, id, raw);
+            return null;
+        }
+    }
 
     private static <T> List<T> readJson(String raw, TypeReference<List<T>> type) {
         if (raw == null || raw.isBlank()) return List.of();
