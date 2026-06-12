@@ -6,6 +6,7 @@ import com.organizer3.utilities.task.TaskIO;
 import com.organizer3.utilities.task.TaskInputs;
 import com.organizer3.utilities.task.TaskSpec;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -52,6 +53,7 @@ public final class LoadAllActressesTask implements Task {
         int failed = 0;
         int titlesCreated = 0;
         int titlesEnriched = 0;
+        List<String> newActresses = new ArrayList<>();
 
         boolean cancelled = false;
         for (String slug : slugs) {
@@ -66,6 +68,10 @@ public final class LoadAllActressesTask implements Task {
                 succeeded++;
                 titlesCreated += r.titlesCreated();
                 titlesEnriched += r.titlesEnriched();
+                if (r.created()) {
+                    newActresses.add(r.canonicalName() + " (id=" + r.actressId() + ")");
+                    io.phaseLog("load_all", "[NEW actress created] " + r.canonicalName() + " (id=" + r.actressId() + ")");
+                }
             } catch (Exception e) {
                 failed++;
                 io.phaseLog("load_all", "Failed " + slug + ": " + e.getMessage());
@@ -76,6 +82,7 @@ public final class LoadAllActressesTask implements Task {
 
         String summary = succeeded + " of " + total + " loaded · "
                 + titlesCreated + " titles created, " + titlesEnriched + " enriched"
+                + (newActresses.isEmpty() ? "" : " · " + newActresses.size() + " new actress(es) created")
                 + (failed > 0 ? " · " + failed + " failed" : "")
                 + (cancelled ? " · cancelled" : "");
         String status = (total == 0) ? "ok"

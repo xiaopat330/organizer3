@@ -14,7 +14,9 @@ import java.util.List;
  * <p>Usage:
  * <ul>
  *   <li>{@code load actress <slug>} — load one file (e.g. {@code load actress nana_ogura})
+ *   <li>{@code load actress --strict <slug>} — load one file, fail if actress not already in DB
  *   <li>{@code load actresses} — load all files under {@code resources/actresses/}
+ *   <li>{@code load actresses --strict} — load all, fail any YAML that would create a new actress
  * </ul>
  *
  * <p>All enrichment fields are overwritten unconditionally. Operational fields
@@ -37,7 +39,7 @@ public class LoadActressCommand implements Command {
 
     @Override
     public String description() {
-        return "Load actress YAML data into the DB: load actress <slug> | load actresses";
+        return "Load actress YAML data into the DB: load actress [--strict] <slug> | load actresses [--strict]";
     }
 
     @Override
@@ -48,18 +50,32 @@ public class LoadActressCommand implements Command {
         boolean loadAll = args[0].equalsIgnoreCase("load actresses");
 
         if (loadAll) {
-            loadAll(io);
-        } else if (args.length >= 2) {
-            loadOne(args[1], io);
+            boolean strict = args.length >= 2 && "--strict".equalsIgnoreCase(args[1]);
+            loadAll(io, strict);
         } else {
-            io.println("Usage: load actress <slug> | load actresses");
-            io.println("  slug is the filename without .yaml, e.g. nana_ogura");
+            // parse --strict flag from remaining args
+            boolean strict = false;
+            String slug = null;
+            for (int i = 1; i < args.length; i++) {
+                if ("--strict".equalsIgnoreCase(args[i])) {
+                    strict = true;
+                } else {
+                    slug = args[i];
+                }
+            }
+            if (slug == null) {
+                io.println("Usage: load actress [--strict] <slug> | load actresses [--strict]");
+                io.println("  slug is the filename without .yaml, e.g. nana_ogura");
+                io.println("  --strict: fail if no existing actress matches (no phantom creation)");
+            } else {
+                loadOne(slug, io, strict);
+            }
         }
     }
 
-    private void loadOne(String slug, CommandIO io) {
+    private void loadOne(String slug, CommandIO io, boolean strict) {
         try {
-            ActressYamlLoader.LoadResult result = loader.loadOne(slug);
+            ActressYamlLoader.LoadResult result = loader.loadOne(slug, strict);
             printResult(result, io);
         } catch (IllegalArgumentException e) {
             io.println("Not found: " + e.getMessage());
@@ -68,22 +84,30 @@ public class LoadActressCommand implements Command {
         }
     }
 
-    private void loadAll(CommandIO io) {
+    private void loadAll(CommandIO io, boolean strict) {
         try {
-            List<ActressYamlLoader.LoadResult> results = loader.loadAll();
+            List<ActressYamlLoader.LoadResult> results = loader.loadAll(strict);
             if (results.isEmpty()) {
                 io.println("No actress YAML files found in resources/actresses/");
                 return;
             }
             results.forEach(r -> printResult(r, io));
+            long createdCount = results.stream().filter(ActressYamlLoader.LoadResult::created).count();
             io.println("Done. Loaded " + results.size() + " actress" + (results.size() == 1 ? "" : "es") + ".");
+            if (createdCount > 0) {
+                io.println("NEW actresses created (" + createdCount + "):");
+                results.stream()
+                        .filter(ActressYamlLoader.LoadResult::created)
+                        .forEach(r -> io.println("  [NEW] " + r.canonicalName() + " (id=" + r.actressId() + ")"));
+            }
         } catch (IOException e) {
             io.println("Error loading actresses: " + e.getMessage());
         }
     }
 
     private static void printResult(ActressYamlLoader.LoadResult result, CommandIO io) {
-        io.println(String.format("%-30s  +%d titles created, %d enriched",
-                result.canonicalName(), result.titlesCreated(), result.titlesEnriched()));
+        String prefix = result.created() ? "[NEW] " : "      ";
+        io.println(String.format("%s%-30s  +%d titles created, %d enriched",
+                prefix, result.canonicalName(), result.titlesCreated(), result.titlesEnriched()));
     }
 }

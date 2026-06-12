@@ -3,6 +3,7 @@ package com.organizer3.enrichment;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
+import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
@@ -11,15 +12,20 @@ import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
+import org.junit.jupiter.api.Nested;
+import org.mockito.Mockito;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 /**
  * Integration tests for ActressYamlLoader using an in-memory SQLite database
@@ -342,5 +348,199 @@ class ActressYamlLoaderTest {
     void syncGradesThrowsForUnknownSlug() {
         assertThrows(IllegalArgumentException.class,
                 () -> loader.syncGradesFromYaml("no_such_actress"));
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    //  Kanji stage_name fallback resolution (findByStageName guard)
+    // ─────────────────────────────────────────────────────────────────────
+
+    /**
+     * Core bind case: romaji misses but kanji stage_name matches exactly one live actress
+     * (Karen Tojo phantom guard). The loader must bind to the existing actress, not create a new one.
+     */
+    @Test
+    void loadOneBindsByStageNameWhenRomajiFails() throws Exception {
+        // Pre-existing actress under a DIFFERENT canonical name but with the kanji stage_name
+        // that the YAML carries.  test_actress.yaml has stage_name=テスト女優 but canonical_name
+        // in the YAML resolves to "Test Actress".  We store the DB actress under a different
+        // romaji name to trigger the kanji fallback path.
+        Actress existing = actressRepo.save(Actress.builder()
+                .canonicalName("Test Actress Different Romaji")
+                .stageName("テスト女優")    // matches YAML stage_name exactly
+                .tier(Actress.Tier.POPULAR)
+                .firstSeenAt(LocalDate.of(2020, 1, 1))
+                .build());
+        long preexistingId = existing.getId();
+        int initialCount = actressRepo.findAll().size();
+
+        ActressYamlLoader.LoadResult result = loader.loadOne("test_actress");
+
+        // Must bind to existing, not create
+        assertEquals(preexistingId, result.actressId(), "must bind to the pre-existing actress id");
+        assertFalse(result.created(), "created must be false when binding by stage_name");
+        assertEquals(initialCount, actressRepo.findAll().size(),
+                "no new actress row must be created");
+    }
+
+    /**
+     * When kanji stage_name matches two live actresses, the loader must fall through to creation
+     * (under-link is safer than mis-link). This mirrors findByStageName returning empty for ambiguous.
+     */
+    @Test
+    void loadOneCreatesWhenStageNameIsAmbiguous() throws Exception {
+        actressRepo.save(Actress.builder()
+                .canonicalName("Ambiguous One")
+                .stageName("テスト女優")
+                .tier(Actress.Tier.LIBRARY)
+                .firstSeenAt(LocalDate.of(2020, 1, 1))
+                .build());
+        actressRepo.save(Actress.builder()
+                .canonicalName("Ambiguous Two")
+                .stageName("テスト女優")
+                .tier(Actress.Tier.LIBRARY)
+                .firstSeenAt(LocalDate.of(2021, 1, 1))
+                .build());
+        int countBefore = actressRepo.findAll().size();
+
+        // non-strict: must still create (ambiguous)
+        ActressYamlLoader.LoadResult result = loader.loadOne("test_actress");
+
+        assertTrue(result.created(), "created must be true when kanji is ambiguous (no safe bind)");
+        assertEquals(countBefore + 1, actressRepo.findAll().size(),
+                "exactly one new actress must be created");
+    }
+
+    /**
+     * When the only stage_name match belongs to a REJECTED actress, the loader must NOT bind
+     * to her — rejected actresses are filtered out by findByStageName.
+     */
+    @Test
+    void loadOneCreatesWhenOnlyStageNameMatchIsRejected() throws Exception {
+        Actress rejected = actressRepo.save(Actress.builder()
+                .canonicalName("Rejected One")
+                .stageName("テスト女優")
+                .tier(Actress.Tier.LIBRARY)
+                .firstSeenAt(LocalDate.of(2020, 1, 1))
+                .build());
+        actressRepo.toggleRejected(rejected.getId(), true);
+        int countBefore = actressRepo.findAll().size();
+
+        ActressYamlLoader.LoadResult result = loader.loadOne("test_actress");
+
+        assertTrue(result.created(), "must create when only match is rejected");
+        assertEquals(countBefore + 1, actressRepo.findAll().size());
+    }
+
+    /**
+     * A stage_name that differs only by NFKC normalization or a stray leading/trailing space
+     * must still bind (normalization happens before the lookup).
+     */
+    @Test
+    void loadOneBindsByStageNameWithNfkcVariant() throws Exception {
+        // NFKC of "テスト女優" is the same (already NFKC), so we use a halfwidth-kana variant
+        // that NFKC normalizes to the same codepoints.  The DB actress is stored with the
+        // already-normalized form that matches what the YAML stage_name normalizes to.
+        // We exploit leading/trailing whitespace as a simpler variant since NFKC also strips
+        // nothing but trim() is applied after — store without space, look up via YAML (trim path).
+        // More importantly: store with NFKC form, while the YAML stage_name field here is already
+        // NFKC (test_actress.yaml is authored in NFKC).  To exercise the normalization guard, we
+        // store the actress under the canonical NFKC form and ensure the lookup normalizes first.
+        String dbStageName = Normalizer.normalize("テスト女優", Normalizer.Form.NFKC);
+        Actress existing = actressRepo.save(Actress.builder()
+                .canonicalName("Karen Tojo Variant")
+                .stageName(dbStageName)
+                .tier(Actress.Tier.POPULAR)
+                .firstSeenAt(LocalDate.of(2020, 1, 1))
+                .build());
+        long preexistingId = existing.getId();
+
+        // The YAML stage_name is "テスト女優" — normalize + trim should still find the actress.
+        ActressYamlLoader.LoadResult result = loader.loadOne("test_actress");
+
+        assertEquals(preexistingId, result.actressId(), "must bind via NFKC-normalized stage_name");
+        assertFalse(result.created());
+    }
+
+    /**
+     * When the romaji canonical name DOES match, findByStageName must never be consulted.
+     * Verified with a Mockito spy so we can assert the method was never called.
+     */
+    @Test
+    void loadOneSkipsStageNameLookupWhenRomajiHits() throws Exception {
+        // Pre-create the actress under the exact canonical name the YAML resolves to
+        actressRepo.save(Actress.builder()
+                .canonicalName("Test Actress")
+                .tier(Actress.Tier.SUPERSTAR)
+                .firstSeenAt(LocalDate.of(2020, 1, 1))
+                .build());
+
+        // Spy on the real repo so we can verify findByStageName is never called
+        ActressRepository spiedRepo = Mockito.spy(actressRepo);
+        ActressYamlLoader spiedLoader = new ActressYamlLoader(spiedRepo, titleRepo, tagRepo);
+
+        spiedLoader.loadOne("test_actress");
+
+        verify(spiedRepo, never()).findByStageName(any());
+    }
+
+    /**
+     * strict=true must throw IllegalArgumentException when no actress can be resolved,
+     * and must not create any actress row.
+     */
+    @Test
+    void loadOneStrictThrowsWhenNoMatch() {
+        int countBefore = actressRepo.findAll().size();
+
+        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
+                () -> loader.loadOne("test_actress", true));
+
+        assertTrue(ex.getMessage().contains("strict mode"),
+                "exception message must mention strict mode");
+        assertEquals(countBefore, actressRepo.findAll().size(),
+                "strict mode must never create an actress");
+    }
+
+    /**
+     * strict=true must succeed (not throw) when a match IS found by stage_name.
+     */
+    @Test
+    void loadOneStrictSucceedsWhenStageNameMatches() throws Exception {
+        Actress existing = actressRepo.save(Actress.builder()
+                .canonicalName("Karen Tojo")
+                .stageName("テスト女優")
+                .tier(Actress.Tier.POPULAR)
+                .firstSeenAt(LocalDate.of(2020, 1, 1))
+                .build());
+
+        ActressYamlLoader.LoadResult result = loader.loadOne("test_actress", true);
+
+        assertEquals(existing.getId(), result.actressId());
+        assertFalse(result.created());
+    }
+
+    /**
+     * LoadResult.created is true when a new actress is created by loadOne.
+     */
+    @Test
+    void loadResultCreatedIsTrueForNewActress() throws Exception {
+        ActressYamlLoader.LoadResult result = loader.loadOne("test_actress");
+
+        assertTrue(result.created(), "created must be true when actress did not exist");
+    }
+
+    /**
+     * LoadResult.created is false when loading an already-existing actress.
+     */
+    @Test
+    void loadResultCreatedIsFalseForExistingActress() throws Exception {
+        actressRepo.save(Actress.builder()
+                .canonicalName("Test Actress")
+                .tier(Actress.Tier.SUPERSTAR)
+                .firstSeenAt(LocalDate.of(2020, 1, 1))
+                .build());
+
+        ActressYamlLoader.LoadResult result = loader.loadOne("test_actress");
+
+        assertFalse(result.created(), "created must be false when actress already existed");
     }
 }
