@@ -1,27 +1,18 @@
 package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.organizer3.javdb.enrichment.AttributionAuditService;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
-import org.jdbi.v3.core.Jdbi;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 /**
  * For each multi-actress title, flag credited actresses who never co-occur with the rest
- * of the cast on any other title — a strong signal of a typo or mis-credit (e.g. a
- * misspelled name in a compilation).
+ * of the cast on any other title — a strong signal of a typo or mis-credit.
  *
- * <p>Loads the full {@code title_actresses} junction once, builds in-memory title→cast and
- * actress→titles indexes, then for each cast member of each multi-actress title checks
- * whether she shares at least one other title with any other cast member of the same title.
- * If not, she is flagged. Deliberately strict — low-recall, high-precision.
+ * <p>Thin wrapper delegating to {@link AttributionAuditService}. Output shape is
+ * identical to the previous direct-query implementation.
  */
 public class FindSuspectCreditsTool implements Tool {
 
@@ -29,9 +20,11 @@ public class FindSuspectCreditsTool implements Tool {
     private static final int DEFAULT_LIMIT    = 50;
     private static final int MAX_LIMIT        = 500;
 
-    private final Jdbi jdbi;
+    private final AttributionAuditService auditService;
 
-    public FindSuspectCreditsTool(Jdbi jdbi) { this.jdbi = jdbi; }
+    public FindSuspectCreditsTool(AttributionAuditService auditService) {
+        this.auditService = auditService;
+    }
 
     @Override public String name()        { return "find_suspect_credits"; }
     @Override public String description() {
@@ -51,76 +44,15 @@ public class FindSuspectCreditsTool implements Tool {
     public Object call(JsonNode args) {
         int minCast = Math.max(2, Schemas.optInt(args, "min_cast_size", DEFAULT_MIN_CAST));
         int limit   = Math.max(1, Math.min(Schemas.optInt(args, "limit", DEFAULT_LIMIT), MAX_LIMIT));
-
-        return jdbi.withHandle(h -> {
-            Map<Long, Set<Long>> titleCast  = new HashMap<>();
-            Map<Long, Set<Long>> actressTitles = new HashMap<>();
-            h.createQuery("SELECT title_id, actress_id FROM title_actresses")
-                    .map((rs, ctx) -> new long[] { rs.getLong(1), rs.getLong(2) })
-                    .forEach(pair -> {
-                        long tid = pair[0], aid = pair[1];
-                        titleCast.computeIfAbsent(tid, k -> new HashSet<>()).add(aid);
-                        actressTitles.computeIfAbsent(aid, k -> new HashSet<>()).add(tid);
-                    });
-
-            Map<Long, String> titleCode = new HashMap<>();
-            h.createQuery("SELECT id, code FROM titles")
-                    .map((rs, ctx) -> Map.entry(rs.getLong(1), rs.getString(2)))
-                    .forEach(e -> titleCode.put(e.getKey(), e.getValue()));
-
-            Map<Long, String> actressName = new HashMap<>();
-            Map<Long, Integer> actressTitleCount = new HashMap<>();
-            h.createQuery("SELECT id, canonical_name FROM actresses")
-                    .map((rs, ctx) -> Map.entry(rs.getLong(1), rs.getString(2)))
-                    .forEach(e -> actressName.put(e.getKey(), e.getValue()));
-            for (Map.Entry<Long, Set<Long>> e : actressTitles.entrySet()) {
-                actressTitleCount.put(e.getKey(), e.getValue().size());
-            }
-
-            List<Suspect> suspects = new ArrayList<>();
-            for (Map.Entry<Long, Set<Long>> e : titleCast.entrySet()) {
-                long titleId = e.getKey();
-                Set<Long> cast = e.getValue();
-                if (cast.size() < minCast) continue;
-                for (long ai : cast) {
-                    Set<Long> otherCast = new HashSet<>(cast);
-                    otherCast.remove(ai);
-                    if (neverCoOccursElsewhere(ai, titleId, otherCast, titleCast, actressTitles)) {
-                        List<Member> otherMembers = new ArrayList<>();
-                        List<Long> sortedOthers = new ArrayList<>(otherCast);
-                        Collections.sort(sortedOthers);
-                        for (long oid : sortedOthers) {
-                            otherMembers.add(new Member(oid, actressName.get(oid)));
-                        }
-                        suspects.add(new Suspect(
-                                titleId,
-                                titleCode.get(titleId),
-                                new Member(ai, actressName.get(ai)),
-                                actressTitleCount.getOrDefault(ai, 0),
-                                otherMembers));
-                        if (suspects.size() >= limit) break;
-                    }
-                }
-                if (suspects.size() >= limit) break;
-            }
-            return new Result(suspects.size(), suspects);
-        });
-    }
-
-    private static boolean neverCoOccursElsewhere(long actressId, long excludeTitleId,
-                                                  Set<Long> otherCast,
-                                                  Map<Long, Set<Long>> titleCast,
-                                                  Map<Long, Set<Long>> actressTitles) {
-        Set<Long> titles = actressTitles.getOrDefault(actressId, Set.of());
-        for (long tid : titles) {
-            if (tid == excludeTitleId) continue;
-            Set<Long> cast = titleCast.get(tid);
-            if (cast == null) continue;
-            for (long member : cast) {
-                if (otherCast.contains(member)) return false;
-            }
-        }
-        return true;
+        AttributionAuditService.SuspectResult result = auditService.findSuspectCredits(minCast, limit);
+        List<Suspect> suspects = result.suspects().stream().map(d -> {
+            List<Member> otherMembers = d.otherCast().stream()
+                    .map(m -> new Member(m.actressId(), m.name())).toList();
+            return new Suspect(d.titleId(), d.titleCode(),
+                    new Member(d.suspect().actressId(), d.suspect().name()),
+                    d.suspectTotalTitleCount(), otherMembers);
+        }).toList();
+        return new Result(suspects.size(), suspects);
     }
 
     public record Member(long actressId, String name) {}

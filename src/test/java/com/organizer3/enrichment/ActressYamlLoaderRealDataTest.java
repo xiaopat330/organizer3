@@ -88,7 +88,7 @@ class ActressYamlLoaderRealDataTest {
         void allPortfolioEntriesAreCreated() {
             // YAML has 56 portfolio entries
             ActressYamlLoader.LoadResult result = actressRepo.resolveByName("Nana Ogura")
-                    .map(a -> new ActressYamlLoader.LoadResult(a.getCanonicalName(), a.getId(), 0, 0, List.of()))
+                    .map(a -> new ActressYamlLoader.LoadResult(a.getCanonicalName(), a.getId(), 0, 0, List.of(), false))
                     .orElseThrow();
             long actressId = result.actressId();
             List<Title> titles = titleRepo.findByActress(actressId);

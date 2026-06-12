@@ -92,6 +92,11 @@ public class DraftPromotionService {
     // Best-effort NAS cover write at promotion so the cover rides the folder rename and
     // survives cross-volume redistribution. Nullable — short ctor leaves it null (skips the write).
     private final CoverWriteService             coverWriteService;
+    // Kanji-presence guard — checks whether an actress's kanji name appears in the title's
+    // cast_json. Nullable — short ctor leaves it null (guard disabled).
+    private final com.organizer3.javdb.enrichment.CastPresenceCheck castPresenceCheck;
+    // Review queue repo — used to enqueue guard_cast_mismatch entries on divert.
+    private final com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository reviewQueueRepo;
 
     /** Seam for cover-copy — injectable in tests to simulate COMMIT-failure. */
     private CoverCopier coverCopier;
@@ -115,11 +120,11 @@ public class DraftPromotionService {
             StageNameSuggestionRepository suggestionRepo) {
         this(jdbi, draftTitleRepo, draftActressRepo, draftCastRepo, draftEnrichRepo,
                 coverStore, coverPath, castValidator, titleRepo, historyRepo, effectiveTags,
-                json, suggestionRepo, null, null, null, null, null);
+                json, suggestionRepo, null, null, null, null, null, null, null);
     }
 
-    /** Full constructor including FIX 1 dependencies (javdbStagingRepo, actressRepo)
-     *  and Phase 2 dependencies (unsortedVolumeId, renamer). */
+    /** Full constructor including FIX 1 dependencies (javdbStagingRepo, actressRepo),
+     *  Phase 2 dependencies (unsortedVolumeId, renamer), and Item B guard dependencies. */
     @SuppressWarnings("checkstyle:ParameterNumber")
     public DraftPromotionService(
             Jdbi                          jdbi,
@@ -139,26 +144,30 @@ public class DraftPromotionService {
             ActressRepository             actressRepo,
             String                        unsortedVolumeId,
             TitleFolderRenamer            renamer,
-            CoverWriteService             coverWriteService) {
-        this.jdbi             = jdbi;
-        this.draftTitleRepo   = draftTitleRepo;
-        this.draftActressRepo = draftActressRepo;
-        this.draftCastRepo    = draftCastRepo;
-        this.draftEnrichRepo  = draftEnrichRepo;
-        this.coverStore       = coverStore;
-        this.coverPath        = coverPath;
-        this.castValidator    = castValidator;
-        this.titleRepo        = titleRepo;
-        this.historyRepo      = historyRepo;
-        this.effectiveTags    = effectiveTags;
-        this.json             = json;
-        this.suggestionRepo   = suggestionRepo;
-        this.javdbStagingRepo = javdbStagingRepo;
-        this.actressRepo      = actressRepo;
-        this.unsortedVolumeId = unsortedVolumeId;
-        this.renamer          = renamer;
+            CoverWriteService             coverWriteService,
+            com.organizer3.javdb.enrichment.CastPresenceCheck        castPresenceCheck,
+            com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository reviewQueueRepo) {
+        this.jdbi              = jdbi;
+        this.draftTitleRepo    = draftTitleRepo;
+        this.draftActressRepo  = draftActressRepo;
+        this.draftCastRepo     = draftCastRepo;
+        this.draftEnrichRepo   = draftEnrichRepo;
+        this.coverStore        = coverStore;
+        this.coverPath         = coverPath;
+        this.castValidator     = castValidator;
+        this.titleRepo         = titleRepo;
+        this.historyRepo       = historyRepo;
+        this.effectiveTags     = effectiveTags;
+        this.json              = json;
+        this.suggestionRepo    = suggestionRepo;
+        this.javdbStagingRepo  = javdbStagingRepo;
+        this.actressRepo       = actressRepo;
+        this.unsortedVolumeId  = unsortedVolumeId;
+        this.renamer           = renamer;
         this.coverWriteService = coverWriteService;
-        this.coverCopier      = this::defaultCoverCopy;
+        this.castPresenceCheck = castPresenceCheck;
+        this.reviewQueueRepo   = reviewQueueRepo;
+        this.coverCopier       = this::defaultCoverCopy;
     }
 
     /** Override the cover-copy implementation; used in tests to inject failure. */
@@ -508,7 +517,7 @@ public class DraftPromotionService {
         h.createUpdate("DELETE FROM title_actresses WHERE title_id = :id")
                 .bind("id", canonicalTitleId)
                 .execute();
-        insertTitleActresses(h, canonicalTitleId, slots, newActressIds, draft.getCode());
+        insertTitleActresses(h, canonicalTitleId, slots, newActressIds, draft.getCode(), enrichment.getCastJson());
 
         // ── Step 5: INSERT OR REPLACE title_javdb_enrichment ─────────────────────
         // Pass the draft's Japanese/English titles so the enrichment row carries title_original
@@ -884,11 +893,65 @@ public class DraftPromotionService {
     private void insertTitleActresses(Handle h, long titleId,
                                       List<DraftTitleActress> slots,
                                       Map<String, Long> newActressIds,
-                                      String titleCode) {
+                                      String titleCode,
+                                      String castJson) {
+        // castJson comes from the draft enrichment row (already loaded before step 4).
+        // We intentionally do NOT read from title_javdb_enrichment here because that row
+        // is written in step 5, AFTER this method returns.
+
+        // Evaluate guard activation once per title (before the loop).
+        boolean guardActive = castPresenceCheck != null
+                && castJson != null
+                && castPresenceCheck.guardEnforced(titleId, castJson);
+
         for (DraftTitleActress slot : slots) {
             String res = slot.getResolution();
             Long actressId = resolveActressId(slot, res, newActressIds);
             if (actressId == null) continue; // skip
+
+            // ── KANJI-PRESENCE GUARD (Item B) ────────────────────────────────────────
+            // Run only for slug/fuzzy/null (legacy) resolutions, on small non-comp casts.
+            // EXEMPT: canonical, alias, stage_name, manual, create_new, sentinel:*, skip.
+            String via = slot.getResolvedVia();
+            boolean guardedVia = "slug".equals(via) || "fuzzy".equals(via) || via == null;
+            // create_new and sentinel:* are also exempt by resolution type — the actress was
+            // explicitly created from this cast entry or selected via sentinel, so there is no
+            // attribution ambiguity that the kanji check can resolve.
+            boolean exemptByResolution = "create_new".equals(res) || res.startsWith("sentinel:");
+            boolean shouldGuard = guardedVia && !exemptByResolution;
+
+            if (shouldGuard && castPresenceCheck != null && castJson != null) {
+                com.organizer3.javdb.enrichment.CastPresenceCheck.Result presence =
+                        castPresenceCheck.check(actressId, castJson);
+                if (presence == com.organizer3.javdb.enrichment.CastPresenceCheck.Result.ABSENT
+                        && guardActive) {
+                    // DIVERT: skip FIX 1a, FIX 1b, and the title_actresses insert.
+                    int nfem = castPresenceCheck.countFemales(castJson);
+                    List<String> castNames = castPresenceCheck.extractCastNames(castJson);
+                    String actressName = fetchActressName(h, actressId);
+                    String stageName = fetchActressStageName(h, actressId);
+                    String detailJson = buildGuardDetail(actressId, actressName, stageName, via, nfem, castNames);
+                    log.warn("promote: guard_cast_mismatch: title={} code={} actress={} (id={}) via={} not in cast {}",
+                            titleId, titleCode, actressName, actressId, via, castNames);
+                    if (reviewQueueRepo != null) {
+                        reviewQueueRepo.enqueueWithDetail(titleId, slot.getJavdbSlug(),
+                                "guard_cast_mismatch", "promotion_guard", detailJson, h);
+                    }
+                    continue; // skip FIX 1a, FIX 1b, and the title_actresses insert
+                } else if (presence == com.organizer3.javdb.enrichment.CastPresenceCheck.Result.ABSENT
+                        || presence == com.organizer3.javdb.enrichment.CastPresenceCheck.Result.UNCHECKABLE) {
+                    // Gated out (comp-tagged or nfem>=4) or uncheckable — attribute normally, log WARN.
+                    int nfem = castPresenceCheck.countFemales(castJson);
+                    List<String> castNames = castPresenceCheck.extractCastNames(castJson);
+                    String actressName = fetchActressName(h, actressId);
+                    String stageName = fetchActressStageName(h, actressId);
+                    String detailJson = buildGuardDetail(actressId, actressName, stageName, via, nfem, castNames);
+                    log.warn("promote: guard not enforced ({}): title={} actress={} (id={}) via={} detail={}",
+                            presence, titleId, actressName, actressId, via, detailJson);
+                    // fall through to attribute normally
+                }
+                // PRESENT: attribute normally, no log needed
+            }
 
             h.createUpdate("""
                     INSERT OR IGNORE INTO title_actresses (title_id, actress_id)
@@ -939,6 +1002,31 @@ public class DraftPromotionService {
                     }
                 }
             }
+        }
+    }
+
+    private String fetchActressName(Handle h, long actressId) {
+        return h.createQuery("SELECT canonical_name FROM actresses WHERE id = :id")
+                .bind("id", actressId).mapTo(String.class).findOne().orElse("unknown");
+    }
+
+    private String fetchActressStageName(Handle h, long actressId) {
+        return h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
+                .bind("id", actressId).mapTo(String.class).findOne().orElse(null);
+    }
+
+    private String buildGuardDetail(long actressId, String actressName, String stageName,
+                                     String resolvedVia, int nfem, List<String> castNames) {
+        try {
+            return json.writeValueAsString(Map.of(
+                    "actressId",   actressId,
+                    "actressName", actressName != null ? actressName : "",
+                    "stageName",   stageName   != null ? stageName   : "",
+                    "resolvedVia", resolvedVia != null ? resolvedVia : "",
+                    "nfem",        nfem,
+                    "castNames",   castNames));
+        } catch (Exception e) {
+            return "{}";
         }
     }
 

@@ -115,19 +115,21 @@ public class DraftPatchService {
             long draftId = draft.getId();
             List<DraftTitleActress> existing = draftTitleActressesRepo.findByDraftTitleId(draftId);
 
-            // Build a map: javdbSlug → new resolution (from the edit).
-            java.util.Map<String, String> overrides = new java.util.LinkedHashMap<>();
+            // Build a map: javdbSlug → edit (covers both resolution and resolvedVia).
+            java.util.Map<String, CastResolutionEdit> editsBySlug = new java.util.LinkedHashMap<>();
             for (CastResolutionEdit edit : castResolutions) {
-                overrides.put(edit.javdbSlug(), edit.resolution());
+                editsBySlug.put(edit.javdbSlug(), edit);
             }
 
             // Apply overrides to existing list.
             // A "remove" override drops the slot entirely (replaceForDraft will not reinsert it).
             List<DraftTitleActress> updated = new ArrayList<>();
             for (DraftTitleActress row : existing) {
-                String newRes = overrides.getOrDefault(row.getJavdbSlug(), row.getResolution());
+                CastResolutionEdit edit = editsBySlug.get(row.getJavdbSlug());
+                String newRes = (edit != null) ? edit.resolution() : row.getResolution();
                 if ("remove".equals(newRes)) continue; // drop the slot
-                updated.add(new DraftTitleActress(draftId, row.getJavdbSlug(), newRes));
+                String newVia = computeResolvedVia(edit, newRes, row.getResolvedVia());
+                updated.add(new DraftTitleActress(draftId, row.getJavdbSlug(), newRes, newVia));
             }
             // Add any slug in overrides that wasn't in the existing list (new slots).
             // "remove" for a non-existent slug is a no-op — do not add it.
@@ -135,7 +137,8 @@ public class DraftPatchService {
             for (DraftTitleActress row : existing) existingSlugs.add(row.getJavdbSlug());
             for (CastResolutionEdit edit : castResolutions) {
                 if (!existingSlugs.contains(edit.javdbSlug()) && !"remove".equals(edit.resolution())) {
-                    updated.add(new DraftTitleActress(draftId, edit.javdbSlug(), edit.resolution()));
+                    String newVia = computeResolvedVia(edit, edit.resolution(), null);
+                    updated.add(new DraftTitleActress(draftId, edit.javdbSlug(), edit.resolution(), newVia));
                 }
             }
 
@@ -248,6 +251,23 @@ public class DraftPatchService {
         }
 
         draftActressRepo.upsertBySlug(builder.build());
+    }
+
+    /**
+     * Computes the {@code resolved_via} value for a slot being written by a patch.
+     * <ul>
+     *   <li>If the slot is being set to {@code pick} or {@code create_new} by a human edit,
+     *       returns {@code "manual"}.</li>
+     *   <li>If the slot is unchanged (no edit for this slug), preserves the existing value.</li>
+     *   <li>Otherwise (skip, unresolved, sentinel, etc.), preserves the existing value —
+     *       those are not human resolutions in the attribution sense.</li>
+     * </ul>
+     */
+    private static String computeResolvedVia(CastResolutionEdit edit, String newRes, String existingVia) {
+        if (edit != null && ("pick".equals(newRes) || "create_new".equals(newRes))) {
+            return "manual";
+        }
+        return existingVia;
     }
 
     private boolean isSentinel(long actressId) {

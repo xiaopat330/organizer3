@@ -109,6 +109,31 @@ class DraftTitleActressesRepositoryTest {
         assertEquals("sentinel:42", row.getResolution());
     }
 
+    // ── resolved_via round-trip ────────────────────────────────────────────────
+
+    @Test
+    void replaceForDraft_persistsAndReadsResolvedVia() {
+        repo.replaceForDraft(1L, List.of(
+                new DraftTitleActress(1L, "slug_a", "pick", "canonical")
+        ));
+
+        DraftTitleActress row = repo.findByDraftTitleId(1L).get(0);
+        assertEquals("canonical", row.getResolvedVia(),
+                "resolved_via must round-trip through the repository");
+    }
+
+    @Test
+    void replaceForDraft_legacyNullResolvedVia_readsBackNull() {
+        // Insert a slot using the 3-arg constructor (legacy call site → null resolved_via).
+        repo.replaceForDraft(1L, List.of(
+                new DraftTitleActress(1L, "slug_b", "unresolved")
+        ));
+
+        DraftTitleActress row = repo.findByDraftTitleId(1L).get(0);
+        assertNull(row.getResolvedVia(),
+                "legacy slot with null resolved_via must read back as null without error");
+    }
+
     // ── ON DELETE CASCADE: deleting draft_titles cascades to rows here ─────────
 
     @Test

@@ -433,4 +433,65 @@ class DraftPatchServiceTest {
         var slots = draftTitleActressesRepo.findByDraftTitleId(draftId);
         assertEquals(1, slots.size(), "existing slot should be unaffected by remove of nonexistent slug");
     }
+
+    // ── resolved_via: manual ───────────────────────────────────────────────────
+
+    @Test
+    void patch_pickResolution_setsResolvedViaManual() throws Exception {
+        long draftId = insertDraft(1L);
+        insertActress("abc2", "天海 麗");
+        insertSlot(draftId, "abc2", "unresolved");
+
+        service.patch(1L, "2024-01-01T00:00:00Z",
+                List.of(new DraftPatchService.CastResolutionEdit("abc2", "pick", 10L, null, null)),
+                List.of());
+
+        var slots = draftTitleActressesRepo.findByDraftTitleId(draftId);
+        assertEquals(1, slots.size());
+        assertEquals("manual", slots.get(0).getResolvedVia(),
+                "user pick must set resolved_via='manual'");
+    }
+
+    @Test
+    void patch_createNewResolution_setsResolvedViaManual() throws Exception {
+        long draftId = insertDraft(1L);
+        insertActress("xyz3", "田中 花");
+        insertSlot(draftId, "xyz3", "unresolved");
+
+        service.patch(1L, "2024-01-01T00:00:00Z",
+                List.of(new DraftPatchService.CastResolutionEdit("xyz3", "create_new", null, "Tanaka", "Hana")),
+                List.of());
+
+        var slots = draftTitleActressesRepo.findByDraftTitleId(draftId);
+        assertEquals(1, slots.size());
+        assertEquals("manual", slots.get(0).getResolvedVia(),
+                "user create_new must set resolved_via='manual'");
+    }
+
+    @Test
+    void patch_untouchedSlot_preservesExistingResolvedVia() throws Exception {
+        long draftId = insertDraft(1L);
+        insertActress("s1v", "A");
+        insertActress("s2v", "B");
+        // Insert two slots: one with resolved_via='canonical', one unresolved.
+        draftTitleActressesRepo.replaceForDraft(draftId, List.of(
+                new DraftTitleActress(draftId, "s1v", "pick", "canonical"),
+                new DraftTitleActress(draftId, "s2v", "unresolved", null)));
+
+        // Edit only s2v.
+        service.patch(1L, "2024-01-01T00:00:00Z",
+                List.of(new DraftPatchService.CastResolutionEdit("s2v", "pick", 10L, null, null)),
+                List.of());
+
+        var slots = draftTitleActressesRepo.findByDraftTitleId(draftId);
+        var bySlug = new java.util.HashMap<String, DraftTitleActress>();
+        for (var s : slots) bySlug.put(s.getJavdbSlug(), s);
+
+        // s1v was not touched — its resolved_via='canonical' must be preserved.
+        assertEquals("canonical", bySlug.get("s1v").getResolvedVia(),
+                "untouched slot must retain its original resolved_via");
+        // s2v was patched with pick → manual.
+        assertEquals("manual", bySlug.get("s2v").getResolvedVia(),
+                "patched pick slot must have resolved_via='manual'");
+    }
 }

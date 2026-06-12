@@ -10,12 +10,14 @@ import java.util.concurrent.TimeUnit;
 /**
  * Periodic scheduler for enrichment re-validation.
  *
- * <p>Each tick runs two phases:
+ * <p>Each tick runs three phases:
  * <ol>
  *   <li><b>Drain phase</b> — processes all rows in {@code revalidation_pending} in
  *       batch-sized chunks until the queue is empty.</li>
  *   <li><b>Safety-net phase</b> — runs one slice of the safety-net predicate
  *       (UNKNOWN confidence, null/stale {@code last_revalidated_at}).</li>
+ *   <li><b>Attribution audit phase</b> — refreshes per-actress attribution findings
+ *       ({@link AttributionAuditService#refreshFindings}).</li>
  * </ol>
  *
  * <p>The first tick fires after {@code intervalHours} (NOT at startup) to avoid
@@ -28,6 +30,8 @@ public class RevalidationCronScheduler {
     private final RevalidationPendingRepository pendingRepo;
     private final int drainBatchSize;
     private final int safetyNetBatchSize;
+    private final AttributionAuditService attributionAuditService;
+    private final int auditBatchSize;
 
     private final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(r -> {
         Thread t = new Thread(r, "revalidation-cron");
@@ -38,11 +42,15 @@ public class RevalidationCronScheduler {
     public RevalidationCronScheduler(RevalidationService revalidationService,
                                       RevalidationPendingRepository pendingRepo,
                                       int drainBatchSize,
-                                      int safetyNetBatchSize) {
+                                      int safetyNetBatchSize,
+                                      AttributionAuditService attributionAuditService,
+                                      int auditBatchSize) {
         this.revalidationService = revalidationService;
         this.pendingRepo = pendingRepo;
         this.drainBatchSize = drainBatchSize;
         this.safetyNetBatchSize = safetyNetBatchSize;
+        this.attributionAuditService = attributionAuditService;
+        this.auditBatchSize = auditBatchSize;
     }
 
     /**
@@ -85,8 +93,11 @@ public class RevalidationCronScheduler {
             // Phase 2: safety-net sweep
             RevalidationService.RevalidationSummary safetyNet =
                     revalidationService.revalidateSafetyNetSlice(safetyNetBatchSize);
-            log.info("revalidation-cron: tick complete — drained={} safety-net: {}",
-                    totalDrained, safetyNet.describe());
+
+            // Phase 3: attribution audit findings refresh
+            int auditProcessed = attributionAuditService.refreshFindings(auditBatchSize);
+            log.info("revalidation-cron: tick complete — drained={} safety-net: {} attribution-audit: {} actresses evaluated",
+                    totalDrained, safetyNet.describe(), auditProcessed);
         } catch (Exception e) {
             log.error("revalidation-cron: tick failed: {}", e.getMessage(), e);
         }

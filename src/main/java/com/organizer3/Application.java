@@ -353,7 +353,8 @@ public class Application {
         commands.add(new ActressSearchCommand(actressRepo, titleRepo, labelRepo, nameLookup));
         commands.add(new FavoritesCommand(actressRepo, titleRepo));
 
-        ActressYamlLoader yamlLoader = new ActressYamlLoader(actressRepo, titleRepo, tagRepo);
+        ActressYamlLoader yamlLoader = new ActressYamlLoader(actressRepo, titleRepo, tagRepo, jdbi,
+                new com.organizer3.javdb.enrichment.CastPresenceCheck(jdbi));
         new com.organizer3.translation.StageNameSeeder(yamlLoader, stageNameLookupRepo).seed();
         commands.add(new LoadActressCommand(yamlLoader));
         commands.add(new CheckNamesCommand(actressRepo, new ActressNameCheckService()));
@@ -588,11 +589,18 @@ public class Application {
         com.organizer3.javdb.enrichment.RevalidationService revalidationService =
                 new com.organizer3.javdb.enrichment.RevalidationService(jdbi);
         com.organizer3.config.volume.EnrichmentConfig enrichmentConfig = config.enrichmentOrDefaults();
+        com.organizer3.repository.AttributionFindingsRepository attributionFindingsRepo =
+                new com.organizer3.repository.jdbi.JdbiAttributionFindingsRepository(jdbi);
+        com.organizer3.javdb.enrichment.AttributionAuditService attributionAuditService =
+                new com.organizer3.javdb.enrichment.AttributionAuditService(
+                        jdbi, attributionFindingsRepo, jsonMapper);
         com.organizer3.javdb.enrichment.RevalidationCronScheduler revalidationCronScheduler =
                 new com.organizer3.javdb.enrichment.RevalidationCronScheduler(
                         revalidationService, revalidationPendingRepo,
                         enrichmentConfig.revalidationCronOrDefaults().drainBatchSizeOrDefault(),
-                        enrichmentConfig.revalidationCronOrDefaults().safetyNetBatchSizeOrDefault());
+                        enrichmentConfig.revalidationCronOrDefaults().safetyNetBatchSizeOrDefault(),
+                        attributionAuditService,
+                        100);
         com.organizer3.javdb.enrichment.JavdbActressFilmographyRepository filmographyRepo =
                 new com.organizer3.javdb.enrichment.JdbiJavdbActressFilmographyRepository(jdbi, revalidationPendingRepo);
         com.organizer3.javdb.enrichment.FilmographyBackupWriter filmographyBackupWriter =
@@ -796,7 +804,8 @@ public class Application {
                         new com.organizer3.utilities.health.checks.DuplicateCodesCheck(jdbi),
                         new com.organizer3.utilities.health.checks.LowConfidenceEnrichmentCheck(jdbi),
                         new com.organizer3.utilities.health.checks.EnrichmentReviewQueueCheck(jdbi),
-                        new com.organizer3.utilities.health.checks.StaleFilmographyCacheCheck(jdbi));
+                        new com.organizer3.utilities.health.checks.StaleFilmographyCacheCheck(jdbi),
+                        new com.organizer3.utilities.health.checks.AttributionFindingsCheck(attributionFindingsRepo));
         com.organizer3.utilities.health.LibraryHealthReportStore healthReportStore =
                 new com.organizer3.utilities.health.LibraryHealthReportStore(
                         dataDir.resolve("library-health-report.json"));
@@ -1153,17 +1162,21 @@ public class Application {
                         com.organizer3.javdb.draft.PromotionRenameReconcileScheduler.DEFAULT_BATCH_LIMIT);
         com.organizer3.javdb.draft.CastValidator castValidator =
                 new com.organizer3.javdb.draft.CastValidator();
+        com.organizer3.javdb.enrichment.CastPresenceCheck castPresenceCheck =
+                new com.organizer3.javdb.enrichment.CastPresenceCheck(jdbi);
         com.organizer3.javdb.draft.DraftPromotionService draftPromotionService =
                 new com.organizer3.javdb.draft.DraftPromotionService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
                         draftEnrichRepo, draftCoverStore, coverPath, castValidator,
                         titleRepo, enrichmentHistoryRepo, titleEffectiveTagsService, jsonMapper,
                         stageNameSuggestionRepo,
-                        javdbStagingRepo,    // FIX 1: learn slug→actress at promotion
-                        actressRepo,         // FIX 1: backfill actress.stage_name at promotion
-                        UNSORTED_VOLUME_ID,  // Phase 2: staging volume id for post-commit rename
-                        titleFolderRenamer,  // Phase 2: shared rename helper
-                        coverWriteService);  // best-effort NAS cover write at promotion
+                        javdbStagingRepo,         // FIX 1: learn slug→actress at promotion
+                        actressRepo,              // FIX 1: backfill actress.stage_name at promotion
+                        UNSORTED_VOLUME_ID,       // Phase 2: staging volume id for post-commit rename
+                        titleFolderRenamer,       // Phase 2: shared rename helper
+                        coverWriteService,        // best-effort NAS cover write at promotion
+                        castPresenceCheck,        // Item B: kanji-presence guard at promotion
+                        enrichmentReviewQueueRepo); // Item B: enqueue guard_cast_mismatch
         com.organizer3.javdb.draft.DraftPatchService draftPatchService =
                 new com.organizer3.javdb.draft.DraftPatchService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo);
@@ -1216,13 +1229,14 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindLev1ActressPairsTool(actressRepo, jdbi))
                     .register(new com.organizer3.mcp.tools.FindSlugDuplicateActressesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindNameOrderVariantsTool(actressRepo))
-                    .register(new com.organizer3.mcp.tools.FindSuspectCreditsTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.FindSuspectCreditsTool(attributionAuditService))
                     .register(new com.organizer3.mcp.tools.FindAliasConflictsTool(actressRepo))
                     .register(new com.organizer3.mcp.tools.FindLoneTitlesTool(actressRepo))
                     .register(new com.organizer3.mcp.tools.FindOrphanTitlesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindDuplicateBaseCodesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindLabelMismatchesTool(jdbi))
-                    .register(new com.organizer3.mcp.tools.FindEnrichmentCastMismatchesTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.FindEnrichmentCastMismatchesTool(attributionAuditService))
+                    .register(new com.organizer3.mcp.tools.ListAttributionFindingsTool(attributionFindingsRepo))
                     .register(new com.organizer3.mcp.tools.BackfillActressSlugsFromCastTool(jdbi, enrichmentReviewQueueRepo))
                     .register(new com.organizer3.mcp.tools.FindStaleLocationsTool(jdbi))
                     .register(new com.organizer3.mcp.NoteToolHandlers.FindOrphanNotes(orphanNoteFinder))

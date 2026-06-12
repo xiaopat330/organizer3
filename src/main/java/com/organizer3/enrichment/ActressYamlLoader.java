@@ -6,6 +6,7 @@ import com.organizer3.enrichment.plan.ActressChange;
 import com.organizer3.enrichment.plan.ActressYamlPlan;
 import com.organizer3.enrichment.plan.FieldChange;
 import com.organizer3.enrichment.plan.PortfolioChange;
+import com.organizer3.javdb.enrichment.CastPresenceCheck;
 import com.organizer3.model.Actress;
 import com.organizer3.model.ActressAlias;
 import com.organizer3.model.Title;
@@ -13,8 +14,8 @@ import com.organizer3.repository.ActressRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.TitleTagRepository;
 import com.organizer3.sync.TitleCodeParser;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jdbi.v3.core.Jdbi;
 
 import java.io.File;
 import java.io.IOException;
@@ -23,6 +24,7 @@ import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.text.Normalizer;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -44,7 +46,6 @@ import java.util.jar.JarFile;
  * Tags are always replaced atomically per title.
  */
 @Slf4j
-@RequiredArgsConstructor
 public class ActressYamlLoader {
 
     private static final String RESOURCE_PREFIX = "actresses/";
@@ -52,8 +53,34 @@ public class ActressYamlLoader {
     private final ActressRepository actressRepo;
     private final TitleRepository titleRepo;
     private final TitleTagRepository tagRepo;
+    /** Jdbi instance used to read {@code cast_json} from {@code title_javdb_enrichment}. */
+    private final Jdbi jdbi;
+    /** Shared cast-presence predicate; {@code null} disables the guard (test convenience). */
+    private final CastPresenceCheck castPresenceCheck;
     private final ObjectMapper yaml = new ObjectMapper(new YAMLFactory());
     private final TitleCodeParser codeParser = new TitleCodeParser();
+
+    /**
+     * Full constructor including cast-mismatch guard dependencies.
+     */
+    public ActressYamlLoader(ActressRepository actressRepo, TitleRepository titleRepo,
+                             TitleTagRepository tagRepo, Jdbi jdbi,
+                             CastPresenceCheck castPresenceCheck) {
+        this.actressRepo = actressRepo;
+        this.titleRepo = titleRepo;
+        this.tagRepo = tagRepo;
+        this.jdbi = jdbi;
+        this.castPresenceCheck = castPresenceCheck;
+    }
+
+    /**
+     * Convenience constructor without cast-mismatch guard (guard disabled; used in tests that
+     * do not need the enrichment-row check).
+     */
+    public ActressYamlLoader(ActressRepository actressRepo, TitleRepository titleRepo,
+                             TitleTagRepository tagRepo) {
+        this(actressRepo, titleRepo, tagRepo, null, null);
+    }
 
     /**
      * Load a single actress YAML by romanized name slug (e.g. "nana_ogura").
@@ -64,13 +91,27 @@ public class ActressYamlLoader {
      * @throws IllegalArgumentException if no matching resource is found
      */
     public LoadResult loadOne(String slug) throws IOException {
+        return loadOne(slug, false);
+    }
+
+    /**
+     * Load a single actress YAML by romanized name slug, with optional strict mode.
+     *
+     * @param strict if {@code true}, throw {@link IllegalArgumentException} instead of creating
+     *               a new actress when no existing actress can be resolved from the YAML
+     * @return a summary of what was applied
+     * @throws IOException if the file cannot be read
+     * @throws IllegalArgumentException if no matching resource is found, or in strict mode when
+     *                                  no existing actress matches
+     */
+    public LoadResult loadOne(String slug, boolean strict) throws IOException {
         String resourcePath = RESOURCE_PREFIX + slug + ".yaml";
         InputStream stream = getClass().getClassLoader().getResourceAsStream(resourcePath);
         if (stream == null) {
             throw new IllegalArgumentException("No actress YAML found at classpath:" + resourcePath);
         }
         ActressYaml yaml = parseYaml(stream);
-        return apply(slug, yaml);
+        return apply(slug, yaml, strict);
     }
 
     /**
@@ -79,6 +120,17 @@ public class ActressYamlLoader {
      * @return one {@link LoadResult} per file processed
      */
     public List<LoadResult> loadAll() throws IOException {
+        return loadAll(false);
+    }
+
+    /**
+     * Load all actress YAML files under {@code resources/actresses/} on the classpath.
+     *
+     * @param strict if {@code true}, fail each YAML that cannot be resolved to an existing actress
+     *               instead of creating a new one
+     * @return one {@link LoadResult} per file processed
+     */
+    public List<LoadResult> loadAll(boolean strict) throws IOException {
         List<LoadResult> results = new ArrayList<>();
         URL dirUrl = getClass().getClassLoader().getResource(RESOURCE_PREFIX);
         if (dirUrl == null) {
@@ -88,7 +140,7 @@ public class ActressYamlLoader {
 
         for (String slug : discoverSlugs(dirUrl)) {
             try {
-                results.add(loadOne(slug));
+                results.add(loadOne(slug, strict));
             } catch (Exception e) {
                 log.error("Failed to load actress YAML for slug '{}': {}", slug, e.getMessage());
             }
@@ -238,20 +290,40 @@ public class ActressYamlLoader {
     }
 
     private LoadResult apply(String slug, ActressYaml data) {
+        return apply(slug, data, false);
+    }
+
+    private LoadResult apply(String slug, ActressYaml data, boolean strict) {
         ActressYaml.Profile profile = data.profile();
         String canonicalName = profile.name() != null ? profile.name().toCanonicalName() : slug;
 
-        // Resolve actress — try canonical name, then stage name
+        // Resolve actress — try canonical name first, then kanji stage_name via findByStageName
         Optional<Actress> found = actressRepo.resolveByName(canonicalName);
         if (found.isEmpty() && profile.name() != null && profile.name().stageName() != null) {
-            found = actressRepo.resolveByName(profile.name().stageName());
+            String rawStageName = profile.name().stageName();
+            String normalizedStageName = Normalizer.normalize(rawStageName, Normalizer.Form.NFKC).trim();
+            found = actressRepo.findByStageName(normalizedStageName);
+            if (found.isPresent()) {
+                log.info("Resolved actress by kanji stage_name '{}': {} (id={})",
+                        normalizedStageName, found.get().getCanonicalName(), found.get().getId());
+            }
         }
 
         final Actress actress;
+        final boolean created;
         if (found.isPresent()) {
             actress = found.get();
+            created = false;
             log.info("Enriching actress: {} (id={})", actress.getCanonicalName(), actress.getId());
         } else {
+            if (strict) {
+                throw new IllegalArgumentException(
+                        "strict mode: no existing actress found for YAML slug '" + slug
+                        + "' (romaji='" + canonicalName + "'"
+                        + (profile.name() != null && profile.name().stageName() != null
+                                ? ", stage_name='" + profile.name().stageName() + "'" : "")
+                        + ") — set strict=false to allow creation");
+            }
             // Create a minimal actress record — sync hasn't seen her yet
             actress = actressRepo.save(Actress.builder()
                     .canonicalName(canonicalName)
@@ -259,6 +331,7 @@ public class ActressYamlLoader {
                     .tier(Actress.Tier.LIBRARY)
                     .firstSeenAt(LocalDate.now())
                     .build());
+            created = true;
             log.info("Created new actress from YAML: {} (id={})", actress.getCanonicalName(), actress.getId());
         }
 
@@ -310,6 +383,23 @@ public class ActressYamlLoader {
                 final long titleId;
                 if (existing.isPresent()) {
                     titleId = existing.get().getId();
+
+                    // Cast-mismatch guard: if this title has enrichment with a cast_json,
+                    // verify the actress appears in it before overwriting metadata.
+                    if (castPresenceCheck != null && jdbi != null) {
+                        String castJson = fetchCastJson(titleId);
+                        if (castJson != null && !castJson.isBlank()) {
+                            CastPresenceCheck.Result presence = castPresenceCheck.check(actress.getId(), castJson);
+                            boolean enforced = castPresenceCheck.guardEnforced(titleId, castJson);
+                            if (presence == CastPresenceCheck.Result.ABSENT && enforced) {
+                                log.warn("cast-mismatch guard: skipping metadata write for {} (actress {} not in enriched cast)",
+                                        code, actress.getCanonicalName());
+                                unresolved.add(code + ": cast-mismatch — actress kanji not in enriched cast; skipped");
+                                continue;
+                            }
+                        }
+                    }
+
                     titlesEnriched++;
                 } else {
                     // Create a minimal title stub so enrichment data is not lost
@@ -347,7 +437,21 @@ public class ActressYamlLoader {
             }
         }
 
-        return new LoadResult(actress.getCanonicalName(), actress.getId(), titlesCreated, titlesEnriched, unresolved);
+        return new LoadResult(actress.getCanonicalName(), actress.getId(), titlesCreated, titlesEnriched, unresolved, created);
+    }
+
+    /**
+     * Returns the {@code cast_json} blob for the given title's javdb enrichment row,
+     * or {@code null} if no enrichment row exists.
+     */
+    private String fetchCastJson(long titleId) {
+        if (jdbi == null) return null;
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT cast_json FROM title_javdb_enrichment WHERE title_id = :id")
+                        .bind("id", titleId)
+                        .mapTo(String.class)
+                        .findFirst()
+                        .orElse(null));
     }
 
     /**
@@ -412,7 +516,8 @@ public class ActressYamlLoader {
 
         Optional<Actress> found = actressRepo.resolveByName(canonicalName);
         if (found.isEmpty() && profile != null && profile.name() != null && profile.name().stageName() != null) {
-            found = actressRepo.resolveByName(profile.name().stageName());
+            String normalizedStageName = Normalizer.normalize(profile.name().stageName(), Normalizer.Form.NFKC).trim();
+            found = actressRepo.findByStageName(normalizedStageName);
         }
 
         ActressChange actressChange = found.isPresent()
@@ -576,13 +681,17 @@ public class ActressYamlLoader {
 
     /**
      * Summary of what was applied for one actress YAML load.
+     *
+     * @param created {@code true} when this load created a NEW actress row; {@code false} when
+     *                it bound to an existing actress (by canonical name, alias, or kanji stage_name)
      */
     public record LoadResult(
             String canonicalName,
             long actressId,
             int titlesCreated,
             int titlesEnriched,
-            List<String> unresolvedCodes
+            List<String> unresolvedCodes,
+            boolean created
     ) {}
 
     /**

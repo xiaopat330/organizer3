@@ -11,7 +11,8 @@ import { renderCastAnomalyPanel }    from './cast-anomaly.js';
 import { renderOrphanPanel }         from './orphan.js';
 import { renderRecodePanel }         from './recode.js';
 import { renderSlugConflictPanel }   from './slug-conflict.js';
-import { renderStageNameConflictPanel } from './stage-name-conflict.js';
+import { renderStageNameConflictPanel }  from './stage-name-conflict.js';
+import { renderGuardCastMismatchPanel }  from './guard-cast-mismatch.js';
 
 // ── SVG icons ─────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ function availableActions(row) {
     case 'fetch_failed':             return ['mark_resolved', 'accept_gap', 'override_slug'];
     case 'slug_conflict':            return ['mark_resolved'];
     case 'stage_name_conflict':      return ['mark_resolved'];
+    case 'guard_cast_mismatch':      return ['mark_resolved'];
     case 'orphan_enriched':          return ['mark_resolved'];
     case 'recode_candidate':         return ['dismiss'];
     case 'actress_rename_candidate': return ['dismiss'];
@@ -67,6 +69,7 @@ export function makeRow(row, reload) {
   const isActressRename      = row.reason === 'actress_rename_candidate';
   const isSlugConflict       = row.reason === 'slug_conflict';
   const isStageNameConflict  = row.reason === 'stage_name_conflict';
+  const isGuardCastMismatch  = row.reason === 'guard_cast_mismatch';
 
   const stateLabel = humanizeState(row.state, row.reason);
   const stateClass = `wf-state wf-state-${esc(row.state || 'other_intervention')}`;
@@ -95,6 +98,8 @@ export function makeRow(row, reload) {
     renderSlugConflictPanel(candidatesCell, row, reload);
   } else if (isStageNameConflict) {
     renderStageNameConflictPanel(candidatesCell, row, reload);
+  } else if (isGuardCastMismatch) {
+    renderGuardCastMismatchPanel(candidatesCell, row, reload);
   } else {
     candidatesCell.innerHTML = buildCandidatesHtml(row);
     // Wire candidate pick buttons.

@@ -24,7 +24,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 65;
+    private static final int CURRENT_VERSION = 68;
 
     private final Jdbi jdbi;
 
@@ -356,6 +356,16 @@ public class SchemaUpgrader {
         if (version < 66) {
             applyV66();
             setVersion(66);
+        }
+
+        if (version < 67) {
+            applyV67();
+            setVersion(67);
+        }
+
+        if (version < 68) {
+            applyV68();
+            setVersion(68);
         }
 
         log.info("Schema upgrade complete");
@@ -2250,6 +2260,47 @@ public class SchemaUpgrader {
     private void applyV66() {
         log.info("Applying migration v66: bookmark_on_promote on draft_titles");
         jdbi.useHandle(h -> addColumnIfMissing(h, "draft_titles", "bookmark_on_promote", "INTEGER DEFAULT 0"));
+    }
+
+    /**
+     * v67: no-op placeholder migration — keeps version numbering contiguous.
+     * Reserved for future use if a migration is needed between v66 and v68.
+     */
+    private void applyV67() {
+        log.info("Applying migration v67: no-op placeholder");
+        // intentionally empty
+    }
+
+    /**
+     * v68: {@code attribution_findings} table — actress-level attribution audit aggregate findings.
+     *
+     * <p>Stores one row per (actress_id, finding_class). The {@code metric} is an aggregate
+     * fraction (e.g. mismatch titles / total enriched titles). No per-title rows.
+     * Status values: {@code open} | {@code suppressed} | {@code resolved}.
+     *
+     * <p>See spec/PROPOSAL_KANJI_MISATTRIBUTION_GUARDS.md.
+     */
+    private void applyV68() {
+        log.info("Applying migration v68: attribution_findings table");
+        jdbi.useHandle(h -> {
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS attribution_findings (
+                        actress_id             INTEGER NOT NULL,
+                        finding_class          TEXT NOT NULL,
+                        metric                 REAL,
+                        sample_json            TEXT,
+                        first_seen_at          TEXT,
+                        last_seen_at           TEXT,
+                        status                 TEXT NOT NULL DEFAULT 'open',
+                        note                   TEXT,
+                        stage_name_at_suppress TEXT,
+                        slug_at_suppress       TEXT,
+                        UNIQUE(actress_id, finding_class)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_attribution_findings_status
+                        ON attribution_findings(status)""");
+        });
     }
 
     private static String leafOf(String path) {
