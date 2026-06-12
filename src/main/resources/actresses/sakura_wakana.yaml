@@ -1,0 +1,38 @@
+profile:
+  name:
+    family_name: Sakura
+    given_name: Wakana
+    stage_name: さくらわかな
+    reading: さくら わかな
+    alternate_names: null
+  date_of_birth: 2002-03-21
+  birthplace: Ishikawa Prefecture, Japan
+  blood_type: null
+  height_cm: 165
+  measurements:
+    bust: 83
+    waist: 60
+    hip: 85
+  cup: D
+  active_from: 2023-06-01
+  active_to: null
+  retirement_announced: null
+  biography: "Wakana Sakura (さくらわかな) is a Japanese AV actress born March 21, 2002 in Ishikawa Prefecture (described as from Kanazawa, nicknamed 'the sheltered daughter of Kanazawa'). She debuted in June 2023 exclusively with Idea Pocket, with her first title being FIRST IMPRESSION 159. She is signed to the Bstar talent agency. Her early releases performed strongly on FANZA rental charts, with her second exclusive title reaching #1 in the week of December 4, 2023. She has hobbies of solo travel and piano, and played percussion in her middle school brass band."
+  primary_studios:
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2023-06-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 29
+  confidence: "HIGH — Japanese Wikipedia article confirmed (ja.wikipedia.org/wiki/さくらわかな) with cited infobox: DOB 2002-03-21, birthplace Ishikawa, height 165 cm, measurements 83-60-85 cm, cup D (from アサ芸シークレット 2025 source), debut June 2023 Idea Pocket. Blood type field empty in Wikipedia infobox — null per guardrails. Measurements cross-checked against javdatabase.com (minor discrepancy: javdb lists 83-58-88/C vs Wikipedia 83-60-85/D; Wikipedia cited source takes precedence)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E3%81%95%E3%81%8F%E3%82%89%E3%82%8F%E3%81%8B%E3%81%AA
+  - https://www.javdatabase.com/idols/wakana-sakura/
+  portfolio_listed: 0

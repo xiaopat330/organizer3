@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Uruki
+    given_name: Sara
+    stage_name: 宇流木さら
+    reading: うるき さら
+    alternate_names:
+    - name: 宇流木さらら
+      note: 'current stage name (うるき さらら, Uruki Sarara) — renamed from 宇流木さら after 2023'
+  date_of_birth: 2000-08-18
+  birthplace: Chiba Prefecture, Japan
+  blood_type: AB
+  height_cm: 158
+  measurements:
+    bust: 88
+    waist: 62
+    hip: 90
+  cup: D
+  active_from: 2020-06-01
+  active_to: null
+  retirement_announced: null
+  biography: "Sara Uruki (宇流木さら), born August 18, 2000 in Chiba Prefecture, debuted in June 2020 as a free actress appearing across multiple labels including ながえSTYLE, Mr.michiru, GIGA, and others. Later renamed to Sarara Uruki (宇流木さらら), she established herself as a prolific performer known for her flexible physique and full figure. In April 2026 she entered an exclusive contract with Madonna, marking a career milestone. She has appeared in over 360 titles under both stage names combined."
+  primary_studios:
+  - name: Madonna
+    company: Madonna
+    from: 2026-04-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 40
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox provides explicit DOB (2000-08-18), blood type (AB, explicit 血液型 field), height (158 cm), measurements (88-62-90), cup (D), birthplace (Chiba Prefecture), and active period (2020-). Note: current Wikipedia article name is 宇流木さらら (Sarara); 宇流木さら is confirmed as 旧名 (former name), consistent with DB canonical_name Sara Uruki. Identity confirmed via minnano-av showing same actress ID with both name forms and debut June 2020.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E5%AE%87%E6%B5%81%E6%9C%A8%E3%81%95%E3%82%89 (宇流木さら/さらら)'
+  - 'https://www.minnano-av.com/actress654847.html'
+  - 'organizer3 local DB actress id=2796'
+  portfolio_listed: 0

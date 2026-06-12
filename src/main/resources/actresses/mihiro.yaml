@@ -42,14 +42,12 @@ profile:
     to: 2010-06-19
     role: Exclusive contract actress (ONED label)
   awards:
-  - year: 2007
-    ceremony: Vegas Night Moodyz Awards
-    category: Best Title
-    result: Won (for ハイパーギリギリモザイク みひろ)
-  - year: 2007
-    ceremony: Vegas Night Moodyz Awards
-    category: Best Actress (2nd place)
-    result: Runner-up
+  - event: Vegas Night Moodyz Awards
+    year: 2007
+    category: Best Title (Won, for ハイパーギリギリモザイク みひろ)
+  - event: Vegas Night Moodyz Awards
+    year: 2007
+    category: Best Actress — Runner-up (2nd place)
   legacy: "One of the most prominent AV-to-mainstream crossover actresses of the 2000s, bridging AV production, J-pop, television drama, and variety through a single coherent public persona. Her Ebisu Muscats membership brought her to prime-time variety television, and her autobiographical novel and its film adaptation gave her an unusual literary/cinematic legacy. Continues as an active mainstream actress under 金子みひろ."
 
 meta:

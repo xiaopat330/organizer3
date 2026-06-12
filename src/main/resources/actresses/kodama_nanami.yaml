@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: Kodama
+    given_name: Nanami
+    stage_name: 兒玉七海
+    reading: こだま ななみ
+    alternate_names:
+    - name: Nanami Ogura
+      note: 'debut stage name (小倉七海, おぐらななみ) — used at S1 debut 2021-09-10; Wikipedia redirects 小倉七海 to 兒玉七海'
+    - name: ほしののの
+      note: 'free model name (Hoshino Nono) — used during hiatus period'
+  date_of_birth: 2002-06-22
+  birthplace: null
+  blood_type: B
+  height_cm: 161
+  measurements:
+    bust: 92
+    waist: 58
+    hip: 88
+  cup: F
+  active_from: 2021-09-10
+  active_to: null
+  retirement_announced: null
+  biography: "Nanami Kodama (兒玉七海), born June 22, 2002, debuted in September 2021 under the stage name Nanami Ogura (小倉七海) with S1 NO.1 STYLE. After a hiatus from late 2022, she returned to activity in 2023–2024 under her current stage name 兒玉七海, the traditional kanji form of 児玉七海. She was affiliated with talent agency Life Promotion (ライフプロモーション) until October 2022, then joined T-POWERS (ティーパワーズ) in September 2023. She holds an exclusive contract with S1 NO.1 STYLE and is active across its label. Her hobbies include photography (camera) and Rubik's cube. Nicknames: こなみん, ぐらちゃん, ぐらたん."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: S1 NO.1 STYLE
+    from: 2021-09-10
+    to: null
+    role: Exclusive contract actress (debut under Ogura Nanami name; continued as Kodama Nanami after return)
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 39
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia ja infobox (兒玉七海, article id 4470748) provides explicit DOB 2002-06-22, 血液型 B型 (sourced to 徳間書店アサヒ芸能 2023-12-21), height 161 cm, B/W/H 92-58-88, cup F (2023年時点). Confirmed by minnano-av actress698899 (birthDate 2002-06-22, T161/B92(F)/W58/H88). Active-from from debut title date 2021-09-10. Identity confirmed: Wikipedia page title 兒玉七海 == DB stage_name, alias 小倉七海 == DB known alias, S1 exclusive consistent with 39-title count. NOTE: minnano-av サイズ row ends "/ S" — that S is clothing size token, not blood type; blood type taken only from explicit 血液型 field.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E5%85%92%E7%8E%89%E4%B8%83%E6%B5%B7 (article 兒玉七海, infobox data-mw)'
+  - 'https://www.minnano-av.com/actress698899.html'
+  - 'organizer3 local DB actress id=4214'
+  portfolio_listed: 0

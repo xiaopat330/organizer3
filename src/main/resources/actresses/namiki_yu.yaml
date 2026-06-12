@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Namiki
+    given_name: Yu
+    stage_name: 並木優
+    reading: なみき ゆう
+    alternate_names: []
+  date_of_birth: 1989-03-03
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 160
+  measurements:
+    bust: 83
+    waist: 58
+    hip: 85
+  cup: E
+  active_from: 2008-03-01
+  active_to: 2015-03-19
+  retirement_announced: null
+  biography: "Yu Namiki (並木優), born March 3, 1989 in Tokyo, debuted in March 2008 under KUKI before moving to IdeaPocket (アイデアポケット), where she spent the majority of her career under the Tissue (ティッシュ) sublabel. Known by the nickname 'Yutamu' (ゆうたむ), she built a devoted fanbase through her distinctive figure — particularly noted for her buttocks — and appeared in numerous IdeaPocket solo and compilation titles. Her retirement title was released in March 2015 on the IdeaPocket Tissue label."
+  primary_studios:
+  - name: KUKI
+    company: KUKI
+    from: 2008-03-01
+    to: null
+    role: Early career
+  - name: IdeaPocket
+    company: IdeaPocket
+    from: null
+    to: 2015-03-19
+    role: Primary exclusive studio; Tissue sublabel
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 43
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox provides explicit 血液型 (O型), DOB (1989年3月3日), birthplace (東京都), height (160 cm), measurements (83-58-85), cup (E-65), and active period (2008年–). Reading confirmed as なみき ゆう. Identity confirmed via studio match (KUKI + IdeaPocket both in Wikipedia infobox), minnano-av debut date 2008年03月, nickname ゆうたむ, and retirement tag with last title 2015-03-19. Cup E from ブラサイズ E-65 infobox field.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E4%B8%A6%E6%9C%A8%E5%84%AA'
+  - 'https://www.minnano-av.com/actress772204.html'
+  - 'organizer3 local DB actress id=551'
+  portfolio_listed: 0

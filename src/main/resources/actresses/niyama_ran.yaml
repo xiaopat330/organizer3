@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Niyama
+    given_name: Ran
+    stage_name: 新山らん
+    reading: にいやま らん
+    alternate_names:
+    - name: Niiyama Ran
+      note: correct romanization of 新山 (にいやま); DB stores family_name=Niyama to reconstruct canonical_name
+  date_of_birth: 1991-09-14
+  birthplace: Gunma Prefecture, Japan
+  blood_type: B
+  height_cm: 155
+  measurements: {bust: 110, waist: 62, hip: 94}
+  cup: K
+  active_from: 2010-12-24
+  active_to: null
+  retirement_announced: null
+  biography: "Ran Niyama (新山らん) is a Japanese AV actress and former gravure idol born on September 14, 1991 in Gunma Prefecture. She debuted in December 2010 with a gravure DVD (オルスタックピクチャーズ) before taking a hiatus in 2011 and resuming activity in 2012. In May 2013 she made her AV debut under MUTEKI, and later that year signed an exclusive contract with S1 NO.1 STYLE, where she released a prolific run of titles through 2014. She is best known for her exceptionally large K-cup bust (110 cm), which was covered in Shūkan Playboy and earned her the tagline '霊長類最強の巨乳' ('strongest big breasts among primates'). Her hobbies include film watching, golf, and reading, and her special skill is cooking pasta and sweets."
+  primary_studios:
+  - name: MUTEKI
+    company: null
+    from: 2013-05-01
+    to: 2013-05-01
+    role: AV debut release
+  - name: S1 NO.1 STYLE
+    company: エスワン ナンバーワンスタイル
+    from: 2013-09-19
+    to: 2014-12-19
+    role: Exclusive contract actress
+  awards: null
+  legacy: "Niyama was notable in the early 2010s gravure and AV scene for her exceptionally large natural K-cup bust at 110 cm, attracting mainstream press coverage in Shūkan Playboy before her AV career. Her S1 exclusive run produced a steady string of single-actress features showcasing her signature figure."
+portfolio: []
+meta:
+  total_owned_titles: 4
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 13
+  coverage_note: DB holds 4 SNIS-coded S1 exclusive titles; Wikipedia lists ~13 AV releases (MUTEKI debut + S1 exclusive run 2013-2014). Gravure DVDs not in DB.
+  confidence: "HIGH — DOB, birthplace, blood type, height, measurements, cup all from Japanese Wikipedia infobox (公称サイズ 2010時点). Studio match confirmed (エスワン). Surname reading is にいやま (Niiyama) but DB canonical_name uses Niyama to match stored form."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/新山らん
+  - https://www.javdatabase.com/idols/ran-niyama/
+  portfolio_listed: 0

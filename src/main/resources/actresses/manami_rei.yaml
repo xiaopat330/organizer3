@@ -1,0 +1,42 @@
+profile:
+  name:
+    family_name: Aimi
+    given_name: Rei
+    stage_name: 愛実れい
+    reading: あいみ れい
+    alternate_names:
+    - name: Rei Manami
+      note: prior DB canonical (a misreading of 愛実 as まなみ; corrected to Rei Aimi, kept as alias)
+    - name: Manami Rei
+      note: name-order variant of the prior misread romanisation
+    - name: Rei Minami
+      note: misreading artifact — 愛実 can be misread as まなみ (Manami) which phonetically resembles Minami; no evidence this name was used by the actress herself; likely a DB alias error, not a real prior name
+  date_of_birth: 1991-12-21
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: B
+  height_cm: 160
+  measurements:
+    bust: 87
+    waist: 54
+    hip: 85
+  cup: G
+  active_from: 2013-07-12
+  active_to: null
+  retirement_announced: null
+  biography: "Rei Manami (愛実れい, read: Aimi Rei) is a Japanese AV actress born on December 21, 1991, in Kanagawa Prefecture. She debuted in July 2013 as an exclusive contract actress for the label million (ミリオン), operated by K.M. Produce, under the talent agency Bambi Promotion. Known for her large-bust figure, she built a following across multiple studios and labels throughout her career. Her hobbies include cooking and playing piano."
+  primary_studios:
+  - name: million (ミリオン)
+    company: ケイ・エム・プロデュース (K.M. Produce)
+    from: 2013-07-12
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 27
+  confidence: "HIGH — DOB, birthplace, height, measurements, cup all confirmed from both Japanese Wikipedia infobox and minnano-av profile. Blood type B sourced from explicit 血液型 field on minnano-av. Debut date and exclusive studio from Wikipedia article body. Reading confirmed as あいみ れい (Aimi Rei) by both sources — the task-supplied reading まなみ れい appears to be a DB inaccuracy."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%84%9B%E5%AE%9F%E3%82%8C%E3%81%84
+  - https://www.minnano-av.com/actress173990.html
+  portfolio_listed: 0

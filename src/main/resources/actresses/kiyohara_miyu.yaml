@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Kiyohara
+    given_name: Miyu
+    stage_name: 清原みゆう
+    reading: きよはら みゆう
+    alternate_names:
+    - name: 小日向みゆう
+      note: 'current stage name (こひなた みゆう, Kohinata Miyu) — renamed October 2024 after agency move from Bstar to T-Powers'
+  date_of_birth: 2002-07-10
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 95
+    waist: 58
+    hip: 87
+  cup: H
+  active_from: 2023-06-13
+  active_to: null
+  retirement_announced: null
+  biography: "Miyu Kiyohara (清原みゆう) debuted on June 13, 2023 under S1 NO.1 STYLE with the title '新人NO.1STYLE 奇跡の乳を持つ最強シロウト 清原みゆう AVデビュー', making an immediate commercial impact — her debut title reached #1 on the FANZA video floor ranking in its release week. Originally affiliated with talent agency Bstar, she is a Tokyo-born actress who was reportedly a nursing school student at the time of her debut shoot. She cited admiration for Yua Mikami as a motivation to enter the industry. In October 2024 she transferred to talent agency T-Powers and simultaneously renamed herself Miyu Kohinata (小日向みゆう), debuting under the new name in November 2024. She remains an exclusive S1 NO.1 STYLE contract actress. She ranked 3rd in FANZA's 2025 first-half actress ranking (月刊FANZA October 2025 issue)."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: エスワン
+    from: 2023-06-13
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 42
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia article redirects 清原みゆう → 小日向みゆう (same person confirmed by 別名 field listing 清原みゆう as former name). DOB 2002-07-10 from Wikipedia infobox (生年2002/生月7/生日10). Measurements B95/W58/H87 and cup H confirmed from infobox and T-Powers agency profile (2024 time point). Blood type: 血液型 field is explicitly empty in the infobox template — set null per guardrail. Debut date 2023-06-13 from Wikipedia filmography first entry. Identity consistent with 42-title count and S1 exclusive career 2023–present.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E5%B0%8F%E6%97%A5%E5%90%91%E3%81%BF%E3%82%86%E3%81%86 (redirects from 清原みゆう)'
+  - 'https://www.t-powers.co.jp/talent/%E5%B0%8F%E6%97%A5%E5%90%91%E3%81%BF%E3%82%86%E3%81%86/'
+  - 'organizer3 local DB actress id=3108'
+  portfolio_listed: 0

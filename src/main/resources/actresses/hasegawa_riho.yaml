@@ -1,0 +1,35 @@
+profile:
+  name:
+    family_name: Hasegawa
+    given_name: Riho
+    stage_name: 長谷川リホ
+    reading: はせがわ りほ
+    alternate_names: []
+  date_of_birth: 1991-03-19
+  birthplace: Tokyo, Japan
+  blood_type: O
+  height_cm: 158
+  measurements: {bust: 90, waist: 58, hip: 87}
+  cup: F
+  active_from: 2012-05-01
+  active_to: null
+  retirement_announced: null
+  biography: "Riho Hasegawa (長谷川リホ) is a Japanese AV actress, gravure idol, and talent born on March 19, 1991 in Tokyo. She debuted in gravure while still a high school student in 2008, becoming a finalist in the Miss FLASH 2008 contest. After appearing in weekly magazines and releasing a hair-nude photobook in 2012, she made her AV debut in May 2012 through MUTEKI, followed swiftly by an exclusive contract with S1 NO.1 STYLE. During her time at S1, she appeared in multiple releases highlighting her notable F-cup figure and became known for high-production-value titles. She later worked with other studios including Idea Pocket, Attackers, MOODYZ, and E-BODY."
+  primary_studios:
+  - {name: MUTEKI, company: S1 NO.1 STYLE, from: 2012-05-01, to: 2012-05-01, role: AV debut}
+  - {name: S1 NO.1 STYLE, company: S1 NO.1 STYLE, from: 2012-07-01, to: 2013-01-01, role: Exclusive contract actress}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 6
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 73
+  coverage_note: "DB owns 6 titles; javdatabase reports 73 total censored releases"
+  confidence: "HIGH — DOB, birthplace, blood type, height, measurements and cup all from Japanese Wikipedia infobox (2012年時点). Debut year confirmed as 2012 AV debut (MUTEKI). Active_to left null as retirement not confirmed."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/長谷川リホ
+  - https://javdatabase.com/idols/riho-hasegawa/
+  portfolio_listed: 0

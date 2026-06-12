@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: Shido
+    given_name: Rui
+    stage_name: 紫堂るい
+    reading: しどう るい
+    alternate_names:
+    - name: 流川 ゆうり
+      note: child actress name (age 8–high school); reading るかわ ゆうり
+    - name: 紫藤 るい
+      note: gravure idol name (2023–2025); reading しどう るい
+  date_of_birth: 1999-05-29
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 158
+  measurements: {bust: 90, waist: 60, hip: 90}
+  cup: I
+  active_from: 2025-06-03
+  active_to: null
+  retirement_announced: null
+  biography: "Rui Shido (born May 29, 1999 in Tokyo) began her career as a child actress at age 8 under the name Yukawa Yuuri, appearing as a regular on the NHK E-Tele educational programme Himitsu no Chikarandō from 2010 and winning the Shogakukan 4th-grade model audition grand prix. She paused all entertainment activities for high school and university, working as a cram school tutor before re-entering the industry as gravure idol Shidō Rui in November 2023, debuting in Kodansha's FRIDAY magazine and releasing her first semi-nude photobook Purpura in January 2025. In May 2025 she announced her AV debut under the current stage name 紫堂るい, releasing her debut title through MUTEKI in June 2025; her FANZA Blu-ray version debuted at number one, and she ranked 10th in Asahi Geino's 2025 annual AV sales chart. From August 2025 she became an exclusive contract actress for S1 NO.1 STYLE (エスワン), with multiple titles charting in FANZA weekly rankings. In March 2026 she won Best Performance Actress at the ADULTOPIA adult entertainment expo in Taiwan."
+  primary_studios:
+  - name: MUTEKI
+    company: MUTEKI
+    from: 2025-06-03
+    to: 2025-07-31
+    role: Debut exclusive contract actress
+  - name: S1 NO.1 STYLE
+    company: エスワン ナンバーワン スタイル
+    from: 2025-08-01
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: ADULTOPIA大人國成人展
+    year: 2026
+    category: BEST PERFORMANCE ACTRESS（最優秀演技賞）
+  legacy: "One of a rare class of AV actresses with a verified child-acting career (NHK Eテレ regular at age 11), Shido Rui's transition from gravure to AV generated substantial mainstream media attention; her debut Blu-ray debuted at number one on FANZA and she ranked in multiple annual charts within her first year of activity."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 15
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 29
+  coverage_note: DB has 15 owned titles (SONE:8, SNOS:6, TEK:1); javdatabase.com lists 29 total releases as of 2026-06-11
+  confidence: "HIGH — Wikipedia article well-sourced with multiple citations; DOB, birthplace, blood type, height, measurements, cup all confirmed from infobox (2024年時点). MUTEKI→S1 transition timeline confirmed from article text. Award confirmed from Wikipedia article body."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E7%B4%AB%E5%A0%82%E3%82%8B%E3%81%84
+  - https://javdatabase.com/idols/rui-shido/
+  portfolio_listed: 0

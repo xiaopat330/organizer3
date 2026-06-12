@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: Miura
+    given_name: Ayumi
+    stage_name: 三浦歩美
+    reading: みうら あゆみ
+    alternate_names:
+    - name: 愛弓りょう
+      note: 'current stage name (あゆみ りょう) — renamed May 7, 2021; active under this name from 2021 onward'
+    - name: Ryo Ayumi
+      note: romaji of current stage name 愛弓りょう
+  date_of_birth: 1982-10-27
+  birthplace: null
+  blood_type: null
+  height_cm: 167
+  measurements:
+    bust: 90
+    waist: 58
+    hip: 85
+  cup: G
+  active_from: 2019-01-24
+  active_to: null
+  retirement_announced: null
+  biography: "Ayumi Miura (三浦歩美) debuted on January 24, 2019 as a SOD Create exclusive under their 'honmono hitozuma' (real married woman) label, aged 36. She was affiliated with talent agency ARROWS at debut. After six SOD exclusive titles she transferred to Madonna in July 2019 and remained a Madonna exclusive under the Miura Ayumi name through mid-2021. On May 7, 2021 she announced a stage name change to Ryo Ayumi (愛弓りょう, あゆみ りょう), transitioning her agency affiliation to ACT ENTERTAINMENT. She has remained a Madonna exclusive under the Ryo Ayumi name since, building a prolific library of drama-heavy NTR and married-woman titles. She reached FANZA rental floor ranking #1 in August 2022, was ranked #12 in the FANZA 2024 first-half actress ranking, and received a solo anniversary best series from Madonna (1st, 2nd, 3rd, and 4th anniversary editions). She is noted for a tall, slender figure with a large bust, and her mature married-woman (hitozuma/juku-onna) persona."
+  primary_studios:
+  - name: SOD Create
+    company: SOD Create
+    from: 2019-01-24
+    to: 2019-06-06
+    role: Exclusive contract actress (honmono hitozuma label)
+  - name: Madonna
+    company: Madonna
+    from: 2019-07-25
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: "One of Madonna's most prominent long-running exclusives of the 2020s, having sustained a top-tier solo career from 2019 through 2026 under two stage names. The name transition to 愛弓りょう in 2021 marked a deliberate brand refresh while maintaining the same Madonna exclusive contract. Anniversary best collections were issued every year from 2022 onward, a distinction shared with only a small number of Madonna exclusives."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 43
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched. DB has 43 titles (40 on vol a, 1 collections, 3 pool) spanning 2019–2026 under both stage names.'
+  confidence: 'HIGH — Wikipedia infobox (ja.wikipedia.org/wiki/愛弓りょう, redirected from 三浦歩美) provides explicit DOB (1982-10-27), height (167 cm), measurements (90-58-85 cm as of 2022), cup size (G). Identity confirmed: DB aliases include "Ryo Ayumi" matching the Wikipedia rename. Debut date 2019-01-24 from Wikipedia filmography first entry. Blood type: no explicit 血液型 field present in Wikipedia infobox — set null. Birthplace not listed in any source.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%84%9B%E5%BC%93%E3%82%8A%E3%82%87%E3%81%86 (redirects from 三浦歩美)'
+  - 'organizer3 local DB actress id=6561'
+  portfolio_listed: 0

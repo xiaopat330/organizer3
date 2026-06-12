@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Aizawa
+    given_name: Yurina
+    stage_name: 相澤ゆりな
+    reading: あいざわ ゆりな
+    alternate_names: null
+  date_of_birth: 1995-06-11
+  birthplace: Tokyo, Japan
+  blood_type: B
+  height_cm: 148
+  measurements:
+    bust: 87
+    waist: 58
+    hip: 83
+  cup: G
+  active_from: 2015
+  active_to: 2020
+  retirement_announced: null
+  biography: "Yurina Aizawa (相澤ゆりな), born June 11, 1995 in Tokyo, debuted as an AV actress in 2015 under S1 NO.1 STYLE, where she became an exclusive contract actress. Known by the nickname ゆりにゃ, she subsequently also held an exclusive contract with E-BODY. She was formerly affiliated with the talent agencies Capsule Agency (カプセルエージェンシー) and LINX. Her active period ran from 2015 through 2020."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: エスワン
+    from: 2015
+    to: null
+    role: Exclusive contract actress
+  - name: E-BODY
+    company: E-BODY
+    from: null
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 26
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox (ja.wikipedia.org/wiki/相澤ゆりな, redirects from 相沢ゆりな) provides explicit DOB 1995-06-11, blood type B (血液型 field = B型), height 148 cm, measurements 87-58-83, cup G, birthplace Tokyo, active period 2015-2020, and exclusive studio credits (S1 NO.1 STYLE + E-BODY). Identity confirmed via name, kanji, studio match, and Wikipedia categories (S1女優, E-BODY女優, 1995年生, 東京都出身). Minnano-av listing (actress535371) corroborates name and career span.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E7%9B%B8%E6%BE%A4%E3%82%86%E3%82%8A%E3%81%AA'
+  - 'https://www.minnano-av.com/actress535371.html'
+  - 'organizer3 local DB actress id=692'
+  portfolio_listed: 0

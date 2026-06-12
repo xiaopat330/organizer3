@@ -1,0 +1,35 @@
+profile:
+  name:
+    family_name: Sasahara
+    given_name: Rimu
+    stage_name: 笹原りむ
+    reading: ささはら りむ
+    alternate_names: []
+  date_of_birth: 1990-04-30
+  birthplace: Chiba Prefecture, Japan
+  blood_type: AB
+  height_cm: 156
+  measurements: {bust: 80, waist: 58, hip: 81}
+  cup: C
+  active_from: 2013-06-07
+  active_to: 2014-04-19
+  retirement_announced: null
+  biography: "Rimu Sasahara (笹原りむ) is a Japanese former AV actress and former softcore idol born on April 30, 1990, in Chiba Prefecture. Before her AV debut, she was active as a gravure/softcore idol (着エロアイドル), appearing in numerous image DVDs from 2010 onward. She debuted as an exclusive actress for S1 NO.1 STYLE in June 2013, known for her loli-type image. Her hobbies included cooking, and she had a special skill in Chinese. She released nine solo AV titles under S1 before her final compilation release in April 2014, after which she retired."
+  primary_studios:
+  - {name: S1 NO.1 STYLE, company: エスワン, from: 2013-06-07, to: 2014-04-19, role: Exclusive contract actress}
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 6
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 10
+  coverage_note: "9 solo S1 AV titles + 1 compilation; 14 pre-AV gravure/image DVDs not tracked. DB has 6 of 10 AV titles (SNIS x4, ONSD x1, GCIHD x1)."
+  confidence: "HIGH — Wikipedia infobox provides DOB, birthplace, blood type, height, measurements, cup, active period, and studio affiliation. All data from a single authoritative source."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E7%AC%B9%E5%8E%9F%E3%82%8A%E3%82%80
+  portfolio_listed: 0

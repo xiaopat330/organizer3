@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: Hasegawa
+    given_name: Risa
+    stage_name: 長谷川りさ
+    reading: はせがわ りさ
+    alternate_names:
+    - name: Nanao Takizawa
+      note: 'debut name (滝沢ななお, たきざわ ななお) — E-BODY exclusive debut 2018-12-13; used through early career'
+    - name: Mei Tsukumo
+      note: 'former stage name (九十九メイ, つくも めい) — used mid-career before current name'
+    - name: Tsukushi Sakura
+      note: 'current parallel stage name (つくし桜, つくし さくら) — used on ACT agency roster and some labels alongside 長谷川りさ'
+    - name: Mei Tsukuba
+      note: 'former stage name variant (津久葉メイ, つくば めい) — brief usage, same person per minnano-av alias chain'
+  date_of_birth: 1999-05-20
+  birthplace: null
+  blood_type: null
+  height_cm: 171
+  measurements:
+    bust: 88
+    waist: 63
+    hip: 89
+  cup: G
+  active_from: 2018-12-13
+  active_to: null
+  retirement_announced: null
+  biography: "Risa Hasegawa (長谷川りさ), born May 20, 1999, debuted in December 2018 under the stage name Nanao Takizawa (滝沢ななお) as an E-BODY exclusive in a title that highlighted her model-like figure at 172 cm. She subsequently worked under the names Mei Tsukumo (九十九メイ) and Mei Tsukuba (津久葉メイ) before settling on Hasegawa Risa and the parallel name Tsukushi Sakura (つくし桜) through her talent agency ACT (アクト). Across her career she has appeared in titles from E-BODY, OPPAI, REAL, and other labels, known for her tall frame, G-cup bust, and slender physique."
+  primary_studios:
+  - name: E-BODY
+    company: E-BODY
+    from: 2018-12-13
+    to: null
+    role: Debut exclusive actress; continued as free multi-label actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 25
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'MEDIUM — No Wikipedia article found under any known stage name. Identity confirmed via minnano-av actress245126 (つくし桜) which lists 長谷川りさ, 滝沢ななお, 九十九メイ, 津久葉メイ as aliases in one record, consistent with organizer3 DB aliases Nanao Takizawa and Mei Tsukumo. DOB 1999-05-20, height 171 cm, G cup, 88-63-89 from minnano-av profile row. Blood type: null (minnano-av size row ends in S = shoe size, no explicit 血液型 field). Kanji for Mei Tsukumo alias is 九十九メイ per minnano-av (not 九十九澪 as DB romanization might suggest). DB title count 25 is subset of minnano/javdb total (86–129 across all alias records) — consistent with a partial collection.'
+  data_sources:
+  - 'https://www.minnano-av.com/actress245126.html'
+  - 'https://www.javdatabase.com/idols/mei-tsukumo/'
+  - 'organizer3 local DB actress id=3298'
+  portfolio_listed: 0

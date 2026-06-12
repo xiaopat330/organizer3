@@ -1,0 +1,54 @@
+profile:
+  name:
+    family_name: Tsubasa
+    given_name: Mai
+    stage_name: つばさ舞
+    reading: つばさ まい
+    alternate_names: null
+  date_of_birth: 1999-05-08
+  birthplace: Hyogo Prefecture, Japan
+  blood_type: null
+  height_cm: 165
+  measurements:
+    bust: 92
+    waist: 58
+    hip: 88
+  cup: G
+  active_from: 2021-01-01
+  active_to: null
+  retirement_announced: null
+  biography: "Mai Tsubasa (つばさ舞) debuted in 2021 as a simultaneous exclusive actress at both S1 NO.1 STYLE and FALENO, two of Japan's top labels, which placed her immediately among the industry's most prominent new talents. Born in 1999 in Hyogo Prefecture (Kobe area), she stands 165 cm with a G-cup figure. She later expanded to Madonna (JUL) releases while maintaining her multi-label presence. She also runs a YouTube channel (つばさ舞チャンネル) active since 2024."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: エスワン ナンバーワンスタイル
+    from: 2021-01-01
+    to: null
+    role: Exclusive contract actress
+  - name: FALENO
+    company: FALENO
+    from: 2021-01-01
+    to: null
+    role: Exclusive contract actress
+  - name: Madonna
+    company: Madonna
+    from: null
+    to: null
+    role: Contract/free actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 47
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia ja infobox (AV女優 template) provides explicit DOB (1999-05-08), height (165 cm), measurements (B92/W58/H88), cup (G), birthplace (兵庫県), and debut year (2021). Blood type field in infobox is explicitly empty — no blood type available from any source. Studios confirmed via Wikipedia categories (FALENO専属女優, S1女優, マドンナ女優) and S1 official site profile. Measurements cross-confirmed by S1 official site (B92cm(G) W58cm H88cm). Identity confirmed: kanji つばさ舞, reading つばさ まい, born 1999 in Kobe area, dual S1+FALENO exclusive 2021-onward, consistent with organizer3 DB.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E3%81%A4%E3%81%B0%E3%81%95%E8%88%9E'
+  - 'https://s1s1s1.com/actress/detail/813682'
+  - 'organizer3 local DB actress id=2907'
+  portfolio_listed: 0

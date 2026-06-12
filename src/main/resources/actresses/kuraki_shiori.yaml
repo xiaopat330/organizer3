@@ -1,0 +1,56 @@
+profile:
+  name:
+    family_name: Kuraki
+    given_name: Shiori
+    stage_name: 倉木しおり
+    reading: くらき しおり
+    alternate_names:
+    - name: 倉木詩織
+      note: alternate kanji spelling of the same stage name
+    - name: 宮崎しおり
+      note: alternate name (Miyazaki Shiori) — used under DAS!
+    - name: 須賀 ゆず
+      note: alternate name (Suga Yuzu)
+    - name: 稲村玲
+      note: alternate name (Inamura Rei) — used under 舞ワイフ
+    - name: 倉木まひろ
+      note: alternate name (Kuraki Mahiro) — used under 舞ワイフ
+    - name: 南原ほたる
+      note: alternate name (Minamihara Hotaru)
+  date_of_birth: 1995-09-10
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 156
+  measurements:
+    bust: 84
+    waist: 58
+    hip: 83
+  cup: D
+  active_from: 2018-02-02
+  active_to: null
+  retirement_announced: null
+  biography: "Shiori Kuraki (倉木しおり) debuted in February 2018 in a S-Cute/amateur-style title. She is a free multi-label actress affiliated with LiStarPRO (formerly GRANZPRO), known under several alternate names across different labels including 宮崎しおり for DAS!, 倉木まひろ and 稲村玲 for 舞ワイフ, and 南原ほたる. She has worked across a broad range of labels including SOD, Attackers, Prestige, MOODYZ, Kira☆kira, and many others over a career spanning from 2018 onwards."
+  primary_studios:
+  - name: LiStarPRO (formerly GRANZPRO)
+    company: LiStarPRO
+    from: 2018-02-02
+    to: null
+    role: Affiliated free multi-label actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 45
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — ja.wikipedia.org infobox provides explicit DOB (1995-09-10), blood type (血液型 = A型), height (156 cm), bust/waist/hip (84/58/83), cup (D), birthplace (東京都). minnano-av confirms all measurements and DOB exactly. Debut date 2018-02-02 from minnano-av debut title. Identity confirmed: kanji 倉木しおり resolves directly to this actress on both Wikipedia and minnano-av, consistent with a 45-title multi-label performer active since 2018.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E5%80%89%E6%9C%A8%E3%81%97%E3%81%8A%E3%82%8A'
+  - 'https://www.minnano-av.com/actress423868.html'
+  - 'organizer3 local DB actress id=378'
+  portfolio_listed: 0

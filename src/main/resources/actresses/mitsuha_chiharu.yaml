@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Mitsuha
+    given_name: Chiharu
+    stage_name: 三葉ちはる
+    reading: みつは ちはる
+    alternate_names:
+    - name: 月野ちはる
+      note: former idol stage name (つきのちはる / Tsukino Chiharu)
+    - name: るんるん月野
+      note: former idol stage name (るんるんつきの / Runrun Tsukino)
+    - name: ツキノ・チハル
+      note: stage name used with idol group 始発待ちアンダーグラウンド (つきのちはる / Tsukino Chiharu)
+  date_of_birth: 1997-07-24
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: B
+  height_cm: 160
+  measurements:
+    bust: 90
+    waist: 59
+    hip: 94
+  cup: F
+  active_from: 2022-10-06
+  active_to: null
+  retirement_announced: null
+  biography: "Chiharu Mitsuha (三葉ちはる), born July 24, 1997 in Kanagawa Prefecture, is a Japanese AV actress affiliated with SKY Promotion. Prior to her AV career she was active as an idol under the names 月野ちはる and るんるん月野, and also performed with the idol unit 始発待ちアンダーグラウンド as ツキノ・チハル. She made her AV debut in October 2022 as a FALENO star exclusive actress. In March 2025 she announced a move to FALENO's sister label DAHLIA, where she has remained active."
+  primary_studios:
+  - name: FALENO star
+    company: FALENO
+    from: 2022-10-06
+    to: 2025-03-20
+    role: Exclusive contract actress
+  - name: DAHLIA
+    company: FALENO
+    from: 2025-03-20
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 38
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox provides explicit DOB (1997-07-24), blood type (血液型 = B型, explicit field), height (160 cm), measurements (B90/W59/H94), cup (F), birthplace (神奈川県), and career timeline (FALENO 2022–2025, DAHLIA 2025–). Confirmed by minnano-av cross-check (same DOB, measurements, Kanagawa birthplace, debut date 2022-10-06). Identity consistent with 38-title performer using kanji 三葉ちはる (FALENO/DAHLIA catalog). The trailing "S" in minnano サイズ row is a body-size token, not a blood type — blood type sourced from Wikipedia 血液型 field only.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/三葉ちはる'
+  - 'https://www.minnano-av.com/actress897152.html'
+  - 'organizer3 local DB actress id=4047'
+  portfolio_listed: 0

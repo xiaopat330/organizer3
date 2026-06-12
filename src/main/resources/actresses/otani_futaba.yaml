@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Otani
+    given_name: Futaba
+    stage_name: 大谷双葉
+    reading: おおたに ふたば
+    alternate_names:
+    - name: Uni Shiokawa
+      note: 'alias per organizer3 DB — WARNING: javdatabase.com lists Uni Shiokawa (塩川うに) as a distinct person (debut 2022-06-10, C cup, 87-56-85, born 1993), inconsistent with Futaba Otani (debut 2025-03-14, G cup, 95-56-86, born 1991). DB alias assignment may be incorrect. Kanji: 塩川うに'
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: 159
+  measurements:
+    bust: 95
+    waist: 56
+    hip: 86
+  cup: G
+  active_from: 2025-03-14
+  active_to: null
+  retirement_announced: null
+  biography: "Futaba Otani (大谷双葉) is a Japanese AV actress born in 1991 who debuted in March 2025 under TAMEIKE (溜池ゴロー), a Soft on Demand label specialising in mature-woman content. She is an exclusive actress for TAMEIKE and has been active exclusively under that banner since her debut. Known for her large bust (G cup) and slim waist, she has accumulated over 40 titles in roughly one year with the label. As of mid-2026 she received a first best-of compilation (MBYD-425), an indicator of commercial success within the label. Her exact date of birth and birthplace have not been publicly disclosed."
+  primary_studios:
+  - name: TAMEIKE
+    company: Soft on Demand (SOD)
+    from: 2025-03-14
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 36
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'MEDIUM — No Wikipedia article exists for 大谷双葉. Identity confirmed via javdatabase.com (debut 2025-03-14, TAMEIKE label, 41 titles, G cup, 95-56-86, 159 cm, birth year 1991) consistent with DB title count (36 after cleanup). Blood type null: no 血液型 field found in any accessible source. DOB null: only birth year 1991 derivable from stated age. IDENTITY note (RESOLVED 2026-06-11): the DB alias "Uni Shiokawa" (しおかわ雲丹, javdb slug Vw2rD) was a different actress co-credited in the DOCP-398 comp; that bad alias and the resulting DOCP-398 mis-credit on this record were removed. This record is now cleanly 大谷双葉 only (verified via javdb slug p39vb).'
+  data_sources:
+  - 'https://www.javdatabase.com/idols/futaba-otani/'
+  - 'https://www.javdatabase.com/movies/mfyd-145/'
+  - 'https://www.javdatabase.com/movies/mbyd-425/'
+  - 'organizer3 local DB actress id=2627'
+  portfolio_listed: 0

@@ -1,0 +1,41 @@
+profile:
+  name:
+    family_name: Kagura
+    given_name: Momoka
+    stage_name: 神楽ももか
+    reading: かぐら ももか
+    alternate_names: []
+  date_of_birth: 1999-05-01
+  birthplace: null
+  blood_type: null
+  height_cm: 156
+  measurements: {bust: 108, waist: 59, hip: 93}
+  cup: K
+  active_from: 2023-11-24
+  active_to: null
+  retirement_announced: null
+  biography: "Momoka Kagura (神楽ももか, born May 1, 1999) is a Japanese AV actress who debuted as an exclusive contract actress with S1 NO.1 STYLE in November 2023. She is known for her K-cup bust combined with a pronounced waist, a figure she describes as having developed rapidly from middle school age. Inspired by Kirara Asuka—whom she cited as her 'most desired face' role model—she sought to debut with the same studio. Since her debut, she has charted multiple titles on FANZA weekly rankings and appeared in S1's flagship anniversary ensemble productions. Outside AV, she has performed live music at industry events, singing J-pop standards. She is represented by the talent agency LIGHT (LIGHT promotion)."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: エスワン
+    from: 2023-11-24
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 21
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: null
+  confidence: "HIGH — DOB, height, measurements, cup from Japanese Wikipedia infobox (sourced to LIGHT promotion official site, 2023). Blood type and birthplace not published. Active-from from Wikipedia debut entry. Debut date confirmed by javdatabase.com."
+  data_sources:
+    - https://ja.wikipedia.org/wiki/%E7%A5%9E%E6%A5%BD%E3%82%82%E3%82%82%E3%81%8B
+    - https://javdatabase.com/idols/momoka-kagura/
+    - https://lightpro.jp/talent/kaguramomoka.html
+  portfolio_listed: 0

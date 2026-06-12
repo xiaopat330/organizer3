@@ -1,0 +1,50 @@
+profile:
+  name:
+    family_name: Momota
+    given_name: Mitsuki
+    stage_name: 百田光希
+    reading: ももた みつき
+    alternate_names:
+    - name: 百田光稀
+      note: alternate kanji spelling — canonical Wikipedia article title (百田光稀); 百田光希 is listed as 別名 in infobox and is the DB stage name
+  date_of_birth: 2002-08-25
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 166
+  measurements:
+    bust: 100
+    waist: 57
+    hip: 89
+  cup: J
+  active_from: 2023
+  active_to: null
+  retirement_announced: null
+  biography: "Mitsuki Momota (百田光希 / 百田光稀) is a Japanese AV actress born August 25, 2002 in Tokyo. She debuted in 2023 and attracted attention as a large-busted newcomer promoted under the phrase '1億円ボディ' (100-million-yen body) and praised for her 9-head-body proportions. She began her career affiliated with LIGHT before signing an exclusive contract with MOODYZ, under which she continues to perform."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2023
+    to: null
+    role: Exclusive contract actress
+  - name: LIGHT
+    company: LIGHT
+    from: 2023
+    to: null
+    role: Former affiliated label (過去のLIGHT所属者)
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 35
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox (百田光稀, redirected from 百田光希) provides exact DOB 2002-08-25, blood type A (explicit 血液型 field = A型), height 166 cm, measurements 100-57-89, cup J (all from 2023 reference point per infobox header). Birthplace Tokyo from cited news article in infobox. AV出演期間 = 2023年. Identity confirmed: DB stage name 百田光希 is the 別名 listed in the infobox; canonical Wikipedia title is 百田光稀 (same person, kanji variant 稀 vs 希). Categories confirm MOODYZ actress and former LIGHT member.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E7%99%BE%E7%94%B0%E5%85%89%E7%A8%80 (redirects from 百田光希)'
+  - 'organizer3 local DB actress id=3368'
+  portfolio_listed: 0

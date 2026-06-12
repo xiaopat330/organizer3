@@ -1,0 +1,56 @@
+profile:
+  name:
+    family_name: Nanami
+    given_name: Nami
+    stage_name: 七海ななみ
+    reading: ななみ なみ
+    alternate_names:
+    - name: 七海那美
+      note: kanji variant used in javdb cast records (slug Az5WM)
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: null
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: null
+  active_to: null
+  retirement_announced: null
+  biography: "Nami Nanami (七海ななみ) is a Japanese AV actress working as a free performer across multiple labels. Her output is concentrated at MIDV (Moodyz), with additional titles at ADN (Attackers), DASS (Das!), FPRE (Faleno Premium), SAME, YUJ, RKI, FWAY, and ROYD, indicating broad multi-label activity consistent with a mid-tier free contract actress. No debut date or biographical details are available from public sources."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: null
+    to: null
+    role: Multi-label free performer; MIDV is primary output label (9 titles)
+  - name: Attackers
+    company: Attackers
+    from: null
+    to: null
+    role: Free collaboration (ADN label, 2 titles)
+  - name: Das!
+    company: Das!
+    from: null
+    to: null
+    role: Free collaboration (DASS label, 4 titles)
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 25
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'MEDIUM — No Wikipedia article; no minnano-av entry found (0 search results for 七海ななみ). Identity confirmed via javdb slug Az5WM bound to actress_id 4210, kanji variant 七海那美 in enrichment cast_json, 25 titles across MIDV/ADN/DASS/FPRE/SAME/YUJ/RKI/FWAY/ROYD consistent with a free multi-label performer. Reading: 七海=ななみ (Nanami, family surname); ななみ given name reading is なみ/nami per DB canonical_name "Nami Nanami" (given Nami, family Nanami). No DOB, blood type, or measurements found from any accessible source.'
+  data_sources:
+  - 'https://www.minnano-av.com/search_result.php?search_scope=actress&search_word=%E4%B8%83%E6%B5%B7%E3%81%AA%E3%81%AA%E3%81%BF (0 results)'
+  - 'organizer3 local DB actress id=4210'
+  - 'organizer3 javdb_actress_staging slug=Az5WM source_title_code=ROYD-311'
+  portfolio_listed: 0

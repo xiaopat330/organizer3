@@ -1,0 +1,35 @@
+profile:
+  name:
+    family_name: Sakura
+    given_name: Mio
+    stage_name: 桜みお
+    reading: さくら みお
+    alternate_names: []
+  date_of_birth: 2001-06-30
+  birthplace: Shiga Prefecture, Japan
+  blood_type: null
+  height_cm: 157
+  measurements: {bust: 82, waist: 56, hip: 88}
+  cup: E
+  active_from: 2025-11-25
+  active_to: null
+  retirement_announced: null
+  biography: "Mio Sakura (桜みお) is a Japanese AV actress born on June 30, 2001 in Shiga Prefecture. After high school she entered a four-year nursing program and worked as a nurse for approximately two years before leaving the profession. She debuted under S1 NO.1 STYLE in November 2025, marketed as an active nurse, with her debut work taking a mockumentary documentary format; she later clarified in interviews that she had already retired from nursing and the hospital setting was a studio set. Her debut title charted repeatedly on the FANZA rental floor weekly ranking, reaching as high as 2nd place for multiple consecutive weeks in early 2026. All seven of her S1 titles carried a nurse motif across mockumentary and drama formats. From July 2026 she transferred exclusively to Attackers."
+  primary_studios:
+  - {name: S1 NO.1 STYLE, company: エスワン, from: 2025-11-25, to: 2026-05-26, role: Exclusive contract actress}
+  - {name: Attackers, company: アタッカーズ, from: 2026-07-07, to: null, role: Exclusive contract actress}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 7
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 10
+  coverage_note: "DB contains 7 S1/SNOS titles. javdatabase lists 10 total releases as of June 2026 (includes VR title SIVR and Attackers debut)."
+  confidence: "HIGH — DOB, birthplace, height, measurements, cup all from Japanese Wikipedia infobox (2026年時点). Blood type not published. Active dates from Wikipedia filmography. Attackers transfer date confirmed via Wikipedia (2026-07-07)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/桜みお
+  - https://javdatabase.com/idols/mio-sakura/
+  portfolio_listed: 0

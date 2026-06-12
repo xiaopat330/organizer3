@@ -1,0 +1,39 @@
+profile:
+  name:
+    family_name: Kanematsu
+    given_name: Kiho
+    stage_name: 金松季歩
+    reading: かねまつ きほ
+    alternate_names:
+    - {name: 金子 さとみ, note: former stage name (gravure era, reading かねこ さとみ)}
+    - {name: 金子 智美, note: former stage name (gravure era, same reading かねこ さとみ)}
+  date_of_birth: 1989-12-22
+  birthplace: Toyohashi, Aichi, Japan
+  blood_type: A
+  height_cm: 160
+  measurements: {bust: 87, waist: 58, hip: 86}
+  cup: F
+  active_from: 2024-04-02
+  active_to: null
+  retirement_announced: null
+  biography: "Kiho Kanematsu (born December 22, 1989 in Toyohashi, Aichi) is a Japanese AV actress and former gravure idol. She passed the first AKB48 4th-generation research student audition in 2007 but withdrew before appearing on stage, later pivoting to gravure work under the name Kaneko Satomi (later Kaneko Tomomi) from around 2014. After formally retiring from gravure in June 2023, she reinvented herself under the new name Kanematsu Kiho and made her AV debut in April 2024 with MUTEKI, then signed an exclusive contract with S1 NO.1 STYLE in June 2024. She quickly rose to prominence, ranking 2nd in FANZA's November 2024 monthly actress ranking and 3rd in a January 2025 reader poll, praised for her combination of glamour idol pedigree and uninhibited on-screen presence."
+  primary_studios:
+  - {name: MUTEKI, company: null, from: 2024-04-02, to: 2024-06-10, role: Exclusive contract actress}
+  - {name: S1 NO.1 STYLE, company: S1 NO.1 STYLE, from: 2024-07-09, to: null, role: Exclusive contract actress}
+  awards: null
+  legacy: "One of the most successful former gravure idols to transition to AV in the 2020s, Kanematsu debuted at age 34 and quickly became one of S1 NO.1 STYLE's highest-profile exclusive actresses, demonstrating sustained commercial momentum through her gravure background and fan following."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 39
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 97
+  coverage_note: "DB contains 39 owned titles (SONE x30, SNOS x5, TEK x1, OFJE x1, OAE x1, FWAY x1); total known releases per javdatabase.com is 97 as of June 2026"
+  confidence: "HIGH — DOB, birthplace, blood type, height, measurements, cup size, and studio history all confirmed via Japanese Wikipedia (AV actress infobox, 2024 time-point data). Former names confirmed by Wikipedia and biography text. Debut date confirmed by Wikipedia and javdatabase.com."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E9%87%91%E6%9D%BE%E5%AD%A3%E6%AD%A9
+  - https://javdatabase.com/idols/kiho-kanematsu/
+  portfolio_listed: 0

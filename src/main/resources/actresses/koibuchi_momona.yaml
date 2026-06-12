@@ -1,0 +1,50 @@
+profile:
+  name:
+    family_name: Koibuchi
+    given_name: Momona
+    stage_name: 恋渕ももな
+    reading: こいぶち ももな
+    alternate_names:
+    - name: 戀渕桃菜
+      note: traditional-character variant of stage name kanji
+    - name: ももな
+      note: nickname (informal single-name form)
+    - name: こいもも
+      note: singer alias used for music activities
+  date_of_birth: 1999-03-03
+  birthplace: Yamagata Prefecture, Japan (born in Akita Prefecture)
+  blood_type: O
+  height_cm: 161
+  measurements:
+    bust: 110
+    waist: 65
+    hip: 92
+  cup: O
+  active_from: 2022-04-21
+  active_to: null
+  retirement_announced: null
+  biography: "Momona Koibuchi (恋渕ももな) was born on March 3, 1999 in Akita Prefecture and raised in Yamagata Prefecture. She made her gravure debut in February 2022 in Kobunsha's FLASH magazine, and debuted as an AV actress on April 21, 2022 under the SOD Star label (SOD Create), with which she holds an exclusive contract. She is affiliated with talent agency Life Promotion (ライフプロモーション). She also performs music under the alias こいもも. Her stage surname 恋渕 (Koibuchi) is derived from a classical waka poem by Emperor Yōzei in the Hyakunin Isshu, evoking the image of love accumulating into a deep pool. Prior to entering the entertainment industry she worked as a local government employee (税務課) in Yamagata City. Her measurements grew substantially after debut; she announced on her YouTube channel in March 2023 that her bust had reached O cup."
+  primary_studios:
+  - name: SOD Star / SOD Create
+    company: SOD Create
+    from: 2022-04-21
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 37
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia ja infobox exact match on name (恋渕ももな / こいぶち ももな), DOB (1999-03-03), blood type (explicit 血液型 field = O型), height (161 cm), measurements (B110-W65-H92 as of 2023-03-28), cup (O, confirmed via YouTube announcement 2023-03-28), birthplace (Yamagata; born Akita), studio (SOD Create exclusive). Debut date 2022-04-21 from article text. Identity confirmed: SOD actress with ~37-59 titles (DB=37, javdatabase=59 including later releases), consistent persona.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%81%8B%E6%B8%95%E3%82%82%E3%82%82%E3%81%AA'
+  - 'https://www.javdatabase.com/idols/koibuchi-momona/'
+  - 'organizer3 local DB actress id=3373'
+  portfolio_listed: 0

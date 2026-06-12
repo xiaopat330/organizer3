@@ -1,0 +1,39 @@
+profile:
+  name:
+    family_name: Ishida
+    given_name: Karen
+    stage_name: 石田佳蓮
+    reading: いしだ かれん
+    alternate_names: []
+  date_of_birth: 1996-08-06
+  birthplace: 'Fukuoka, Japan (raised in Tokyo)'
+  blood_type: A
+  height_cm: 161
+  measurements: {bust: 72, waist: 56, hip: 79}
+  cup: D
+  active_from: '2024-09-03'
+  active_to: null
+  retirement_announced: null
+  biography: "Karen Ishida (石田佳蓮) was born on August 6, 1996 in Fukuoka Prefecture and moved to Tokyo at age one. She began her entertainment career in 2006, passing the avex audition alongside Yurika Tachibana and others, then retired briefly in 2008. Returning in 2009, she became an exclusive model for fashion magazine ラブベリー and later joined idol group アイドリング!!! (5th generation, member #28) from March 2012 to October 2015. After graduating from the idol group she worked as a talent, actress, model, and design producer until August 2024. In September 2024 she debuted in AV with MUTEKI, then moved to an exclusive contract with S1 NO.1 STYLE (November 2024 – March 2026), before transitioning to Attackers from April 2026."
+  primary_studios:
+  - {name: MUTEKI, company: MUTEKI, from: '2024-09-01', to: '2024-10-31', role: Exclusive contract actress}
+  - {name: S1 NO.1 STYLE, company: S1 NO.1 STYLE, from: '2024-11-01', to: '2026-03-31', role: Exclusive contract actress}
+  - {name: Attackers, company: Attackers, from: '2026-04-01', to: null, role: Exclusive contract actress}
+  awards: null
+  legacy: "Karen Ishida is notable as a former broadcast idol (アイドリング!!! member) who transitioned to AV in 2024, leveraging her mainstream entertainment background as a recurring motif in her S1 content. Her slim physique and idol persona attracted strong fan interest from her debut."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 27
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 41
+  coverage_note: 'DB has 27 owned titles (SNOS, SONE, STARS, ADN, PRED, SGA, TEK labels); javdatabase lists 41 total censored titles as of 2026-06.'
+  confidence: 'HIGH — DOB, birthplace, blood type, height, measurements, cup all from Japanese Wikipedia AV actress infobox (two infoboxes agree on all values). Studio contract periods from Wikipedia AV infobox. Birthplace is Fukuoka (birth) / Tokyo (raised); AV infobox lists Tokyo as 出身地 while actress infobox lists Fukuoka as 出生地 and Tokyo as 出身地 — both present and consistent.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E7%9F%B3%E7%94%B0%E4%BD%B3%E8%93%AE'
+  - 'https://javdatabase.com/idols/karen-ishida/'
+  - 'https://www.minnano-av.com/actress232522.html'
+  portfolio_listed: 0

@@ -1,0 +1,42 @@
+profile:
+  name:
+    family_name: Ashitaba
+    given_name: Mitsuha
+    stage_name: 明日葉みつは
+    reading: あしたば みつは
+    alternate_names: []
+  date_of_birth: 2000-01-30
+  birthplace: null
+  blood_type: O
+  height_cm: 175
+  measurements:
+    bust: 87
+    waist: 58
+    hip: 88
+  cup: F
+  active_from: 2023-07-11
+  active_to: null
+  retirement_announced: null
+  biography: "Mitsuha Ashitaba (明日葉みつは) is a Japanese AV actress born on January 30, 2000, who debuted with S1 NO.1 STYLE on July 11, 2023 with the title 'Shinjin NO.1 STYLE Ashitaba Mitsuha AV Debut.' She grew up in the Tohoku region and moved to Tokyo, where she was inspired to enter the industry after admiring actress Yua Mikami. Originally aspiring to be a model due to her striking 175 cm height, she struggled to break into mainstream modeling partly due to her Tohoku dialect, but found that her tall, slender physique became an asset in AV work. Known for her dynamic body, beautiful legs, and the charming contrast between her poised appearance and her lingering Tohoku accent, she has quickly built a following since debut, landing multiple titles in FANZA weekly rental and sales rankings. She remains exclusively contracted to S1 NO.1 STYLE."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: エスワン
+    from: 2023-07-11
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 38
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: null
+  confidence: "HIGH — DOB, blood type, height, measurements, cup, debut date, and studio all confirmed from Japanese Wikipedia infobox. Birthplace not listed in Wikipedia (only noted as Tohoku region). Measurements cited as of 2023."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E6%98%8E%E6%97%A5%E8%91%89%E3%81%BF%E3%81%A4%E3%81%AF
+  portfolio_listed: 0

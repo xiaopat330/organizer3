@@ -1,0 +1,51 @@
+profile:
+  name:
+    family_name: Nijimura
+    given_name: Yumi
+    stage_name: 虹村ゆみ
+    reading: にじむら ゆみ
+    alternate_names:
+    - name: 安藤季世
+      note: alternate name used as SOD female employee character (Ando Kise, あんどうきせ)
+  date_of_birth: 2003-07-10
+  birthplace: Hokkaido, Japan
+  blood_type: null
+  height_cm: 164
+  measurements:
+    bust: 85
+    waist: 63
+    hip: 87
+  cup: D
+  active_from: 2024-08-06
+  active_to: null
+  retirement_announced: null
+  biography: "Yumi Nijimura (虹村ゆみ) was born July 10, 2003 in Hokkaido, Japan. She debuted on August 6, 2024 under MOODYZ as an exclusive actress with the title '新人アオハル美少女 日本中の男子が彼女に恋する。 虹村ゆみ'. After releasing five titles and one VR title for MOODYZ, she transitioned to 本中 (Honchu) as an exclusive from January 2025. She graduated from that exclusive contract in March 2025 and subsequently became a free-agent (企画単体／キカタン) actress, working across multiple labels including S-Cute, 無垢, Attackers, SOD, and others. She is affiliated with the talent agency T-POWERS (ティーパワーズ). Her nickname is にじむー. Notable for rapid growth as a free actress, with a heavily packed shoot schedule in mid-2025."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2024-08-06
+    to: 2025-01-01
+    role: Exclusive contract actress
+  - name: 本中
+    company: 本中
+    from: 2025-01-01
+    to: 2025-03-01
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 37
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox exact match on name, DOB (2003-07-10), height (164cm), measurements (B85/W63/H87), cup (D per 2025年時点 infobox). Blood type: 血液型 field is explicitly empty in Wikipedia infobox — null per guardrails. Cup discrepancy: Wikipedia infobox=D, minnano-av profile=E; Wikipedia authoritative. Birthplace (北海道) confirmed by both sources. Identity confirmed: Japanese Wikipedia article 虹村ゆみ, minnano-av actress184808, both show DOB 2003-07-10, Hokkaido, agency T-POWERS, debut 2024-08-06 — consistent with organizer3 DB actress_id=5672 (37 titles, kanji 虹村ゆみ).'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E8%99%B9%E6%9D%91%E3%82%86%E3%81%BF'
+  - 'https://www.minnano-av.com/actress184808.html'
+  - 'organizer3 local DB actress id=5672'
+  portfolio_listed: 0

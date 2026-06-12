@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Fujimoto
+    given_name: Shion
+    stage_name: 藤本紫媛
+    reading: ふじもと しおん
+    alternate_names: []
+  date_of_birth: 1994-02-17
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 165
+  measurements:
+    bust: 88
+    waist: 57
+    hip: 84
+  cup: F
+  active_from: 2015-01-01
+  active_to: null
+  retirement_announced: null
+  biography: "Shion Fujimoto (藤本紫媛) is a Japanese AV actress born February 17, 1994 in Tokyo. She debuted in 2015 under MOODYZ and has worked across a wide range of labels including CHoBitcH, Dogma, REAL, AVS collector's, and Mellow Moon. Known for her tanned complexion and gyaru image, she has sustained an active career spanning over a decade with titles released as recently as 2026."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2015-01-01
+    to: null
+    role: Debut studio; free actress thereafter
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 42
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox (ja.wikipedia.org/wiki/藤本紫媛) provides DOB 1994-02-17, birthplace Tokyo, height 165cm, measurements 88/57/84, cup F, debut era 2015. Blood type field is explicitly empty in the infobox template (wt:""), so blood_type set null. Identity confirmed: kanji 藤本紫媛, reading ふじもと しおん, matches DB canonical_name Shion Fujimoto exactly. minnano-av actress407780 corroborates identity (same kanji, same career span). Active_from set conservatively to 2015-01-01 (year only from Wikipedia); active_to null as minnano-av shows 2026 titles.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E8%97%A4%E6%9C%AC%E7%B4%AB%E5%AA%9B'
+  - 'https://www.minnano-av.com/actress407780.html'
+  - 'organizer3 local DB actress id=253'
+  portfolio_listed: 0

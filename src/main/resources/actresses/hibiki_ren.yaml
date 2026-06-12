@@ -1,0 +1,50 @@
+profile:
+  name:
+    family_name: Hibiki
+    given_name: Ren
+    stage_name: 響蓮
+    reading: ひびき れん
+    alternate_names:
+    - name: 響かれん
+      note: 'apparent early alternate reading/spelling (Karen Hibiki) stored in organizer3 DB as stage_name; not corroborated by Wikipedia, which lists only 響蓮 (ひびき れん) with no prior names. May be a data-entry variant or very brief pre-debut usage. Current canonical name is 響蓮.'
+  date_of_birth: 2002-12-04
+  birthplace: null
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 85
+    waist: 50
+    hip: 88
+  cup: F
+  active_from: 2023-04-04
+  active_to: null
+  retirement_announced: null
+  biography: "Ren Hibiki (響蓮) debuted in April 2023 under kawaii*, billed as \"Reiwa's strongest erotic girl\" and \"youngest Sex Triple Crown\" (an in-house marketing moniker referring to squirting, arched-back climaxes, and convulsions). Her debut title topped FANZA video floor rankings in the week of March 27, 2023, and she ranked #1 on FANZA rental charts in late July 2023. Her debut work was also named kawaii*'s best-selling title of the first half of 2023, and FANZA favorites surpassed 50,000 by August 2023. In September 2023 her kawaii* exclusive contract ended and she moved to E-BODY as an exclusive actress. After roughly a year and a half away from releases, she announced a return in February 2026 with a kawaii title. She is managed by talent agency Bstar (バンビプロモーション)."
+  primary_studios:
+  - name: kawaii*
+    company: kawaii*
+    from: 2023-04-04
+    to: 2023-09-18
+    role: Exclusive contract actress
+  - name: E-BODY
+    company: E-BODY
+    from: 2023-09-19
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 26
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia article 響蓮 (ja) provides explicit infobox data: DOB 2002-12-04, height 160 cm, measurements 85-50-88, cup F, debut 2023, studios kawaii* then E-BODY, agency Bstar. Blood type field is blank in the infobox (not listed). No prior stage name documented on Wikipedia; 響かれん appears only in organizer3 DB (stage_name field) and is flagged as unverified — confidence on the name-history resolution is MEDIUM (DB artifact vs Wikipedia silence). Identity consistent with 26-title count given debut April 2023 + ~1.5yr hiatus + 2026 return.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E9%9F%BF%E8%93%AE'
+  - 'organizer3 local DB actress id=4344'
+  portfolio_listed: 0

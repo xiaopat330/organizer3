@@ -1,0 +1,53 @@
+profile:
+  name:
+    family_name: Asahina
+    given_name: Akari
+    stage_name: 朝日奈あかり
+    reading: あさひな あかり
+    alternate_names: null
+  date_of_birth: 1988-05-30
+  birthplace: Gunma Prefecture, Japan
+  blood_type: A
+  height_cm: 160
+  measurements:
+    bust: 85
+    waist: 59
+    hip: 85
+  cup: E
+  active_from: 2008-12-12
+  active_to: 2015-03-01
+  retirement_announced: null
+  biography: "Akari Asahina (朝日奈あかり), born May 30, 1988 in Gunma Prefecture, debuted on December 12, 2008 under Alice JAPAN with the title 「純白の果実」 after being scouted. She became one of Alice JAPAN's flagship exclusive actresses for over five years, releasing titles primarily under that label while also appearing on Max-A. In February 2014 she transferred to Idea Pocket. She retired in March 2015 following the release of「タイトスカート塾講師 朝日奈あかり」. Her nickname was ひなっち, and her special skill was basketball. She was affiliated with the talent agency ティーパワーズ (T-Powers). Beyond AV, she appeared in the TV drama Jōō Virgin (テレビ東京, 2009) and Ushijima the Loan Shark Season 2 (MBS, 2014)."
+  primary_studios:
+  - name: Alice JAPAN
+    company: Alice JAPAN
+    from: 2008-12-12
+    to: 2014-01-31
+    role: Exclusive contract actress
+  - name: Max-A
+    company: Max-A
+    from: 2009-02-01
+    to: 2014-01-31
+    role: Regular appearances alongside Alice JAPAN exclusivity
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2014-02-01
+    to: 2015-03-01
+    role: Post-transfer label; final releases
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 44
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox (data-mw template) provides explicit DOB 1988-05-30, blood type A (explicit 血液型 field = A型), height 160 cm, measurements 85-59-85, cup E-65, active period 2008–2015. Birthplace Gunma Prefecture confirmed. Debut date and studio progression (Alice JAPAN → Idea Pocket → retirement) confirmed from article body. Identity confirmed: kanji 朝日奈あかり resolves directly to this actress, consistent with DB count of 44 titles and AV career 2008–2015.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%9C%9D%E6%97%A5%E5%A5%88%E3%81%82%E3%81%8B%E3%82%8A'
+  - 'organizer3 local DB actress id=1426'
+  portfolio_listed: 0

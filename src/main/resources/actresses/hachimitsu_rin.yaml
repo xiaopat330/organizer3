@@ -1,0 +1,51 @@
+profile:
+  name:
+    family_name: Hachimitsu
+    given_name: Rin
+    stage_name: 八蜜凛
+    reading: はちみつ りん
+    alternate_names:
+    - name: Rin Hatchimitsu
+      note: romanization variant (alternate transliteration of ちみつ)
+  date_of_birth: 2000-01-08
+  birthplace: Hyogo Prefecture, Japan
+  blood_type: null
+  height_cm: 166
+  measurements:
+    bust: 95
+    waist: 55
+    hip: 90
+  cup: H
+  active_from: 2022-07-12
+  active_to: null
+  retirement_announced: null
+  biography: "Rin Hachimitsu (八蜜凛), born January 8, 2000 in Hyogo Prefecture, debuted on July 12, 2022 as an exclusive actress for IDEA POCKET (アイデアポケット) in the FIRST IMPRESSION series. Her nickname is ハニ (Hani). She remained an IDEA POCKET exclusive through August 2023 before transitioning to FALENO as an exclusive actress from September 2023 onward. She is affiliated with Eightman Production talent agency. Her hobbies include strength training and visiting shrines and temples (神社仏閣巡り)."
+  primary_studios:
+  - name: IDEA POCKET
+    company: IDEA POCKET
+    from: 2022-07-12
+    to: 2023-08-31
+    role: Exclusive contract actress
+  - name: FALENO
+    company: FALENO
+    from: 2023-09-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 41
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox (data-mw template) provides explicit DOB (生年/生月/生日 = 2000/1/8), height (166 cm), measurements (95-55-90), cup (H), debut date (2022-07-12), birthplace (兵庫県), and exclusive studio history (IDEA POCKET 2022/7–2023/8, FALENO 2023/9–). Confirmed by minnano-av (actress385731) with identical DOB, measurements, birthplace, and agency (Eightman Production). No 血液型 field in either source — blood_type set null. The trailing "S" in minnano サイズ row (T166/B95(H)/W55/H90/S) is a size token, not a blood type.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E5%85%AB%E8%9C%9C%E5%87%9B'
+  - 'https://www.minnano-av.com/actress385731.html'
+  - 'organizer3 local DB actress id=6298'
+  portfolio_listed: 0

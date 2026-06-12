@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Kiyomiya
+    given_name: Toa
+    stage_name: 清宮仁愛
+    reading: きよみや とあ
+    alternate_names: []
+  date_of_birth: null
+  birthplace: Japan
+  blood_type: null
+  height_cm: 172
+  measurements:
+    bust: 105
+    waist: 55
+    hip: 98
+  cup: J
+  active_from: 2024-04-16
+  active_to: null
+  retirement_announced: null
+  biography: "Toa Kiyomiya (清宮仁愛, きよみや とあ) debuted on April 16, 2024 under E-BODY with the catch phrase 「このカラダ、ラスボス。」 (\"This body is the final boss.\"). She is affiliated with talent agency Bambi Promotion (バンビプロモーション). Born March 15 (year undisclosed), she stands 172 cm tall with a J-cup bust (105-55-98 cm), a figure described in the press as achieving a 50 cm bust-to-waist differential. A self-described AV fan prior to her debut, she has remained exclusively contracted to E-BODY while making guest appearances in MOODYZ productions. She participated in the TREND GIRLS pool photo sessions in May and September 2025 and held a solo live concert in October 2025. By early 2026 she had published three physical photo books."
+  primary_studios:
+  - name: E-BODY
+    company: E-BODY
+    from: 2024-04-16
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 26
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox explicit match on name (ふりがな: きよみや とあ), measurements (105-55-98 cm, J cup, 172 cm height), studio (E-BODY exclusive), debut year (2024), and agency (Bambi Promotion). DOB: only month/day (March 15) disclosed; birth year not published — date_of_birth set null. Blood type: 血液型 field is explicitly blank in infobox — blood_type null per guardrail. Birthplace: only Japan (no prefecture). Identity confirmed as E-BODY exclusive with 26 DB titles consistent with ~2-year career starting April 2024.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%B8%85%E5%AE%AE%E4%BB%81%E6%84%9B'
+  - 'organizer3 local DB actress id=4276'
+  portfolio_listed: 0

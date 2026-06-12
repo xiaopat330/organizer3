@@ -1,0 +1,36 @@
+profile:
+  name:
+    family_name: Sakura
+    given_name: Norino
+    stage_name: 桜乃りの
+    reading: さくらの りの
+    alternate_names:
+    - {name: Rino Sakurano, note: "correct romanization of 桜乃りの; DB canonical 'Norino Sakura' is a scrambled romaji (data-integrity flag)"}
+  date_of_birth: 2004-11-12
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 156
+  measurements: {bust: 85, waist: 56, hip: 83}
+  cup: E
+  active_from: 2025-03-11
+  active_to: null
+  retirement_announced: null
+  biography: "Sakurano Rino (桜乃りの) is a Japanese AV actress born November 12, 2004 in Tokyo, Japan, represented by talent agency T-Powers. She trained in dance from age two and built a social media following as an idol influencer before her adult video debut on March 11, 2025 with S1 NO.1 STYLE (SONE-662). Her debut work quickly attracted attention, ranking 6th on the FANZA Rental Floor Ranking in late June 2025, and she continued to gain popularity throughout the year with subsequent releases for S1 and the SNOS label."
+  primary_studios:
+  - {name: S1 NO.1 STYLE, company: S1 NO.1 STYLE, from: 2025-03-11, to: null, role: Exclusive contract actress}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 16
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: "Profile only; portfolio not yet researched."
+  confidence: "HIGH — DOB, birthplace, blood type, height, measurements, cup, debut date all from Japanese Wikipedia (ja.wikipedia.org/wiki/桜乃りの) with independent corroboration from multiple sources including Threads post (Threads @avcrushvn), TOROTORA review, and web search aggregates. No conflicting data found across sources. Only concern: one source cites height as 157 cm vs Wikipedia's 156 cm; Wikipedia preferred. No formal awards found — actress debuted March 2025 and is too new for industry awards cycles."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/%E6%A1%9C%E4%B9%83%E3%82%8A%E3%81%AE"
+  - "https://www.threads.com/@avcrushvn/post/DGLQe4ZSxKs"
+  - "https://torotora.com/en/2025/03/19/the-birth-of-a-genius-idol-actress-in-2025-review-of-rino-sakuras-debut-work/"
+  portfolio_listed: 0

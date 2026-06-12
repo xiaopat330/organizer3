@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Nagano
+    given_name: Suzu
+    stage_name: 永野鈴
+    reading: ながの すず
+    alternate_names:
+    - name: Suza Nagano
+      note: romanization variant
+  date_of_birth: 2003-09-19
+  birthplace: Mie Prefecture, Japan
+  blood_type: null
+  height_cm: 161
+  measurements:
+    bust: 83
+    waist: 58
+    hip: 82
+  cup: D
+  active_from: 2023
+  active_to: null
+  retirement_announced: null
+  biography: "Suzu Nagano (永野鈴) is a Japanese AV actress born September 19, 2003 in Mie Prefecture. She debuted in 2023 as a FALENO exclusive actress under the talent agency Zeal Group (ジールグループ). Her nickname is 楓ちゃん (Kaede-chan)."
+  primary_studios:
+  - name: FALENO
+    company: FALENO
+    from: 2023
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 42
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox exact match on kanji name 永野鈴 (ながの すず), DOB 2003-09-19, birthplace Mie Prefecture, height 161 cm, measurements 83-58-82 cm, cup D. Blood type field is explicitly empty in the infobox template (血液型 wt=""). Active from 2023 as FALENO exclusive, agency Zeal Group. Identity consistent with a ~42-title performer. Alias "Suza Nagano" is a known romanization variant in organizer3 DB.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%B0%B8%E9%87%8E%E9%88%B4'
+  - 'organizer3 local DB actress id=3894'
+  portfolio_listed: 0

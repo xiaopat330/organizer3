@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Yuri
+    given_name: Maina
+    stage_name: 優梨まいな
+    reading: ゆうり まいな
+    alternate_names:
+    - name: 優梨舞奈
+      note: alternate kanji writing of given name (舞奈 vs まいな)
+  date_of_birth: 1995-05-31
+  birthplace: Saitama Prefecture, Japan
+  blood_type: B
+  height_cm: 155
+  measurements:
+    bust: 92
+    waist: 71
+    hip: 100
+  cup: G
+  active_from: 2017-01-01
+  active_to: null
+  retirement_announced: null
+  biography: "Maina Yuri (優梨まいな) is a Japanese AV actress born May 31, 1995 in Saitama Prefecture. She debuted in the industry in 2017, affiliated with talent agency Team LINX (リンクス). She worked as a prolific multi-label free actress across a wide range of studios including MOODYZ, SOD, kawaii*, Attackers, Alice JAPAN, Rocket, S-Cute, Prestige, and many others. She took a hiatus and was active again from 2022 onward. Her nickname is 'Mainan' (まいなん)."
+  primary_studios:
+  - name: Multi-label (free)
+    company: Various
+    from: 2017-01-01
+    to: null
+    role: Free actress across multiple labels; affiliated with Team LINX talent agency
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 48
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox provides explicit DOB (1995-05-31), blood type (explicit 血液型 = B型), height (155 cm), bust/waist/hip (92/71/100), cup (G), birthplace (埼玉県), and AV active period (2017–2021, 2022–). Measurements noted as of 2017年 per infobox 時点 field. Identity confirmed: Wikipedia page title is 優梨まいな, kanji name matches DB stage_name, multi-label career across 48+ titles consistent with wide studio list in Wikipedia categories. No exclusive contract listed.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E5%84%AA%E6%A2%A8%E3%81%BE%E3%81%84%E3%81%AA'
+  - 'organizer3 local DB actress id=275'
+  portfolio_listed: 0

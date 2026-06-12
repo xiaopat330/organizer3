@@ -1,0 +1,55 @@
+profile:
+  name:
+    family_name: Yui
+    given_name: Hina
+    stage_name: 由衣陽菜
+    reading: ゆい ひな
+    alternate_names: null
+  date_of_birth: 2004-05-05
+  birthplace: Okayama Prefecture, Japan
+  blood_type: null
+  height_cm: 167
+  measurements:
+    bust: 88
+    waist: 59
+    hip: 85
+  cup: F
+  active_from: 2024-12-12
+  active_to: null
+  retirement_announced: null
+  biography: "Hina Yui (由衣陽菜), born May 5, 2004 in Okayama Prefecture, debuted on December 12, 2024 at age 20 under FALENO (debut title: 新人 由衣陽菜 20歳 ＡＶdebut). Affiliated with talent agency Aloha Promotion and officially signed with FALENO (official profile at faleno.jp), she subsequently expanded as a free actress working across MOODYZ (MIAB), OPPAI (PPPE), First Star (LOCK), and many other labels, accumulating over 26 titles within her first year. Tall and slender at 167cm with an F-cup bust. Her hobbies include people-watching and cooking. Twitter: @yuihinapiyo."
+  primary_studios:
+  - name: FALENO
+    company: FALENO
+    from: 2024-12-12
+    to: null
+    role: Affiliated actress (official profile on faleno.jp); debut and FNS/FSDSS series participant
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2026-01-16
+    to: null
+    role: Free actress (MIAB series)
+  - name: OPPAI
+    company: OPPAI
+    from: 2026-01-16
+    to: null
+    role: Free actress (PPPE series)
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 26
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Identity confirmed via javdb slug RdExg matching cast_json in enriched DB titles (FSDSS-956, DVMM-369, CJOD-504). Full profile cross-checked: minnano-av actress235787 confirms DOB 2004-05-05, birthplace 岡山県 (Okayama), debut 2024-12-12, height 167cm, measurements 88-59-85 (W=59 per minnano-av; javdatabase lists 58), cup F (Fカップ). Official site faleno.jp confirms FALENO affiliation. Blood type: no 血液型 field found on any source — correctly set null. The trailing "S" in the サイズ row on minnano-av is a SIZE token, not a blood type. MOODYZ/OPPAI studio from-dates are release dates of first observed titles on those labels, not confirmed contract dates.'
+  data_sources:
+  - 'https://www.minnano-av.com/actress235787.html'
+  - 'https://www.javdatabase.com/idols/hina-yui/'
+  - 'https://www.javdatabase.com/movies/fsdss-956/'
+  - 'organizer3 local DB actress id=4090'
+  portfolio_listed: 0

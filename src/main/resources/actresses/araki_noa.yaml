@@ -1,0 +1,35 @@
+profile:
+  name:
+    family_name: Araki
+    given_name: Noa
+    stage_name: 新木希空
+    reading: あらき のあ
+    alternate_names: []
+  date_of_birth: 2004-10-10
+  birthplace: Yamanashi, Japan
+  blood_type: B
+  height_cm: 162
+  measurements: {bust: 84, waist: 56, hip: 87}
+  cup: E
+  active_from: 2025-03-25
+  active_to: null
+  retirement_announced: null
+  biography: "Noa Araki (新木希空) is a Japanese AV actress and gravure idol born October 10, 2004 in Yamanashi Prefecture. She made her gravure debut in the February 11, 2025 issue of Weekly FLASH magazine, then made her AV debut with S1 NO.1 STYLE on March 25, 2025 while still an active university student. Her debut title 'Diamond Newcomer NO.1 STYLE' charted #1 on the FANZA video floor ranking in its third week and became a consistent top-10 performer throughout 2025. She is affiliated with the talent agency Esflaart and is close friends with fellow 2025 S1 debutantes Yuka Miyoshi and Sakura Kawaguchi, the three being nicknamed 'Esflaart Three Sisters.'"
+  primary_studios:
+  - {name: S1 NO.1 STYLE, company: エスワン, from: 2025-03-25, to: null, role: Exclusive contract actress}
+  awards: null
+  legacy: "One of S1 NO.1 STYLE's most commercially successful 2025 debuts, with her debut title maintaining chart presence for over a year and earning a #16 ranking in FLASH magazine's 'Sexy Actress Ranking 2025' industry poll."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 17
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: Profile only; portfolio not researched
+  confidence: "HIGH — Wikipedia article is comprehensive with infobox data. DOB, birthplace, blood type, height, measurements, cup, debut date all from Wikipedia infobox (2025年時点)."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/新木希空
+  portfolio_listed: 0

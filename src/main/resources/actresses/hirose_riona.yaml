@@ -1,0 +1,54 @@
+profile:
+  name:
+    family_name: Hirose
+    given_name: Riona
+    stage_name: 広瀬りおな
+    reading: ひろせ りおな
+    alternate_names:
+    - name: 羽依澄玲
+      note: 'gravure idol name (ういすみれ / Ui Sumire)'
+    - name: 井上澄玲
+      note: 'race queen / shoot model name (いのうえすみれ / Inoue Sumire)'
+    - name: 田辺レイ
+      note: 'name used for FRIDAY digital photobook (たなべれい / Tanabe Rei)'
+    - name: 広瀬香里奈
+      note: 'name used under Mai Wife label (ひろせかりな / Hirose Karina)'
+    - name: 弘中れおな
+      note: 'name used under DTI-affiliated labels (ひろなかれおな / Hironaka Reona)'
+  date_of_birth: 1988-12-10
+  birthplace: null
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 88
+    waist: 54
+    hip: 80
+  cup: F
+  active_from: 2020-02-06
+  active_to: null
+  retirement_announced: null
+  biography: "Riona Hirose (広瀬りおな) debuted in February 2020 under SOD Create after a prior career as a gravure idol (as 羽依澄玲 / Ui Sumire) and race queen / shoot model (as 井上澄玲 / Inoue Sumire). Born December 10, 1988, she brought an established entertainment background to her AV debut. Her debut title was '芸能人 広瀬りおな AV Debut' (2020-02-06). She held an exclusive contract with SOD Create and is a member of the entertainment collective 恵比寿マスカッツ. She is affiliated with ALL PROMOTION talent agency. Her hobbies include professional wrestling, watching soccer, film, and playing the flute."
+  primary_studios:
+  - name: SOD Create
+    company: SOD Create
+    from: 2020-02-06
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 36
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Identity confirmed via exact kanji name match on both ja.wikipedia.org and minnano-av.com (actress707522). DOB 1988-12-10 from minnano-av JSON-LD birthDate field; month/day also confirmed by Wikipedia infobox (生月=12, 生日=10). Measurements (T160/B88-F/W54/H80) consistent across both sources. Blood type: null — no explicit 血液型 field found in Wikipedia infobox or minnano-av profile (the trailing S in the サイズ row is a size token, not a blood type). Debut date 2020-02-06 from minnano-av debut title entry. Wikipedia birth-year categories show both 1988年生 and 1989年生 (disputed), but minnano-av JSON-LD is definitive at 1988-12-10.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E5%BA%83%E7%80%AC%E3%82%8A%E3%81%8A%E3%81%AA'
+  - 'https://www.minnano-av.com/actress707522.html'
+  - 'organizer3 local DB actress id=2825'
+  portfolio_listed: 0
