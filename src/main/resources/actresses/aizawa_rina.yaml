@@ -1,0 +1,44 @@
+profile:
+  name:
+    family_name: Aizawa
+    given_name: Rina
+    stage_name: 相澤リナ
+    reading: あいざわ リナ
+    alternate_names: null
+    # NOTE: DB alias "Misaki Hatori" (羽鳥みさき?) could not be verified as a prior
+    # name for 相澤リナ — zero results on minnano-av, no javdatabase entry for that name.
+    # Not recorded as alternate_name until confirmed. Do not merge.
+  date_of_birth: 1974-01-14
+  birthplace: null
+  blood_type: O
+  height_cm: 153
+  measurements:
+    bust: 84
+    waist: 59
+    hip: 87
+  cup: E
+  active_from: 2004-12-15
+  active_to: null
+  retirement_announced: null
+  biography: "Rina Aizawa (相澤リナ) is a Japanese AV actress born on 14 January 1974 who debuted in December 2004 at age 30. She is known for her E-cup figure (measurements 84-59-87) and a career spanning releases across major studios including MOODYZ and Fitch (JUFD). Her filmography includes compilation and feature titles; a 2025 AI-remastered edition of her classic MOODYZ work (FE-087AI, Shy Kikaku) confirms continued demand for her catalogue. Active in both censored and compilation releases, she remains listed without a formal retirement announcement."
+  primary_studios:
+  - name: MOODYZ (MIDD/MIBD)
+    company: MOODYZ
+    role: Principal early-career label; multiple MIDD and MIBD titles
+  - name: Fitch (JUFD)
+    company: Fitch
+    role: Recurring label; three JUFD titles in DB holdings
+  - name: HODV / H.M.P
+    company: H.M.P
+    role: Multiple HODV titles in DB holdings
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 21
+  confidence: "MEDIUM. No Japanese Wikipedia article for 相澤リナ. Core biographic data (DOB 1974-01-14, debut 2004-12-15, blood type O, measurements 84-59-87, cup E, height 153 cm) sourced from javdatabase.com, cross-checked against age labels on individual title listings (e.g. age 38 in 2012, age 44 in 2018 reprint, age 51 in 2025 AI remaster — all consistent with 1974 DOB). Studio mix (MOODYZ, JUFD, HODV) consistent with DB title codes. Alt name 'Mihono Tsukimoto' listed on javdatabase is unverified — minnano-av shows 月本みほの as a separate actress born 1990 (different person). DB alias 'Misaki Hatori' not found on any external source; not recorded."
+  data_sources:
+  - https://www.javdatabase.com/idols/rina-aizawa/
+  portfolio_listed: 0

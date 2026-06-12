@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Nakajo
+    given_name: Aoi
+    stage_name: 中城葵
+    reading: なかじょう あおい
+    alternate_names: null
+  date_of_birth: '1998'
+  birthplace: Matsumoto, Nagano Prefecture, Japan
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 83
+    waist: 59
+    hip: 85
+  cup: C
+  active_from: '2019'
+  active_to: null
+  retirement_announced: null
+  biography: "Aoi Nakajo (中城葵) debuted in 2019 under the 青春時代 (Seishun Jidai) label of SOD Create, and is affiliated with talent agency プロダクションALIVE. Born in Matsumoto, Nagano Prefecture in 1998, she has worked as a free actress across numerous labels following her debut, including Attackers, Madonna, Prestige, MOODYZ, and many others. Wikipedia notes she is distinct from similarly-named actress 中条あおい who debuted in June 2019."
+  primary_studios:
+  - name: 青春時代 (SOD Create)
+    company: SODクリエイト
+    from: '2019'
+    to: null
+    role: Debut label; subsequent free-agent work across multiple labels
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 36
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Japanese Wikipedia article exists for 中城葵 (article ID 4060717); infobox template data-mw directly yields height (160 cm), measurements (83-59-85 cm), cup (C), birthplace (長野県松本市), birth year (1998), and active-from (2019年). Blood type field is explicitly empty in the infobox template (血液型: ""), so set null per guardrails. No exact birth month/day available. Identity confirmed: Wikipedia reading なかじょう あおい matches canonical romaji "Aoi Nakajo"; stage name 中城葵 exact match; 36-title count consistent with free-agent multi-label career since 2019.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E4%B8%AD%E5%9F%8E%E8%91%B5'
+  - 'organizer3 local DB actress id=635'
+  portfolio_listed: 0

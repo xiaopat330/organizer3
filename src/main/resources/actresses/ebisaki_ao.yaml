@@ -1,0 +1,54 @@
+profile:
+  name:
+    family_name: Ebisaki
+    given_name: Ao
+    stage_name: 海老咲あお
+    reading: えびさき あお
+    alternate_names: []
+  date_of_birth: 2000-09-15
+  birthplace: Fukuoka Prefecture, Japan
+  blood_type: AB
+  height_cm: 151
+  measurements:
+    bust: 89
+    waist: 57
+    hip: 92
+  cup: G
+  active_from: 2024-01-01
+  active_to: null
+  retirement_announced: null
+  biography: "Ao Ebisaki (海老咲あお), born September 15, 2000 in Fukuoka Prefecture, debuted in the AV industry in 2024. She holds simultaneous exclusive contracts with Idea Pocket (アイデアポケット), Attackers (アタッカーズ), and Fitch, making her one of the rare performers with a tri-label exclusive arrangement. Known by her nickname あおちゃん, she works primarily across drama-oriented and scenario-driven labels under these three studios. As of 2026 she has over 40 titles credited to her name."
+  primary_studios:
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2024-01-01
+    to: null
+    role: Exclusive contract actress
+  - name: Attackers
+    company: Attackers
+    from: 2024-01-01
+    to: null
+    role: Exclusive contract actress
+  - name: Fitch
+    company: Fitch
+    from: 2024-01-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 40
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia ja infobox (raw HTML data-mw) provides explicit DOB (生年2000/生月9/生日15), explicit 血液型=AB型, height=151cm, bust=89/waist=57/hip=92, cup=G, birthplace=福岡県, active from 2024年. Measurements noted as 2024年時点. Tri-label exclusive (Idea Pocket + Attackers + Fitch) confirmed by infobox 専属契約 field. Identity confirmed: kanji 海老咲あお matches Wikipedia article title, minnano-av actress539148, and organizer3 DB actress_id=4662 (40 titles). No identity concerns.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/海老咲あお'
+  - 'https://www.minnano-av.com/actress539148.html'
+  - 'organizer3 local DB actress id=4662'
+  portfolio_listed: 0

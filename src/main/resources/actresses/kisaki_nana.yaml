@@ -1,0 +1,49 @@
+profile:
+  name:
+    family_name: Kisaki
+    given_name: Nana
+    stage_name: 希咲那奈
+    reading: きさき なな
+    alternate_names: null
+  date_of_birth: null
+  birthplace: Chiba Prefecture, Japan
+  blood_type: null
+  height_cm: 166
+  measurements:
+    bust: 75
+    waist: 53
+    hip: 80
+  cup: A
+  active_from: 2022-07-15
+  active_to: null
+  retirement_announced: null
+  biography: "Nana Kisaki (希咲那奈) debuted on July 15, 2022 as a free actress working across multiple labels. She is known for a slim, petite frame (A-cup, 166 cm) and a gyaru-influenced style. Her filmography spans MOODYZ (MIAA, DASS), SOD (SORA, SDAB), Alice Japan/WANZ (DVAJ), Crystal Eizo (CRNX), SQTE, and numerous other labels, making her one of the more prolific multi-label free actresses of her debut cohort. She was born in Chiba Prefecture. As of early 2025, she had accumulated over 280 titles in her total filmography."
+  primary_studios:
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2022-07-15
+    to: null
+    role: Free actress (multi-label)
+  - name: SOD Create
+    company: SOD Create
+    from: 2022-07-15
+    to: null
+    role: Free actress (multi-label)
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 39
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched. DB has 39 titles across multiple labels including MIAA, DASS, SORA, SDAB, DVAJ, CRNX, SQTE, WAAA, GVH and others.'
+  confidence: 'MEDIUM — Identity confirmed via javdatabase.com cross-referencing javdb slug W1kAp (希咲那奈). Measurements (B75-W53-H80), height (166 cm), cup (A), debut date (2022-07-15), and birthplace (Chiba) sourced from javdatabase.com. Birth year 1999 inferred from age-27 statement as of 2026 on javdatabase.com; exact DOB not found in any source. Blood type not found in any accessible source — set to null per guardrails. No Japanese Wikipedia article exists for this actress. Confidence rated MEDIUM rather than HIGH due to: (1) no Wikipedia cross-check available, (2) javdatabase measurements/cup may aggregate across multiple studio disclosures of varying accuracy, (3) birth year only (not full DOB).'
+  data_sources:
+  - 'https://www.javdatabase.com/idols/nana-kisaki/'
+  - 'organizer3 local DB actress id=2753'
+  - 'javdb actress slug W1kAp (javdb_actress_staging)'
+  portfolio_listed: 0

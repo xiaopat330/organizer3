@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Nagisa
+    given_name: Koiki
+    stage_name: 渚恋生
+    reading: なぎさ こいき
+    alternate_names: null
+  date_of_birth: 2000-09-14
+  birthplace: Osaka Prefecture, Japan
+  blood_type: A
+  height_cm: 167
+  measurements:
+    bust: 85
+    waist: 59
+    hip: 88
+  cup: F
+  active_from: 2023-09-01
+  active_to: null
+  retirement_announced: null
+  biography: "Koiki Nagisa (渚恋生) was born on September 14, 2000 in Osaka Prefecture. She debuted as an AV actress in September 2023 as an exclusive contract actress with SOD Create (SODクリエイト). She is also active as a stage actress. Her nicknames include こいきちゃん, なぎこい, and なぎさこ."
+  primary_studios:
+  - name: SOD Create
+    company: SOD Create
+    from: 2023-09-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 34
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox exact match on name (渚 恋生, ふりがな なぎさ こいき), DOB (2000-09-14), birthplace (大阪府), blood type (explicit 血液型 field = A型), height (167 cm), measurements (B85/W59/H88), cup (F), debut (2023年9月), exclusive studio (SODクリエイト). Reading なぎさ こいき confirmed from ふりがな field. Identity consistent with SOD actress with ~34 titles.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%B8%9A%E6%81%8B%E7%94%9F'
+  - 'organizer3 local DB actress id=4144'
+  portfolio_listed: 0

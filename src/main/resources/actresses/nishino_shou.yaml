@@ -1,0 +1,81 @@
+profile:
+  name:
+    family_name: Nishino
+    given_name: Shou
+    stage_name: 西野翔
+    reading: にしの しょう
+    alternate_names: null
+  date_of_birth: 1985-06-29
+  birthplace: Shizuoka Prefecture, Japan
+  blood_type: O
+  height_cm: 159
+  measurements:
+    bust: 81
+    waist: 57
+    hip: 86
+  cup: C
+  active_from: 2004-09-27
+  active_to: 2020-03-26
+  retirement_announced: null
+  biography: "Shou Nishino (西野翔) debuted in September 2004 as a KUKI exclusive actress, then moved to アイエナジー in mid-2005. She held successive exclusive contracts with S1 NO.1 STYLE (June 2006–November 2007), PREMIUM (December 2007–February 2008), and MOODYZ (from March 2008), during which she joined the 恵比寿マスカッツ idol unit. In August 2014 she became an ATTACKERS exclusive, and in August 2017 moved to 痴女ヘブン. In June 2019 she announced a transfer to SOD Star and retirement within the year. Her final AV title was shot on 27 December 2019 and released 26 March 2020. She won the ピンキーリボン賞 2011 最優秀主演女優賞. Outside AV she appeared in Thai and Taiwan/Singapore co-productions as an actress, gained popularity across Asia as a 'national housewife' figure, and has maintained activity as a DJ and live-streaming performer."
+  primary_studios:
+  - name: KUKI
+    company: KUKI
+    from: 2004-09-01
+    to: 2005-06-30
+    role: Exclusive contract actress (debut label)
+  - name: アイエナジー
+    company: アイエナジー
+    from: 2005-07-01
+    to: 2006-05-31
+    role: Exclusive contract actress
+  - name: S1 NO.1 STYLE
+    company: S1 NO.1 STYLE
+    from: 2006-06-01
+    to: 2007-11-30
+    role: Exclusive contract actress
+  - name: PREMIUM
+    company: PREMIUM
+    from: 2007-12-01
+    to: 2008-02-28
+    role: Exclusive contract actress
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2008-03-01
+    to: 2014-07-31
+    role: Exclusive contract actress
+  - name: ATTACKERS
+    company: ATTACKERS
+    from: 2014-08-01
+    to: 2017-07-31
+    role: Exclusive contract actress
+  - name: 痴女ヘブン
+    company: 痴女ヘブン
+    from: 2017-08-01
+    to: 2019-05-31
+    role: Exclusive contract actress
+  - name: SOD Star
+    company: SODクリエイト
+    from: 2019-06-01
+    to: 2020-03-26
+    role: Exclusive contract actress (final label before retirement)
+  awards:
+  - event: ピンキーリボン賞
+    year: 2011
+    category: 最優秀主演女優賞 (『ノーパンの蕾 濡れたいの』)
+  legacy: "One of the most prolific multi-label contract actresses of her era, working under 9 exclusive labels across a 15-year career. Noted for her cross-media presence including Asian film appearances, idol group membership (恵比寿マスカッツ), DJ activity, and live-streaming, making her among the best-known AV actresses of the 2000s–2010s."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 42
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox (data-mw template) provides explicit DOB (1985-06-29), explicit 血液型 = O型, height 159 cm, measurements 81-57-86, cup C (as of 2011-04-21). Birthplace 静岡県 from both infobox and categories (静岡県出身の人物). Career timeline and studio sequence confirmed from biography section. Identity unambiguous: single Wikipedia article for this kanji, female AV actress, 2004–2019 career consistent with organizer3 DB 42-title count. Note: Wikipedia 人物 section records a 2018 self-reported Twitter bust increase to G-65; measurements above reflect the official infobox figure (2011 time-point).'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E8%A5%BF%E9%87%8E%E7%BF%94'
+  - 'organizer3 local DB actress id=1391'
+  portfolio_listed: 0

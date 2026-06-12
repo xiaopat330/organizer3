@@ -1,0 +1,29 @@
+profile:
+  name:
+    family_name: Minato
+    given_name: Haru
+    stage_name: みなと羽琉
+    reading: みなと はる
+    alternate_names: []
+  date_of_birth: '1996-06-09'
+  birthplace: null
+  blood_type: null
+  height_cm: 175
+  measurements: {bust: 108, waist: 62, hip: 97}
+  cup: null
+  active_from: null
+  active_to: null
+  retirement_announced: null
+  biography: "Haru Minato (みなと羽琉) is a Japanese adult video actress who debuted under S1 NO.1 STYLE, one of Japan's premier AV studios. Standing at 175 cm with a notably large bust of 108 cm, she became known for her tall, voluptuous figure and was marketed as a standout physical presence among S1 newcomers. She made her S1 debut with SSIS-889 and has continued to release titles under the SSIS and SONE labels, accumulating 19 owned titles across S1 imprints and select other labels. She also appeared in SNOS titles targeting a domestic compilation market, indicating solid commercial traction within the S1 ecosystem."
+  primary_studios:
+  - {name: S1 NO.1 STYLE, company: S1 NO.1 STYLE, from: null, to: null, role: Exclusive contract actress}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 19
+  confidence: "MED — DOB and measurements from javmodel.com (single source); no Wikipedia article found (404); no blood type or cup size from any authoritative source; birthplace unknown. javdb and minnano-av returned 403/redirect. Identity verified via S1 studio match + debut title SSIS-889 labeled S1 Debut."
+  data_sources:
+  - 'http://javmodel.com/jav/haru-minato/'
+  - 'local DB actress_id=4070'
+  portfolio_listed: 0

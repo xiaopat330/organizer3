@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Nagarekawa
+    given_name: Rio
+    stage_name: 流川莉央
+    reading: ながれかわ りお
+    alternate_names:
+    - name: Rukawa Rio
+      note: romanization used on minnano-av and agency profiles (るかわ reading)
+  date_of_birth: "2002-01-12"
+  birthplace: Kyoto Prefecture, Japan
+  blood_type: null
+  height_cm: 157
+  measurements:
+    bust: 87
+    waist: 59
+    hip: 95
+  cup: G
+  active_from: "2022-06"
+  active_to: null
+  retirement_announced: null
+  biography: "Rio Nagarekawa (流川莉央, born January 12, 2002, in Kyoto Prefecture) is a Japanese AV actress represented by talent agency LIGHT. She made her AV debut in June 2022 through Idea Pocket, reportedly turning down a confirmed television news-anchor position to enter the industry. Known for her G-cup bust and distinctive riding technique, she quickly became a prolific free actress working across dozens of studios including Madonna, Prestige, MOODYZ, SOD, Aurora Project, Crystal Eizo, and many others. She is also publicly known as an enthusiastic comedy fan, particularly of the manzai duo Shimo-Furi Meisei; her superchats during their comedian Soshina's YouTube livestreams under the handle 'るかりお' became a notable talking point that drove FANZA sales of her titles. In early 2026 she deleted all social media and cancelled a scheduled fan event."
+  primary_studios:
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: "2022-06"
+    to: null
+    role: Free actress; debut title
+  - name: LIGHT
+    company: LIGHT
+    from: "2022-06"
+    to: null
+    role: Talent agency representation
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 33
+  confidence: "HIGH — Japanese Wikipedia article exists (ja.wikipedia.org/wiki/流川莉央) with full infobox confirming DOB 2002-01-12, height 157 cm, measurements 87-59-95 G-cup, debut June 2022, agency LIGHT. Corroborated by minnano-av profile (actress558026) with matching DOB, birthplace Kyoto Prefecture, measurements, and debut title details. Blood type field is empty in Wikipedia infobox and absent from minnano-av; set null per guardrails."
+  data_sources:
+  - "https://ja.wikipedia.org/wiki/流川莉央"
+  - "https://www.minnano-av.com/actress558026.html"
+  - "organizer3 local DB actress id=2600"
+  portfolio_listed: 0

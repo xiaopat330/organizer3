@@ -4,22 +4,32 @@ profile:
     given_name: Shiho
     stage_name: 藤しほ
     reading: ふじ しほ
-    alternate_names: []
-  date_of_birth: null
-  birthplace: null
+    alternate_names: null
+  date_of_birth: null  # year ~1996
+  birthplace: Osaka, Japan
   blood_type: null
-  height_cm: null
-  measurements:
-    bust: null
-    waist: null
-    hip: null
-  cup: null
-  active_from: null
-  active_to: null
+  height_cm: 160
+  measurements: {bust: 83, waist: 59, hip: 90}
+  cup: D
+  active_from: 2018
+  active_to: 2019
   retirement_announced: null
-  biography: null
-  primary_studios: []
-
+  biography: "Shiho Fuji (藤しほ) is a retired Japanese adult video actress born in 1996 in Osaka. She made her industry debut on April 27, 2018 under Prestige's ABSOLUTELY PERFECT (ABP) label, which spotlights actresses with exceptional figure and screen presence. Over approximately 18 months she released a series of solo titles on the ABP label before announcing her retirement with ABP-904 (released September 27, 2019), which was subtitled as her greatest masterpiece. A career best collection (PPT-084) followed in November 2019."
+  primary_studios:
+    - name: ABSOLUTELY PERFECT
+      company: Prestige
+      from: 2018
+      to: 2019
+      role: exclusive actress
+  awards: null
+  legacy: null
+portfolio: []
 meta:
-  confidence: "Low. Extensive web searches (Japanese and English, multiple name variants including 藤しほ, 富士シホ, 不二しほ, 藤志穂) returned no verifiable biographical data. The stage name 藤しほ is assumed from the romanized queue entry 'Shiho Fuji' but has not been confirmed against a primary source. All profile fields must remain null until a verified source is found. Cover scanning or direct DB query needed to establish studio affiliation and active dates."
-  data_sources: []
+  total_owned_titles: 31
+  confidence: "MEDIUM — debut date, measurements, height, birthplace, and retirement confirmed via javdatabase.com; birth year inferred from age (30 as of 2026); no Japanese Wikipedia page exists; blood type not found in any source"
+  data_sources:
+    - https://www.javdatabase.com/idols/shiho-fujie/
+    - https://www.javdatabase.com/movies/abp-743/
+    - https://www.javdatabase.com/movies/abp-904/
+    - https://www.javdatabase.com/movies/ppt-084/
+  portfolio_listed: 0

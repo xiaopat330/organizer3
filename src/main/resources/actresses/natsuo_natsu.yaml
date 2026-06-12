@@ -1,0 +1,37 @@
+profile:
+  name:
+    family_name: Natsuo
+    given_name: Natsu
+    stage_name: 夏生なつ
+    reading: なつお なつ
+    alternate_names:
+    - name: 及川美桜
+      note: renamed April 2026; current active name
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: 152
+  measurements: {bust: 90, waist: 57, hip: 88}
+  cup: G
+  active_from: null
+  active_to: null
+  retirement_announced: null
+  biography: "Natsu Natsuo debuted with S1 NO.1 STYLE in December 2025 (SNOS-055) at age 22 as a Miss Campus university student with aspirations of becoming a news announcer. Her debut title, 「新人NO.1 STYLE この笑顔、このあざとさで、このセックス 女子アナ志望のミスキャンパス女子大生 夏生なつ」, showcased her characteristic warm smile and petite G-cup physique. Known for her approachable charm and energetic on-screen presence, she quickly established herself within S1's lineup. In April 2026, she announced a stage-name change to 及川美桜 (Oikawa Mio), marking a new chapter in her career while continuing to work exclusively with S1."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: エスワン
+    from: null
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 6
+  confidence: "MED — measurements (152cm, B90/W57/H88, G-cup) confirmed via SNOS-055 debut review (goldenkiwi.space). Rename to 及川美桜 confirmed via her X announcement (April 2026). DOB, birthplace, blood type not publicly disclosed. No Wikipedia article; javdatabase.com and javmodel.com return 404."
+  data_sources:
+  - https://goldenkiwi.space/oikawa-mio-snos055-debut-review/
+  - https://x.com/oikawa__mio/status/2043631151739543919
+  portfolio_listed: 0

@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Natsuki
+    given_name: Rin
+    stage_name: 夏木りん
+    reading: なつき りん
+    alternate_names:
+    - name: 凰華りん
+      note: current stage name (おうか りん, Oka Rin) — adopted September 2024; agency LiStarPRO (formerly GRANZPRO)
+  date_of_birth: 1998-11-16
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: O
+  height_cm: 166
+  measurements:
+    bust: 88
+    waist: 63
+    hip: 92
+  cup: E
+  active_from: 2021-05-01
+  active_to: null
+  retirement_announced: null
+  biography: "Rin Natsuki (夏木りん) debuted in May 2021 as a FALENO star exclusive actress, quickly garnering attention and placing 15th in FLASH magazine's 2021 sexy actress ranking. She worked exclusively with FALENO until October 2022, after which she graduated from the label and went on hiatus. She returned to the industry in December 2023 as a free agent across multiple labels. In September 2024 she adopted the new stage name Oka Rin (凰華りん) while remaining with the LiStarPRO talent agency (formerly GRANZPRO). The organizer3 database retains her under her debut name 夏木りん (actress_id 2740)."
+  primary_studios:
+  - name: FALENO star
+    company: FALENO
+    from: 2021-05-01
+    to: 2022-10-31
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 38
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox provides explicit DOB (1998-11-16), explicit 血液型 field (O型), height (166 cm), measurements (88-63-92), cup (E), and birthplace (Kanagawa). Debut date from Wikipedia text (2021年5月). Name change to 凰華りん confirmed September 2024 via minnano-av career note. DB actress_id 2740 uses former name 夏木りん which matches Wikipedia former stage name exactly.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E5%A4%8F%E6%9C%A8%E3%82%8A%E3%82%93_(AV%E5%A5%B3%E5%84%AA)'
+  - 'https://www.minnano-av.com/actress793042.html'
+  - 'organizer3 local DB actress id=2740'
+  portfolio_listed: 0

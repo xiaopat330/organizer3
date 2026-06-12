@@ -1,0 +1,53 @@
+profile:
+  name:
+    family_name: Minami
+    given_name: Natsuki
+    stage_name: 夏希みなみ
+    reading: なつき みなみ
+    alternate_names:
+    - name: Minami Natsuki
+      note: natural Western name order (given みなみ + family 夏希); DB canonical_name inverts to "Natsuki Minami" for loader match
+    - name: 枡田 陽子
+      note: real name (Masuda Yoko)
+    - name: 夏希
+      note: post-AV gravure idol name (2018–present), dropped the みなみ suffix on retiring from AV in 2017
+    - name: Minami Natsumi
+      note: known alias in organizer3 DB
+    - name: Nastuki Minami
+      note: known alias in organizer3 DB (romanization variant)
+  date_of_birth: 1992-03-03
+  birthplace: Aichi Prefecture, Japan
+  blood_type: O
+  height_cm: 165
+  measurements:
+    bust: 88
+    waist: 59
+    hip: 90
+  cup: F
+  active_from: 2014-06-20
+  active_to: 2017-12-31
+  retirement_announced: 2017-12-31
+  biography: "Natsuki Minami (夏希みなみ) debuted on June 20, 2014 as a Prestige exclusive actress, entering the industry to repay student loans. A former licensed nurse, public health nurse, and midwife, she was known for promoting her figure — particularly her hips. She worked as a Prestige exclusive for approximately two years before going free and appearing across a wide range of labels including Attackers, SOD Create, MOODYZ, Natural High, and many others. On December 31, 2017, she announced via Twitter that she was retiring from AV and leaving her talent agency. She subsequently transitioned to a gravure idol career under the shortened name 夏希, and has since described herself as a model and entrepreneur."
+  primary_studios:
+  - name: Prestige
+    company: Prestige
+    from: 2014-06-20
+    to: 2016-07-17
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 34
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia article at 夏希_(グラビアアイドル) (redirect from 夏希みなみ) provides explicit infobox: DOB 1992-03-03, blood type O (explicit 血液型 field = O型), height 165 cm, measurements 88-59-90 (as of 2014), cup F, Aichi birthplace, active 2014–2017 Prestige exclusive. Name-order inversion note: kanji 夏希みなみ parses as family 夏希(Natsuki) + given みなみ(Minami); natural Western order is "Minami Natsuki". DB canonical_name is stored as "Natsuki Minami" (inverted), so given_name=Natsuki and family_name=Minami are set to reconstruct the DB string exactly for the YAML loader match. The natural order is captured in alternate_names.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/夏希_(グラビアアイドル) (redirects from 夏希みなみ)'
+  - 'organizer3 local DB actress id=150'
+  portfolio_listed: 0

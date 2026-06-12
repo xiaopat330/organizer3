@@ -1,0 +1,62 @@
+profile:
+  name:
+    family_name: Arai
+    given_name: Eri
+    stage_name: 新井エリー
+    reading: あらい えりー
+    alternate_names:
+    - name: 新井愛麗
+      note: alternate rendering of stage name (organizer3 DB alias)
+    - name: 晶エリー
+      note: earlier and post-comeback stage name (あきら えりー); used 2005–2010 and 2019–present
+    - name: 大沢佑香
+      note: debut stage name (おおさわ ゆか); used under Bambi Promotion, ~2005–2007
+    - name: 照沼ファリーザ
+      note: legal birth name (Japanese–Syrian mixed heritage)
+    - name: 西川ひとみ
+      note: additional alias recorded in Wikipedia
+  date_of_birth: 1986-12-22
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 154
+  measurements:
+    bust: 88
+    waist: 60
+    hip: 98
+  cup: F
+  active_from: 2005-01-01
+  active_to: 2016-12-31
+  retirement_announced: null
+  biography: "Eri Arai (新井エリー), born December 22, 1986 in Tokyo, is a Japanese AV actress of mixed Japanese–Syrian (Arab) heritage whose legal name is Teruma Fariza (照沼ファリーザ). She debuted in 2005 under the stage name Yuka Osawa (大沢佑香) with Bambi Promotion, holding exclusive contracts at KUKI (July 2005–March 2006) and S1 (April–September 2006) before transitioning to free-agent work. She subsequently adopted the stage name Akira Eri (晶エリー) working through her own individual office fanfan PARLOR, then later performed under the name Eri Arai (新井エリー) under the Prime Agency management. She retired in 2016. She made a comeback in September 2019, reverting to the stage name Akira Eri (晶エリー) under T-POWERS management, and has remained active since. She is known for full-body permanent hair removal. She received the 20th Pink Taisho Best New Actress Award."
+  primary_studios:
+  - name: KUKI
+    company: KUKI
+    from: 2005-07-01
+    to: 2006-03-31
+    role: Exclusive contract actress
+  - name: S1 No.1 Style
+    company: S1 No.1 Style
+    from: 2006-04-01
+    to: 2006-09-30
+    role: Exclusive contract actress
+  awards:
+  - event: 第20回ピンク大賞
+    year: null
+    category: 新人女優賞 (20th Pink Taisho Best New Actress Award)
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 45
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox (ja.wikipedia.org/wiki/晶エリー, redirected from 新井エリー) provides explicit DOB (1986-12-22), blood type (A型, explicit 血液型 field; note O型 recorded elsewhere but A型 is the infobox value), height (154 cm), weight (45 kg), measurements (B88/W60/H98), cup (F), birthplace (Tokyo), and studio/career timeline. Identity confirmed: Wikipedia confirms 新井エリー is a stage name of 晶エリー (same person, Phase 3 name under Prime Agency). DB alias 新井愛麗 is an alternate kanji rendering not in Wikipedia but retained per DB record.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%99%B6%E3%82%A8%E3%83%AA%E3%83%BC (redirected from 新井エリー)'
+  - 'https://www.minnano-av.com/actress645646.html'
+  - 'organizer3 local DB actress id=2259'
+  portfolio_listed: 0

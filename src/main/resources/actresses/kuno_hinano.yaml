@@ -1,0 +1,40 @@
+profile:
+  name:
+    family_name: Kuno
+    given_name: Hinano
+    stage_name: 九野ひなの
+    reading: くの ひなの
+    alternate_names:
+    - name: xHARUchan
+      note: alias used on DXLIVE (live-streaming platform); reading はるちゃん (Haru Chan)
+  date_of_birth: 2001-05-25
+  birthplace: Fukuoka Prefecture, Japan
+  blood_type: A
+  height_cm: 157
+  measurements:
+    bust: 90
+    waist: 60
+    hip: 88
+  cup: G
+  active_from: 2022-09-01
+  active_to: null
+  retirement_announced: null
+  biography: "Hinano Kuno (九野ひなの) is a Japanese AV actress from Fukuoka Prefecture who debuted in September 2022 as an exclusive performer for MOODYZ, marketed at debut as a current female university student. Managed by talent agency T-POWERS (ティーパワーズ), she is known for her G-cup figure and quickly became a prominent face in the MOODYZ lineup. In November 2022 she was selected as a MOODYZ campaign girl (桃組 member), and in March 2024 she was again named a MOODYZ campaign girl. That same April she was chosen alongside several other performers for the FANZA Golden Week campaign 'GW大感謝祭2024'. She has also participated in industry photo events, including the 'TREND GIRLS' fashion show at Shirakobato Water Park, Saitama, in 2024 and 2025."
+  primary_studios:
+  - name: MOODYZ
+    company: WILL Co., Ltd.
+    from: 2022-09-01
+    to: null
+    role: Exclusive contract studio since debut
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 30
+  confidence: "HIGH. Japanese Wikipedia article confirmed at ja.wikipedia.org/wiki/九野ひなの. DOB 2001-05-25, birthplace Fukuoka, blood type A, height 157 cm, measurements 90-60-88 cm, cup G all from Wikipedia infobox explicit fields. Debut September 2022 at MOODYZ confirmed in both Wikipedia and minnano-av. Blood type A sourced from explicit 血液型 field in Wikipedia infobox. Minnano-av JSON-LD listed an incorrect DOB (1999-04-10); Wikipedia value 2001-05-25 is authoritative and matches the age-25 stated in the Wikipedia infobox."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E4%B9%9D%E9%87%8E%E3%81%B2%E3%81%AA%E3%81%AE
+  - https://www.minnano-av.com/actress24741.html
+  portfolio_listed: 0

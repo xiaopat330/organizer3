@@ -1,0 +1,59 @@
+profile:
+  name:
+    family_name: Hino
+    given_name: Hikari
+    stage_name: 妃乃ひかり
+    reading: ひの ひかり
+    alternate_names: []
+  date_of_birth: 1986-03-07
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: A
+  height_cm: 155
+  measurements:
+    bust: null
+    waist: null
+    hip: null
+  cup: null
+  active_from: 2005-07-01
+  active_to: 2013-10-05
+  retirement_announced: 2013-10-05
+  biography: "Hikari Hino (妃乃ひかり) debuted in July 2005 via Crystal Eizou (クリスタル映像), quickly releasing multiple titles for that label through 2006. In July 2006 she expanded to MOODYZ for her commercial sell-through debut, becoming active across a wide range of studios including Attackers, Prestige, SOD Create, E-BODY, Dogma, and many others. She was also a stripper, making her strip stage debut on 11 September 2005, and was affiliated with the talent agency ビュースタイルズエンターテイメント. In 2012 she ranked 43rd in the DMM AV30 anniversary actress popularity poll. On 5 October 2013 she announced her retirement on her blog. Her hobbies included travel, driving, hula hoop, and cooking."
+  primary_studios:
+  - name: Crystal Eizou
+    company: クリスタル映像
+    from: 2005-07-01
+    to: 2006-07-21
+    role: Debut label; multiple solo and compilation titles
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2006-07-13
+    to: 2013-01-01
+    role: Primary sell-through label; numerous solo and compilation releases
+  - name: Attackers
+    company: アタッカーズ
+    from: 2007-07-07
+    to: 2012-12-07
+    role: Multi-title contributor (dramatic/assault genre)
+  - name: E-BODY
+    company: E-BODY
+    from: 2007-12-13
+    to: 2008-10-13
+    role: Solo titles
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 47
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia ja article 妃乃ひかり confirmed identity via kanji name match, AV active period 2005–2013, debut label (Crystal Eizou), multiple studio categories consistent with a 47-title DB entry. DOB 1986-03-07 and blood type A from explicit 血液型 field in Wikipedia infobox template. Height 155 cm from active infobox display. Birthplace Kanagawa from infobox. Measurements (B90/W52/H82/Gcup) were previously in the infobox wikitext but are commented out due to a Wikipedia sourcing dispute (いつ? flag on 公称サイズ section) — set null per guardrails since not actively displayed. minnano-av was inaccessible (404) for cross-check.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E5%A6%83%E4%B9%83%E3%81%B2%E3%81%8B%E3%82%8A'
+  - 'https://www.maxing.jp/actress/pd/ACT10028.html'
+  - 'organizer3 local DB actress id=899'
+  portfolio_listed: 0

@@ -1,0 +1,38 @@
+profile:
+  name:
+    family_name: Miki
+    given_name: Hinano
+    stage_name: 美木ひなの
+    reading: みき ひなの
+    alternate_names: null
+  date_of_birth: null  # birth year ~2000 only (no month/day in any source)
+  birthplace: null
+  blood_type: null
+  height_cm: 160
+  measurements:
+    bust: 92
+    waist: 60
+    hip: 86
+  cup: G
+  active_from: '2024-08-16'
+  active_to: null
+  retirement_announced: null
+  biography: "Hinano Miki (美木ひなの) debuted on August 16, 2024 as a free actress, quickly building a prolific catalog across a wide range of labels. She is known for her slim figure and G-cup bust. Her work spans labels including MISM, EBWH, MILK, SORA, GVH, VEC, and many others, with over 100 titles released within her first two years of activity."
+  primary_studios: null
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 26
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'MEDIUM — No Japanese Wikipedia article. Identity confirmed via javdatabase.com (name, DOB year 2000, debut 2024-08-16, measurements 92-60-86, height 160cm, cup G) cross-referenced with organizer3 DB (26 titles across MISM/EBWH/MILK/SORA/GVH/VEC etc., consistent with free-actress career). Blood type not found in any source; set null per guardrail. Exact DOB day/month not publicly available; year 2000 used.'
+  data_sources:
+  - 'https://www.javdatabase.com/idols/hinano-miki/'
+  - 'organizer3 local DB actress id=4096'
+  portfolio_listed: 0

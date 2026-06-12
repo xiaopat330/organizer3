@@ -1,0 +1,46 @@
+profile:
+  name:
+    family_name: Aise
+    given_name: Ria
+    stage_name: 愛才りあ
+    reading: あいせ りあ
+    alternate_names:
+    - name: Ria Aisai
+      note: alternate romanization variant (aisai vs aise)
+  date_of_birth: 2003-07-30
+  birthplace: Nara Prefecture, Japan
+  blood_type: null
+  height_cm: 165
+  measurements:
+    bust: 88
+    waist: 56
+    hip: 88
+  cup: E
+  active_from: 2025-01-14
+  active_to: null
+  retirement_announced: null
+  biography: "Ria Aise (愛才りあ, あいせ りあ) debuted on January 14, 2025 under IDEA POCKET with the title 'FIRST IMPRESSION 178 天然美 NATURAL BEAUTY'. Born July 30, 2003 in Nara Prefecture, she moved to Tokyo to attend university before entering the industry. She is affiliated with talent agency Attractive LLC and holds an exclusive contract with Idea Pocket. Her debut title climbed to #1 on the FANZA rental floor ranking during the week of May 5, 2025. A subsequent solo title reached #1 on the FANZA rental floor ranking during the week of March 16, 2026, and she placed #1 in the FANZA rental floor monthly actress ranking for March 2026. Hobbies include reading, watching films, cooking, domestic travel, and visiting bakeries."
+  primary_studios:
+  - name: IDEA POCKET
+    company: Idea Pocket
+    from: 2025-01-14
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 25
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox explicit match on name (あいせ りあ), DOB (2003-07-30), birthplace (奈良県), height (165 cm), measurements (88-56-88), cup (E), active from 2025; confirmed by minnano-av (actress832453) with identical DOB, birthplace, and romanization "Aise Ria". Blood type field is empty in infobox — null used. Surname reading あいせ confirmed by both Wikipedia ふりがな field and minnano-av romanization.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%84%9B%E6%89%8D%E3%82%8A%E3%81%82'
+  - 'https://www.minnano-av.com/actress832453.html'
+  - 'organizer3 local DB actress id=6251'
+  portfolio_listed: 0

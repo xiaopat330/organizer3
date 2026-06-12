@@ -27,18 +27,15 @@ profile:
     to: null
     role: Exclusive contract actress (SODstar label)
   awards:
-  - year: 2019
-    ceremony: スカパー!アダルト放送大賞
-    category: 新人女優賞
-    result: Won
-  - year: 2019
-    ceremony: SOD AWARD 2019
-    category: 最優秀新人賞
-    result: Won (shared with 本庄鈴)
-  - year: 2019
-    ceremony: FANZA Adult Award
-    category: 最優秀新人女優賞
-    result: Nominated; won 話題賞
+  - event: スカパー!アダルト放送大賞
+    year: 2019
+    category: 新人女優賞 (Won)
+  - event: SOD AWARD 2019
+    year: 2019
+    category: 最優秀新人賞 (Won, shared with 本庄鈴)
+  - event: FANZA Adult Award
+    year: 2019
+    category: 最優秀新人女優賞 (Nominated; won 話題賞)
   legacy: "One of the most decorated SODstar newcomers of the 2018–2019 era, sweeping all three major newcomer awards. Her dual career as a top-ranked League of Legends streamer and AV actress gave her an unusually broad cross-demographic following, with approximately 378,000 YouTube subscribers and 440,000 Twitter followers by 2025."
 
 meta:

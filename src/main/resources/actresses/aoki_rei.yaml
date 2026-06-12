@@ -1,0 +1,54 @@
+profile:
+  name:
+    family_name: Aoki
+    given_name: Rei
+    stage_name: 青木玲
+    reading: あおき れい
+    alternate_names: null
+  date_of_birth: 1984-07-11
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 160
+  measurements:
+    bust: 86
+    waist: 58
+    hip: 86
+  cup: E
+  active_from: 2003-10-18
+  active_to: null
+  retirement_announced: null
+  biography: "Rei Aoki (青木玲) debuted in October 2003 as a KUKI exclusive actress with 'Natural Beauty', and in January 2004 made her sell-through debut under MOODYZ. She briefly retired in 2005, returned in September 2007 for MOODYZ, and announced full retirement in April 2008 before resuming activity again in winter 2008. She worked across a wide range of labels for over a decade — including Attackers, Madonna, VENUS, and many others — before becoming a Madonna exclusive in January 2019. Her hobbies and specialties include cooking, napping, and badminton. She was affiliated with Prime Agency (プライムエージェンシー)."
+  primary_studios:
+  - name: KUKI
+    company: KUKI
+    from: 2003-10-18
+    to: 2005-01-01
+    role: Exclusive actress (debut)
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2004-01-15
+    to: null
+    role: Free/multi-label actress; debut sell-through
+  - name: Madonna
+    company: Madonna
+    from: 2019-01-07
+    to: null
+    role: Exclusive actress
+  awards: null
+  legacy: "A veteran performer with a career spanning over two decades (2003–present), marked by multiple retirements and comebacks. Worked extensively across virtually every major Japanese AV label before becoming a Madonna exclusive in 2019. A VENUS catalogue staple throughout the 2010s, particularly known for mature-woman and incest-drama series. A FANZA floor ranking entry as late as 2024 confirmed continued catalogue popularity."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 26
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Japanese Wikipedia infobox provides explicit DOB (1984-07-11), blood type (血液型 A, explicit field), height (160 cm), measurements (86-58-86), cup (E), birthplace (Tokyo). Career timeline (KUKI debut Oct 2003, MOODYZ Jan 2004, Madonna exclusive Jan 2019) corroborated by filmography in the article. DB title count of 26 is a small owned subset of ~694 total titles. Identity confirmed: kanji 青木玲, reading あおき れい, consistent female AV performer born 1984.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E9%9D%92%E6%9C%A8%E7%8E%B2'
+  - 'https://www.javdatabase.com/idols/rei-aoki/'
+  - 'organizer3 local DB actress id=360'
+  portfolio_listed: 0

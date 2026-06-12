@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: Kominato
+    given_name: Yotsuha
+    stage_name: 小湊よつ葉
+    reading: こみなと よつは
+    alternate_names:
+    - name: 井上 理香子
+      note: 'birth/idol name (Inoue Rikako, いのうえ りかこ) — used during Fairies idol group career 2011–2020'
+  date_of_birth: 1996-05-29
+  birthplace: Nagasaki Prefecture, Japan
+  blood_type: B
+  height_cm: 154
+  measurements:
+    bust: 83
+    waist: 59
+    hip: 80
+  cup: C
+  active_from: 2022-05-27
+  active_to: null
+  retirement_announced: null
+  biography: "Yotsuha Kominato (小湊よつ葉), born May 29, 1996 in Nagasaki Prefecture, is a Japanese AV actress, singer, lyricist, and stage actress affiliated with talent agency T-Powers (ティーパワーズ). She is a former member of the female dance-and-vocal idol group Fairies (フェアリーズ), where she performed under her birth name Rikako Inoue (井上理香子). She debuted with Fairies in 2011 under Rising Production and released music on the SONIC GROOVE label until the group's disbandment and her retirement from the entertainment industry in June 2020. After two years working at a cosmetics clinic, she relaunched under the stage name Yotsuha Kominato in March 2022 and announced her AV debut on Twitter in May 2022. Her debut title as a SOD Create exclusive actress topped the FANZA retail floor weekly ranking for two consecutive weeks in late June and early July 2022, and the video floor ranking in August 2022. She was named best new actress at the Asa-Gei AV Awards 2022 and placed 6th in the FANZA annual actress ranking for 2023. She continues to perform onstage, release music under SOD Records, and appear in television variety programmes alongside her AV career."
+  primary_studios:
+  - name: SOD Create
+    company: SOD Create
+    from: 2022-05-27
+    to: null
+    role: Exclusive contract actress
+  awards:
+  - event: アサ芸AV大賞2022 (週刊アサヒ芸能)
+    year: 2022
+    category: 最優秀新人賞
+  legacy: "One of the most prominent idol-to-AV transitions of the 2020s: as 井上理香子 she spent nine years in Fairies, one of Japan's leading idol groups under Rising Production. Her debut title under SOD Create immediately topped FANZA retail rankings and she sustained top-10 placements across 2022–2025. She is unusual in that she actively maintains a parallel music and stage-acting career under her AV stage name, performing solo live concerts and appearing in television programmes."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 41
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia article (ja.wikipedia.org/wiki/小湊よつ葉) exists for this exact person with a full infobox. DOB 1996-05-29 confirmed via explicit 生年月日 field. Blood type B confirmed via explicit 血液型 field (B型). Measurements (83-59-80, C cup, 154 cm) taken from infobox, labelled as 2021年 (idol era); no newer official figures available. Identity fully consistent: kanji 小湊よつ葉, romaji Yotsuha Kominato, SOD Create exclusive, 41 DB titles align with active-since-2022 SOD exclusive career.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E5%B0%8F%E6%B9%8A%E3%82%88%E3%81%A4%E8%91%89'
+  - 'organizer3 local DB actress id=5555'
+  portfolio_listed: 0

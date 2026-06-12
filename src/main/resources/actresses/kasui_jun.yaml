@@ -1,0 +1,48 @@
+profile:
+  name:
+    family_name: Kasui
+    given_name: Jun
+    stage_name: 香水じゅん
+    reading: かすい じゅん
+    alternate_names: []
+  date_of_birth: 2001-03-30
+  birthplace: Niigata Prefecture, Japan
+  blood_type: null
+  height_cm: 157
+  measurements:
+    bust: 82
+    waist: 55
+    hip: 85
+  cup: C
+  active_from: 2021-01-01
+  active_to: null
+  retirement_announced: null
+  biography: "Jun Kasui (香水じゅん) is a Japanese AV actress born March 30, 2001 in Niigata Prefecture. She debuted in 2021 and worked under the DINO talent agency, with exclusive contracts spanning S1 NO.1 STYLE and 本中 (Honchū). She has accumulated approximately 42 titles across both labels. In addition to her AV career, she is a singer who performs solo and as a member of the music unit \"Dopamine\" (ドーパミン) alongside Mio Ishikawa, with original music provided by Tinkerbell Hatsuno."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: S1 NO.1 STYLE
+    from: 2021-01-01
+    to: null
+    role: Exclusive contract actress
+  - name: 本中
+    company: 本中
+    from: 2021-01-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 42
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox (data-mw template params) provides exact DOB (2001-03-30), furigana reading (かすい じゅん = kasui jun, matches DB romaji exactly), height (157 cm), measurements (B82/W55/H85), cup (C), birthplace (Niigata), active from 2021, studios S1+本中. Blood type field is explicitly empty in infobox — set null per guardrail. Wikipedia categories confirm S1女優, 本中女優, DINO, 新潟県出身の人物, 2001年生. Identity confirmed vs DB: kanji 香水じゅん exact match, ~42-title count consistent with 2021 debut under S1+本中.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E9%A6%99%E6%B0%B4%E3%81%98%E3%82%85%E3%82%93'
+  - 'organizer3 local DB actress id=4118'
+  portfolio_listed: 0

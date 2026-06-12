@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Nagahama
+    given_name: Mitsuri
+    stage_name: 長浜みつり
+    reading: ながはま みつり
+    alternate_names: null
+  date_of_birth: 2002-06-01
+  birthplace: Kanagawa Prefecture, Japan
+  blood_type: A
+  height_cm: 161
+  measurements:
+    bust: 90
+    waist: 58
+    hip: 90
+  cup: G
+  active_from: 2024-01-09
+  active_to: null
+  retirement_announced: null
+  biography: "Mitsuri Nagahama (長浜みつり), born June 1, 2002 in Kanagawa Prefecture, debuted on January 9, 2024 as an exclusive actress under Idea Pocket (アイデアポケット). Known by the nickname みつりん, she quickly accumulated a substantial catalog of over 36 titles in her first two years of activity."
+  primary_studios:
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2024-01-09
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 36
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Japanese Wikipedia infobox (AV女優 template, data-mw parsed) provides explicit DOB (生年/生月/生日 = 2002/6/1), explicit 血液型 = A, height 161 cm, bust/waist/hip 90/58/90, cup G, birthplace 神奈川県, debut 2024年1月9日, exclusive アイデアポケット. Identity confirmed: kanji 長浜みつり matches canonical romaji Mitsuri Nagahama; ~36-title Idea Pocket exclusive debuting 2024 is consistent with DB count.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E9%95%B7%E6%B5%9C%E3%81%BF%E3%81%A4%E3%82%8A'
+  - 'organizer3 local DB actress id=3369'
+  portfolio_listed: 0

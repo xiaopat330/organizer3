@@ -1,0 +1,45 @@
+profile:
+  name:
+    family_name: Kamiki
+    given_name: Rei
+    stage_name: 神木麗
+    reading: かみき れい
+    alternate_names:
+    - name: しおり
+      note: former name / alternate stage name
+  date_of_birth: 1999-12-20
+  birthplace: Saitama Prefecture, Japan
+  blood_type: null
+  height_cm: 169
+  measurements:
+    bust: 95
+    waist: 60
+    hip: 85
+  cup: H
+  active_from: 2022-01-01
+  active_to: null
+  retirement_announced: null
+  biography: "Rei Kamiki (神木麗) is a Japanese AV actress born December 20, 1999 in Saitama Prefecture. She debuted in 2022 as an exclusive contract actress with SOD Create, where she has remained. Known by her nickname れいにゃん, she has built a reputation as a tall (169 cm), shapely performer with an H-cup figure. As of 2024 her measurements were publicly recorded at 95-60-85 cm. She was featured in Weekly Playboy's 'Next-Generation Beautiful Buttocks AV Actress TOP10' (November 2023)."
+  primary_studios:
+  - name: SOD Create
+    company: SOD Create
+    from: 2022-01-01
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 49
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox exact match on kanji name 神木麗, reading かみき れい, DOB 1999-12-20, birthplace Saitama, height 169 cm, measurements 95-60-85, cup H (explicit カップ field). Blood type field is explicitly empty in the infobox — set null per guardrail. SOD Create exclusive from 2022 is consistent with 49-title count in organizer3 DB. Identity confirmed via Wikipedia article wgPageName=神木麗 + categories (SOD女優, 1999年生, 埼玉県出身).'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E7%A5%9E%E6%9C%A8%E9%BA%97'
+  - 'organizer3 local DB actress id=6190'
+  portfolio_listed: 0

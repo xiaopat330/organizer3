@@ -1,0 +1,47 @@
+profile:
+  name:
+    family_name: Matsui
+    given_name: Hinako
+    stage_name: 松井日奈子
+    reading: まつい ひなこ
+    alternate_names:
+    - name: このめ
+      note: alternate name (Konome)
+    - name: 浅水紗香
+      note: alternate name (Asamizu Sayaka)
+  date_of_birth: 2003-12-30
+  birthplace: Japan
+  blood_type: O
+  height_cm: 145
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 85
+  cup: E
+  active_from: 2024-05-03
+  active_to: 2026-01-26
+  retirement_announced: 2026-03-16
+  biography: "Hinako Matsui (松井日奈子) debuted on May 3, 2024 under kawaii* after transitioning from local talent work in Daisen City, Akita Prefecture. She debuted with the stated motivation of competing in AV with sex as her strongest skill, having previously appeared in regional television and events as a local talent from around 2021. She graduated from kawaii* exclusive status with her August 6, 2024 release and continued as a free planning/single actress across a wide range of labels including MOODYZ, Attackers, Gloria Quest, Deep's, Rocket, and many others. She gained mainstream attention through an appearance on TV Tokyo's 'Gottantan' in 2025. She was affiliated with Attractive talent agency. Known as 'Hina-matsuri' (her nickname), she is noted for her distinctive squirting ability, which earned her the nickname 'squirt champion' in Weekly Playboy. She announced retirement on March 16, 2026, effective January 26, 2026. Born and raised in Japan (Akita Prefecture noted in biography text)."
+  primary_studios:
+  - name: kawaii*
+    company: kawaii*
+    from: 2024-05-03
+    to: 2024-08-06
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 40
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Japanese Wikipedia article exists for 松井日奈子 (AV actress, correct kanji), identity confirmed as kawaii* debut 2024, free actress across multiple labels including MOODYZ, 40-title DB count consistent with 2024–2026 active period shown in Wikipedia filmography. Blood type O from explicit 血液型 field. Measurements from 2025年時点 infobox. DOB note: infobox template params show 8月5日 but article body paragraph cites DOB as 2003年12月30日 with reference [1] to Attractive agency profile — body-text cited date used as more authoritative. Cup E and B-W-H 85-58-85 from infobox. Birthplace listed as Japan only (Akita Prefecture mentioned in body text for local talent activity). Identity concern: none — distinct person from idol 松井日菜子 (different kanji 日菜子 vs 日奈子); Wikipedia article is unambiguously for the AV actress.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%9D%BE%E4%BA%95%E6%97%A5%E5%A5%88%E5%AD%90'
+  - 'organizer3 local DB actress id=4092'
+  portfolio_listed: 0

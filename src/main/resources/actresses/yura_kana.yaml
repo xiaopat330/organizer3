@@ -1,0 +1,43 @@
+profile:
+  name:
+    family_name: Yura
+    given_name: Kana
+    stage_name: 由良かな
+    reading: ゆら かな
+    alternate_names: []
+  date_of_birth: 2003-11-30
+  birthplace: null
+  blood_type: null
+  height_cm: 143
+  measurements:
+    bust: 85
+    waist: 58
+    hip: 88
+  cup: B
+  active_from: 2022-04-01
+  active_to: null
+  retirement_announced: null
+  biography: "Kana Yura (由良かな) debuted in April 2022 as an exclusive actress for Honnaka (本中), releasing 3 titles under that contract before transitioning to a free planning actress (企画単体女優). At 143 cm she gained early attention as a petite performer, described by AV writer Saori as 'a supernova who descended into the loli world, noticed from debut for her overwhelming smallness of 143 cm.' She has worked across a wide range of labels including Attackers, Alice JAPAN, SOD, MOODYZ, Madonna, Prestige, Fitch, TMA, and many others. Her hobbies include singing; her special skill is playing guitar. She frequently appears in school uniform roles combining a blouse and pinafore skirt. In June 2025 a FANZA floor ranking title (First Star, 2024) reached #1, and a Fitch co-starring title re-charted at #2 in March 2026."
+  primary_studios:
+  - name: Honnaka
+    company: 本中 (アダルトビデオ)
+    from: 2022-04-01
+    to: 2022-06-30
+    role: Exclusive contract actress (3 titles); subsequently free planning actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 49
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox (AV女優 template) exact match on name 由良かな / ゆら かな, DOB (生年2003/生月11/生日30 = 2003-11-30), height 143 cm, measurements B85/W58/H88, cup B. Blood type field is explicitly empty in infobox (血液型: "") — null by guardrail. Birthplace field also empty. Active from 2022 confirmed by article body (April 2022 Honnaka debut). Identity confirmed: Wikipedia categories list 40+ labels matching the multi-label free actress pattern consistent with 49 DB titles; DOB birth year 2003 confirmed by wgCategories "2003年生". Minnano-av cross-check not available (search URL returned 404; list pagination did not surface actress).'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E7%94%B1%E8%89%AF%E3%81%8B%E3%81%AA'
+  - 'organizer3 local DB actress id=2466'
+  portfolio_listed: 0

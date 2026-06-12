@@ -1,0 +1,82 @@
+profile:
+  name:
+    family_name: null
+    given_name: Tia
+    stage_name: ティア
+    reading: てぃあ
+    alternate_names:
+    - name: Meisa Kurokawa
+      note: 'former stage name (黒川メイサ, くろかわめいさ) — image and early AV debut name, used from April 2010 through 2012'
+    - name: Arisu Asama
+      note: 'former stage name (浅間アリス, あさまありす) — used concurrently 2011–2013 for secondary-label releases'
+  date_of_birth: 1991-09-23
+  birthplace: United States of America
+  blood_type: O
+  height_cm: 160
+  measurements:
+    bust: 98
+    waist: 59
+    hip: 88
+  cup: H
+  active_from: 2010-06-01
+  active_to: 2018-01-01
+  retirement_announced: null
+  biography: "Tia (ティア), born September 23, 1991 in the United States, is a Japanese–American half-actress, gravure idol, talent, and YouTuber who was active as an AV actress from 2010 to 2018. She debuted in April 2010 under the image name Meisa Kurokawa (黒川メイサ), and made her AV debut in September 2010 under the same name through Natural High. From 2011 she also worked under the name Arisu Asama (浅間アリス) for various planning labels. In June 2012 she re-debuted under the stage name 'Tia' as an E-BODY exclusive, gaining wide recognition for her exotic H-cup figure and pronounced waist-to-hip ratio. She became an S1 exclusive from May 2013 to September 2015, one of that label's flagship performers during the period. After her S1 contract ended she returned to E-BODY before moving to Idea Pocket (November 2016), then briefly to Attackers, Das!, Rookie, and finally Madonna, where her final AV title released in January 2018. She was also a member of the gravure unit Ebisu Muscats from September 2015, graduating in December 2017. Post-retirement she has continued as a talent, model, and entrepreneur (RedDragon bar, Roppongi), and runs a YouTube channel (THIS IS TIA)."
+  primary_studios:
+  - name: E-BODY
+    company: E-BODY
+    from: 2012-06-13
+    to: 2013-04-30
+    role: Exclusive contract actress (debut under Tia name)
+  - name: S1 No.1 Style
+    company: エスワン
+    from: 2013-05-19
+    to: 2015-09-30
+    role: Exclusive contract actress
+  - name: E-BODY
+    company: E-BODY
+    from: 2015-09-28
+    to: 2016-11-30
+    role: Exclusive contract actress (second stint)
+  - name: Idea Pocket
+    company: アイデアポケット
+    from: 2016-11-18
+    to: 2017-07-19
+    role: Exclusive contract actress
+  - name: Attackers
+    company: アタッカーズ
+    from: 2017-03-07
+    to: 2017-06-19
+    role: Exclusive contract actress
+  - name: Das!
+    company: ダスッ!
+    from: 2017-07-25
+    to: 2017-07-25
+    role: One-title exclusive
+  - name: Rookie
+    company: Rookie
+    from: 2017-09-20
+    to: 2017-11-01
+    role: Exclusive contract actress
+  - name: Madonna
+    company: マドンナ
+    from: 2017-11-24
+    to: 2018-01-01
+    role: Exclusive contract actress (final AV contract)
+  awards: null
+  legacy: "One of E-BODY and S1's most prominent half-actresses of the 2012–2015 era, noted for her H-cup measurements and exotic half-American appearance. After her AV career she remained in the public eye through the Ebisu Muscats gravure unit, regular TV appearances (Fuji TV, TV Tokyo), and business activities. The DOB in the Wikipedia article body text reads September 20 but the infobox template shows September 23; the infobox value is used here as authoritative."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 39
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched. DB has 39 titles (actress_id=969).'
+  confidence: 'HIGH — Wikipedia article ティア (AV女優) is unambiguously the correct person: aliases 黒川メイサ and 浅間アリス match DB aliases exactly; career era (2010–2018), E-BODY/S1 studio pattern, and half-American background all consistent with a ~39-title library. Infobox has explicit 血液型=O型, explicit measurements (98-59-88/H), DOB from template params (生年1991/生月9/生日23). Minor discrepancy: article prose text says 9月20日 vs infobox template 9月23日 — infobox used as authoritative. Birthplace listed as {{USA}} (United States flag) in infobox; no specific state/city given.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/ティア_(AV女優)'
+  - 'organizer3 local DB actress id=969'
+  portfolio_listed: 0

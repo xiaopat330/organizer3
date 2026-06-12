@@ -27,14 +27,12 @@ profile:
     to: 2021-09-07
     role: Exclusive contract actress
   awards:
-  - year: 2018
-    ceremony: DMMアダルトアワード (FANZA Adult Award)
-    category: 最優秀新人女優賞
-    result: Nominated (did not win)
-  - year: 2019
-    ceremony: FANZAアダルトアワード
-    category: 優秀女優賞
-    result: Won
+  - event: DMMアダルトアワード (FANZA Adult Award)
+    year: 2018
+    category: 最優秀新人女優賞 (Nominated — did not win)
+  - event: FANZAアダルトアワード
+    year: 2019
+    category: 優秀女優賞 (Won)
   legacy: "One of PRESTIGE's flagship exclusive actresses during the 2017–2021 period, with a pre-industry Niconico fan base that gave her debut unusual marketing momentum. Published four photo books across her career and crossed over into mainstream variety television."
 
 meta:

@@ -1,0 +1,57 @@
+profile:
+  name:
+    family_name: Hoshizora
+    given_name: Moa
+    stage_name: 星空もあ
+    reading: ほしぞら もあ
+    alternate_names:
+    - name: 星空萌愛
+      note: kanji variant of stage name
+    - name: 中野伊織
+      note: former/alternate name
+    - name: 石橋さら
+      note: former/alternate name
+    - name: 七瀬あかり
+      note: former/alternate name
+    - name: 月島乃亜
+      note: former/alternate name
+    - name: 星野果奈
+      note: former/alternate name
+    - name: 宮内香
+      note: former/alternate name
+  date_of_birth: 1994-07-24
+  birthplace: Tokyo, Japan
+  blood_type: B
+  height_cm: 158
+  measurements:
+    bust: 88
+    waist: 58
+    hip: 86
+  cup: F
+  active_from: 2014-01-01
+  active_to: null
+  retirement_announced: null
+  biography: "Moa Hoshizora (星空もあ), born July 24, 1994 in Tokyo, debuted in AV in 2014 after prior work as an idol in the unit LovelyPops under the nickname StarSky (スタースカイ). She has worked across a wide range of labels and held an exclusive contract with h.m.p. Her Wikipedia article lists multiple former stage names including Nakano Iori, Ishibashi Sara, Nanase Akari, Tsukishima Noa, Hoshino Kana, and Miyauchi Kaori."
+  primary_studios:
+  - name: h.m.p
+    company: h.m.p
+    from: null
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 25
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia article 星空もあ (ja.wikipedia.org/wiki/星空もあ) has full infobox: DOB 1994-07-24 explicit, birthplace 東京都, blood type explicit 血液型=B型, height 158cm, measurements 88/58/86, cup F, debut 2014年, exclusive h.m.p. Identity confirmed: kanji stage name 星空もあ matches DB stage_name, active 2014+, 25-title count consistent with known multi-label career. Kanji variant 星空萌愛 not found in Wikipedia text but provided as known DB variant.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%98%9F%E7%A9%BA%E3%82%82%E3%81%82'
+  - 'organizer3 local DB actress id=1043'
+  portfolio_listed: 0

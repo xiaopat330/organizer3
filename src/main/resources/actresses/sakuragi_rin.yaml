@@ -1,0 +1,60 @@
+profile:
+  name:
+    family_name: Sakuragi
+    given_name: Rin
+    stage_name: 桜木凛
+    reading: さくらぎ りん
+    alternate_names:
+    - name: 沼田 早苗
+      note: real name / alternate registered name (Numata Sanae)
+  date_of_birth: 1989-03-03
+  birthplace: Hyogo Prefecture, Japan
+  blood_type: B
+  height_cm: 158
+  measurements:
+    bust: 83
+    waist: 57
+    hip: 82
+  cup: C
+  active_from: 2007-10-01
+  active_to: 2017-04-22
+  retirement_announced: 2017-04-22
+  biography: "Rin Sakuragi (桜木凛) debuted in October 2007 as a KUKI exclusive, born March 3, 1989 in Hyogo Prefecture. After establishing herself at KUKI through 2008–2009 she moved primarily to Premium (プレミアム), where she worked as a regular exclusive actress from 2009 through early 2013, building a large catalogue of solo titles. Following health-related hiatuses in 2011 and 2012, she made a comeback in April 2013 as an exclusive for the label Bi (美), and also worked with Attackers (アタッカーズ) on several titles. In parallel with her AV career, she became widely known as a member of the idol/variety group Ebichu Mascats (恵比寿マスカッツ), appearing on the TV show Onedari!! Mascot from April 2009 and taking part in drama and music activities. She formed the music duo P*cherry with Yura Sakura in 2014. She retired from AV on April 22, 2017, and in July 2019 made a limited talent comeback following the retirement of co-member Jyessica Kisaki, during which she publicly confirmed she had married and had a son."
+  primary_studios:
+  - name: KUKI
+    company: KUKI (九鬼)
+    from: 2007-10-01
+    to: 2009-06-01
+    role: Exclusive contract actress
+  - name: Premium
+    company: Premium (プレミアム)
+    from: 2009-05-07
+    to: 2013-03-01
+    role: Exclusive contract actress
+  - name: Bi
+    company: Bi / 美 (アダルトビデオ)
+    from: 2013-04-25
+    to: 2015-01-01
+    role: Exclusive contract actress
+  - name: Attackers
+    company: Attackers (アタッカーズ)
+    from: 2011-06-07
+    to: 2014-10-07
+    role: Guest/non-exclusive appearances
+  awards: null
+  legacy: "One of the notable Ebichu Mascats 2nd-generation members, Rin Sakuragi bridged AV performance with mainstream idol/variety activity. Her long tenure at Premium (2009–2013) produced a large back-catalogue of solo titles. After retirement she was confirmed as married with a child, publicly disclosed during a 2019 YouTube live commemorating Jyessica Kisaki's retirement."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 49
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia ja article 桜木凛 provides explicit infobox fields: DOB 1989-03-03, 血液型=B型, height 158cm, measurements 83-57-82, カップ=C, birthplace Hyogo. Active period 2007–2017 and studios (KUKI exclusive debut, Premium exclusive, Bi exclusive, Attackers) confirmed via filmography in article. DB title count 49 is consistent with a 2007–2017 career spanning these labels. Alternate name 沼田早苗 confirmed in infobox and article disambiguation note. Identity confirmed; no conflation concern.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E6%A1%9C%E6%9C%A8%E5%87%9B'
+  - 'organizer3 local DB actress id=1657'
+  portfolio_listed: 0

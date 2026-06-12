@@ -1,0 +1,51 @@
+profile:
+  name:
+    family_name: Hinata
+    given_name: Natsu
+    stage_name: 日向なつ
+    reading: ひなた なつ
+    alternate_names:
+    - name: ひなたなつ
+      note: current stage name since November 2024 rename (same reading, new kanji-free spelling)
+  date_of_birth: 2001-05-04
+  birthplace: Tokyo, Japan
+  blood_type: null
+  height_cm: 154
+  measurements:
+    bust: 83
+    waist: 55
+    hip: 88
+  cup: E
+  active_from: 2021-06-01
+  active_to: null
+  retirement_announced: null
+  biography: "Natsu Hinata (日向なつ / ひなたなつ) debuted in June 2021 as a kawaii* exclusive actress, working under the stage name 日向なつ. She was affiliated with Forty Four Management during her kawaii* years and also worked with 本中. In November 2024 she announced a move to talent agency T-POWERS and a simultaneous stage-name change to ひなたなつ (same reading, different writing). She has maintained dual exclusive contracts with kawaii* and 本中 throughout her career. She is known for her slender, petite figure and her meticulous preparation for drama-format titles; she reads scripts aloud using a recording app before shoots and prefers roles where she can match the emotional state of the scenario."
+  primary_studios:
+  - name: kawaii*
+    company: kawaii*
+    from: 2021-06-01
+    to: null
+    role: Exclusive contract actress (debut label; continued through rename)
+  - name: 本中
+    company: 本中
+    from: null
+    to: null
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 47
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia article (ひなたなつ, redirected from 日向なつ) provides explicit DOB (2001-05-04), birthplace (東京都), height (154 cm), measurements (83-55-88), cup (E) all from infobox data-mw template params. Blood type field is explicitly empty in the template (血液型 wt:"") — set null per guardrails. Identity confirmed: debut June 2021 kawaii* exclusive, renamed ひなたなつ November 2024, agencies Forty Four Management → T-POWERS, dual exclusive kawaii*/本中. Consistent with DB title count 47 and stage name 日向なつ. Minnano-av actress825008 cross-confirms debut year and labels.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E3%81%B2%E3%81%AA%E3%81%9F%E3%81%AA%E3%81%A4 (redirects from 日向なつ)'
+  - 'https://www.minnano-av.com/actress825008.html'
+  - 'organizer3 local DB actress id=4224'
+  portfolio_listed: 0

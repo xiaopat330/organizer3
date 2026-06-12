@@ -4,36 +4,38 @@ profile:
     given_name: Marina
     stage_name: 小沢真理奈
     reading: おざわ まりな
+    alternate_names: []
   date_of_birth: null
-  birthplace: null
+  birthplace: Tokyo, Japan
   blood_type: null
-  height_cm: null
-  measurements:
-    bust: null
-    waist: null
-    hip: null
-  cup: null
-  active_from: 2010-05-07
-  active_to: 2012-11-19
-  biography: null
+  height_cm: 162
+  measurements: {bust: 90, waist: 59, hip: 89}
+  cup: H
+  active_from: 2009-11-25
+  active_to: 2013-12-19
+  retirement_announced: null
+  biography: "Marina Ozawa (小沢真理奈) is a Japanese adult video actress born in 1987 in Tokyo. She made her debut on November 25, 2009 under the S1 NO.1 STYLE label, known for its high-production-value exclusive contract releases. She appeared in solo works under the SOE series as well as multi-actress compilations under the ONSD series throughout her active period. Her last known release was a compilation title in December 2013, suggesting she retired from the industry around that time."
   primary_studios:
   - name: S1 No.1 Style
     company: S1 No.1 Style
-    from: 2010-05-07
-    to: 2012-11-19
-    role: Contract actress (codes SOE, ONSD)
-
+    from: 2009-11-25
+    to: 2013-12-19
+    role: Contract actress
+  awards: null
+  legacy: null
+portfolio: []
 meta:
   total_owned_titles: 5
   titles_with_japanese_title: null
   titles_with_english_title: null
   titles_with_release_date: null
-  total_known_releases: null
-  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 3550 holds 5 owned titles (SOE 3, ONSD 2). SOE-399/419/435 are solo works (2010); ONSD-655 is a multi-actress compilation (2012); ONSD-767 has no enrichment data.'
-  confidence: 'Low — no Japanese Wikipedia article found (404 for 小沢真理奈 and 小澤真理奈). No minnano-av profile located. All profile fields (DOB, birthplace, blood type, height, measurements, cup) are null due to absence of any verified biographical source. Kanji stage_name 小沢真理奈 confirmed from DB actresses table and consistent cast_json slug ng9a across all three enriched solo titles (SOE-399, SOE-419, SOE-435). Active period derived from earliest and latest known release dates in enrichment data. Studio confirmed as S1 No.1 Style (エスワン ナンバーワンスタイル) via labels.yaml lookup for both SOE and ONSD codes. Alias "Marina Osawa" is a romanization variant stored in actress_aliases. DB tier MINOR. Distinct from Maria Ozawa (id 2705).'
+  total_known_releases: 19
+  coverage_note: 'Profile section only. Portfolio not yet researched. DB record id 3550 holds 5 owned titles (SOE 3, ONSD 2).'
+  confidence: 'MED — No Japanese Wikipedia article exists (404 for 小沢真理奈). Key physical stats (height 162cm, measurements 90-59-89, cup H, debut 2009-11-25, birthplace Tokyo) sourced from javdatabase.com. Birth year 1987 cross-confirmed by minnano-av age annotation (26 at Dec 2013 release). Blood type not found in any source. Exact DOB unavailable — birth year only. Stage name 小沢真理奈 confirmed from DB and javdb slug ng9a. Distinct from Maria Ozawa (id 2705, 小澤マリア different kanji/person).'
   data_sources:
   - 'Local DB ~/.organizer3/organizer.db — actresses.id=3550 (canonical "Marina Ozawa", stage_name 小沢真理奈, 5 titles, tier MINOR)'
+  - 'https://javdatabase.com/idols/marina-ozawa/ — height, measurements, cup, debut date, birthplace, birth year'
+  - 'https://www.minnano-av.com/actress159878.html — confirmed S1 exclusively, age 26 in Dec 2013 (birth year 1987)'
   - 'src/main/resources/labels.yaml — label/company mapping (SOE/ONSD = S1 No.1 Style)'
   - 'https://ja.wikipedia.org/wiki/小沢真理奈 — 404 Not Found'
-  - 'https://ja.wikipedia.org/wiki/小澤真理奈 — 404 Not Found'
   portfolio_listed: 0

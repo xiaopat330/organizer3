@@ -1,0 +1,66 @@
+profile:
+  name:
+    family_name: Okazaki
+    given_name: Emiri
+    stage_name: 丘咲エミリ
+    reading: おかざき エミリ
+    alternate_names:
+    - name: EMIRI
+      note: alternate stage name used primarily under kira☆kira label (2014–2016)
+  date_of_birth: 1989-01-11
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 163
+  measurements:
+    bust: 86
+    waist: 57
+    hip: 86
+  cup: D
+  active_from: 2011-11-01
+  active_to: 2016-11-01
+  retirement_announced: 2016-11-01
+  biography: "Emiri Okazaki (丘咲エミリ) was born January 11, 1989 in Tokyo. She began her entertainment career in 2005 as a model in gyaru magazine Ranzuki, later becoming a dedicated model for 小悪魔ageha (2007–2009). She made her AV debut in November 2011 under the celebrity label MUTEKI, transitioning to an exclusive contract with Idea Pocket shortly after, where she produced over a dozen titles through 2013. In 2014 she moved to MOODYZ, then signed a new exclusive with kira☆kira in November 2014 under the alternate name EMIRI, performing as a 黒ギャル (tan gyaru) persona. She retired from the AV industry in November 2016 after self-producing her final title for Idea Pocket. Post-retirement she founded a company (株式会社THE ONE, 2017), launched a cosmetics brand (Emaje, 2018), and debuted as a solo singer in January 2020. She was also a member of the idol unit PINKEY (produced by photographer Kishin Shinoyama)."
+  primary_studios:
+  - name: MUTEKI
+    company: MUTEKI
+    from: 2011-11-01
+    to: 2011-11-30
+    role: Debut exclusive (one title)
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: 2012-03-01
+    to: 2014-01-31
+    role: Exclusive contract actress
+  - name: MOODYZ
+    company: MOODYZ
+    from: 2014-02-01
+    to: 2014-10-31
+    role: Exclusive contract actress
+  - name: kira☆kira
+    company: kira☆kira / MOODYZ
+    from: 2014-11-19
+    to: 2016-11-01
+    role: Exclusive contract actress (as EMIRI)
+  awards:
+  - event: MOODYZ忘年会 2014
+    year: 2014
+    category: kira☆kira賞
+  - event: MOODYZ忘年会 2015
+    year: 2015
+    category: kira☆kira賞
+  legacy: "One of the relatively few crossover actress-entertainers of the early 2010s, Okazaki had mainstream television credits (日本テレビ drama 美咲ナンバーワン!!, テレビ東京 LOVE理論) running in parallel with her AV career. Her post-retirement pivot to entrepreneurship and music is well-documented; she continues to be active as of 2025 (announced pregnancy via X, May 2025)."
+
+portfolio: []
+
+meta:
+  total_owned_titles: 40
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox provides explicit DOB (1989-01-11), blood type (血液型 = A型), height (163 cm), measurements (86-57-86), cup (D), and full studio/career timeline. Note: infobox 出身地 = 東京都 but article body text says 神奈川県出身; Tokyo used as primary from infobox. Measurements dated to 2014年時点 per infobox footnote. Identity confirmed: kanji 丘咲エミリ, reading おかざき エミリ, born 1989, AV career 2011–2016 under MUTEKI/Idea Pocket/MOODYZ/kira☆kira — fully consistent with a ~40-title performer.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E4%B8%98%E5%92%B2%E3%82%A8%E3%83%9F%E3%83%AA'
+  - 'organizer3 local DB actress id=868'
+  portfolio_listed: 0

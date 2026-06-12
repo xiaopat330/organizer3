@@ -1,0 +1,35 @@
+profile:
+  name:
+    family_name: null
+    given_name: Soa
+    stage_name: 藤崎そあ
+    reading: ふじさき そあ
+    alternate_names:
+    - {name: Soa Fujisaki, note: "romanized full name used on some release credits"}
+  date_of_birth: null
+  birthplace: null
+  blood_type: null
+  height_cm: 161
+  measurements: {bust: 79, waist: 57, hip: 79}
+  cup: F
+  active_from: '2025-11-11'
+  active_to: null
+  retirement_announced: null
+  biography: "Soa (藤崎そあ) is a Japanese AV actress who debuted under S1 NO.1 STYLE in November 2025. Before her AV debut she had built a following as a gravure-style social media influencer, gaining notoriety when her provocative content went viral and led to her accounts being banned. Known for her distinctive black bob hair, slim athletic physique with visible abs, and described as a former sprinter-type university student. She began releasing solo titles under S1's SNOS series and later also appeared on the DAS (ダスッ！) label from 2026. Her debut title emphasized her background as a legendary 'influencer who got banned for going too far.'"
+  primary_studios:
+  - {name: S1 NO.1 STYLE, company: S1 NO.1 STYLE, from: '2025-11-11', to: null, role: Exclusive contract actress}
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 7
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: 12
+  coverage_note: "7 of 12 known releases owned. Active as of 2026-06. No Wikipedia article exists."
+  confidence: "MED — height/measurements/cup from javdatabase.com; DOB inferred as 2003 from age-22-at-debut (exact date unknown); no blood type or birthplace found; biography drawn from title copy and minnano-av filmography."
+  data_sources:
+  - https://javdatabase.com/idols/soa/
+  - https://www.minnano-av.com/actress55051.html
+  portfolio_listed: 0

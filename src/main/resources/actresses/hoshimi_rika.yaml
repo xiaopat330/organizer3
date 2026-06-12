@@ -1,0 +1,50 @@
+profile:
+  name:
+    family_name: Hoshimi
+    given_name: Rika
+    stage_name: 星美りか
+    reading: ほしみ りか
+    alternate_names: null
+  date_of_birth: "1990-09-20"
+  birthplace: Numazu, Shizuoka, Japan
+  blood_type: null
+  height_cm: 150
+  measurements:
+    bust: 83
+    waist: 59
+    hip: 80
+  cup: E
+  active_from: "2011-09-01"
+  active_to: "2016-12-09"
+  retirement_announced: null
+  biography: "Rika Hoshimi (星美りか) is a Japanese former AV actress and gravure idol born on September 20, 1990, in Numazu, Shizuoka. She began her career as a gravure model, debuting on video in May 2010 with the non-nude release Emanechio filmed in Bali, before switching to the adult video industry in September 2011 with her AV debut through MUTEKI. She became an exclusive actress for Idea Pocket from 2012 to 2014, then transferred to K.M. Produce (Million label) where she remained until her retirement in December 2016; she also appeared in mainstream films and on TV variety programs during her active years."
+  primary_studios:
+  - name: MUTEKI
+    company: MUTEKI
+    from: "2011-09-01"
+    to: "2011-09-01"
+    role: AV debut
+  - name: Idea Pocket
+    company: Idea Pocket
+    from: "2012-01-01"
+    to: "2014-04-19"
+    role: Exclusive actress
+  - name: Million
+    company: K.M. Produce
+    from: "2014-06-13"
+    to: "2016-12-09"
+    role: Exclusive actress
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 24
+  confidence: "HIGH — Japanese Wikipedia article exists (ja.wikipedia.org/wiki/星美りか); DOB, birthplace, and active years confirmed via English Wikipedia and Wikidata (Q7334000); measurements and cup confirmed via javdatabase.com. Blood type not found in any source."
+  data_sources:
+    - "https://ja.wikipedia.org/wiki/星美りか"
+    - "https://en.wikipedia.org/wiki/Rika_Hoshimi"
+    - "https://www.wikidata.org/wiki/Q7334000"
+    - "https://www.javdatabase.com/idols/rika-hoshimi/"
+  portfolio_listed: 0

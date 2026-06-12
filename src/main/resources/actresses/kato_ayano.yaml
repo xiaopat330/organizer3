@@ -1,0 +1,52 @@
+profile:
+  name:
+    family_name: Kato
+    given_name: Ayano
+    stage_name: 加藤あやの
+    reading: かとう あやの
+    alternate_names:
+    - name: Mizuho Yamashiro
+      note: 'former stage name (山城 みずほ, やましろ みずほ) — early career name, active circa 2011–2013'
+    - name: Azusa Kashiwagi
+      note: 'former stage name (柏木 あづさ, かしわぎ あづさ) — mid-career name, active circa 2013–2015'
+    - name: Misaki Wada
+      note: 'former stage name (和田 みさき, わだ みさき) — listed in Wikipedia infobox alternate names'
+    - name: Tomoko Yakumo
+      note: 'former stage name (八雲 友子, やくも ともこ) — listed in Wikipedia infobox alternate names'
+  date_of_birth: 1983-09-29
+  birthplace: Tokyo, Japan
+  blood_type: B
+  height_cm: 162
+  measurements:
+    bust: 90
+    waist: 58
+    hip: 93
+  cup: F
+  active_from: 2011-01-01
+  active_to: null
+  retirement_announced: null
+  biography: "Ayano Kato (加藤あやの) is a Japanese AV actress born September 29, 1983 in Tokyo. She debuted in the adult video industry in 2011, working across a broad range of labels throughout the decade under several stage names including Mizuho Yamashiro (山城みずほ), Azusa Kashiwagi (柏木あづさ), Misaki Wada (和田みさき), and Tomoko Yakumo (八雲友子). She eventually settled on the stage name Ayano Kato and became a Madonna exclusive actress, the label she remains affiliated with as of 2024. Specialising in the mature-woman (熟女) genre, she is active across Madonna and its affiliated labels."
+  primary_studios:
+  - name: Madonna
+    company: Madonna
+    from: 2011-01-01
+    to: null
+    role: Exclusive contract actress (current as of 2024)
+  awards: null
+  legacy: null
+
+portfolio: []
+
+meta:
+  total_owned_titles: 34
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: 'Profile only. Portfolio not yet researched.'
+  confidence: 'HIGH — Wikipedia infobox (data-mw template) provides explicit DOB (1983-09-29), blood type (血液型 field = B型), height (162 cm), measurements (B90/W58/H93), cup (F), birthplace (Tokyo), AV active period (2011–), and current exclusive (Madonna). Identity confirmed: Wikipedia article title 加藤あやの matches DB stage_name; Wikipedia categories include マドンナ女優 consistent with DB. Four alias names match DB entries (山城みずほ=Mizuho Yamashiro, 柏木あづさ=Azusa Kashiwagi) plus two additional aliases (和田みさき, 八雲友子) not in DB. Alias era dates (circa 2011–2015) are inferred from career order listed in Wikipedia TOC sections, not sourced from an explicit dated field — treat those notes as approximate.'
+  data_sources:
+  - 'https://ja.wikipedia.org/wiki/%E5%8A%A0%E8%97%A4%E3%81%82%E3%82%84%E3%81%AE'
+  - 'https://www.minnano-av.com/actress849798.html'
+  - 'organizer3 local DB actress id=293'
+  portfolio_listed: 0

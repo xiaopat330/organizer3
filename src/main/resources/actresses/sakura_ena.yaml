@@ -1,0 +1,40 @@
+profile:
+  name:
+    family_name: Sakura
+    given_name: Ena
+    stage_name: さくらえな
+    reading: さくら えな
+    alternate_names: []
+  date_of_birth: 1995-02-21
+  birthplace: Tokyo, Japan
+  blood_type: A
+  height_cm: 156
+  measurements:
+    bust: 80
+    waist: 53
+    hip: 81
+  cup: C
+  active_from: 2013-11-07
+  active_to: null
+  retirement_announced: null
+  biography: "Ena Sakura (さくらえな) is a Japanese AV actress born on February 21, 1995, in Tokyo. She made her AV debut in November 2013 as an exclusive contract actress for S1 NO.1 STYLE, with her debut title released on November 7, 2013. In June 2014, she announced on her official blog that she would be leaving her S1 exclusive contract, after which she appeared in works from numerous other studios. She is affiliated with the talent agency IZBASA. Her hobbies include going to the gym, and her special skills are sports in general."
+  primary_studios:
+  - name: S1 NO.1 STYLE
+    company: エスワン
+    from: 2013-11-07
+    to: 2014-06-30
+    role: Exclusive contract actress
+  awards: null
+  legacy: null
+portfolio: []
+meta:
+  total_owned_titles: 6
+  titles_with_japanese_title: null
+  titles_with_english_title: null
+  titles_with_release_date: null
+  total_known_releases: null
+  coverage_note: null
+  confidence: "HIGH — DOB, birthplace, blood type, measurements, height, debut date and S1 contract period all confirmed from Japanese Wikipedia infobox. Active_to not confirmed; S1 contract ended June 2014 per official blog post."
+  data_sources:
+  - https://ja.wikipedia.org/wiki/%E3%81%95%E3%81%8F%E3%82%89%E3%81%88%E3%81%AA
+  portfolio_listed: 0
