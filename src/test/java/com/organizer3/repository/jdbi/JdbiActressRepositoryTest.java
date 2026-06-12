@@ -66,6 +66,29 @@ class JdbiActressRepositoryTest {
         assertTrue(repo.findById(999L).isEmpty());
     }
 
+    @Test
+    void findByIdToleratesMalformedDateColumn() {
+        // A year-only string in active_from previously crashed the whole query via strict
+        // LocalDate.parse. The mapper must now degrade the bad value to null, not throw.
+        Actress saved = repo.save(actress("Malformed Date"));
+        connection_execute("UPDATE actresses SET active_from = '2024' WHERE id = " + saved.getId());
+
+        Optional<Actress> found = assertDoesNotThrow(() -> repo.findById(saved.getId()));
+        assertTrue(found.isPresent());
+        assertNull(found.get().getActiveFrom(), "malformed active_from should degrade to null");
+        assertEquals("Malformed Date", found.get().getCanonicalName());
+    }
+
+    @Test
+    void findByIdParsesValidDateColumn() {
+        Actress saved = repo.save(actress("Valid Date"));
+        connection_execute("UPDATE actresses SET active_from = '2024-03-15' WHERE id = " + saved.getId());
+
+        Optional<Actress> found = repo.findById(saved.getId());
+        assertTrue(found.isPresent());
+        assertEquals(LocalDate.of(2024, 3, 15), found.get().getActiveFrom());
+    }
+
     // --- findByCanonicalName ---
 
     @Test
