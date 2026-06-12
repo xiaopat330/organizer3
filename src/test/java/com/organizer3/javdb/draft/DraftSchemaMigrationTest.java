@@ -128,7 +128,7 @@ class DraftSchemaMigrationTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(67, schemaVersion(), "schema version must be 67 after upgrade");
+        assertEquals(68, schemaVersion(), "schema version must be 68 after upgrade");
     }
 
     @Test
@@ -156,7 +156,7 @@ class DraftSchemaMigrationTest {
         // Running again must be a no-op.
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(67, schemaVersion(), "schema version must remain 67 after redundant upgrade");
+        assertEquals(68, schemaVersion(), "schema version must remain 68 after redundant upgrade");
     }
 
     // ── v44 → v45 upgrade ─────────────────────────────────────────────────────
@@ -206,7 +206,7 @@ class DraftSchemaMigrationTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(67, schemaVersion(), "schema version must be 67 after v44→v67 upgrade");
+        assertEquals(68, schemaVersion(), "schema version must be 68 after v44→v67 upgrade");
     }
 
     @Test
@@ -253,7 +253,7 @@ class DraftSchemaMigrationTest {
     void freshInstallIsStampedAtCurrentVersion() {
         new SchemaInitializer(jdbi).initialize();
 
-        assertEquals(67, schemaVersion(),
+        assertEquals(68, schemaVersion(),
                 "fresh install must stamp version 67");
     }
 
@@ -287,7 +287,7 @@ class DraftSchemaMigrationTest {
 
         assertTrue(columnExists("draft_actresses", "link_to_draft_slug"),
                 "link_to_draft_slug must exist after v52 upgrade");
-        assertEquals(67, schemaVersion(), "schema version must be 67 after v51→v67 upgrade");
+        assertEquals(68, schemaVersion(), "schema version must be 68 after v51→v67 upgrade");
     }
 
     // ── v52 → v53 upgrade ─────────────────────────────────────────────────────
@@ -302,7 +302,7 @@ class DraftSchemaMigrationTest {
 
         assertTrue(columnExists("translation_queue", "priority"),
                 "priority must exist after v53 upgrade");
-        assertEquals(67, schemaVersion(), "schema version must be 67 after v52→v67 upgrade");
+        assertEquals(68, schemaVersion(), "schema version must be 68 after v52→v67 upgrade");
     }
 
     // ── unique index enforcement ───────────────────────────────────────────────

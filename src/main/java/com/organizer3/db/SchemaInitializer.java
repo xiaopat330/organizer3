@@ -824,12 +824,31 @@ public class SchemaInitializer {
                     CREATE INDEX IF NOT EXISTS idx_notes_entity_type
                         ON notes(entity_type)""");
 
+            // attribution_findings (v68): actress-level attribution audit aggregate findings.
+            h.execute("""
+                    CREATE TABLE IF NOT EXISTS attribution_findings (
+                        actress_id             INTEGER NOT NULL,
+                        finding_class          TEXT NOT NULL,
+                        metric                 REAL,
+                        sample_json            TEXT,
+                        first_seen_at          TEXT,
+                        last_seen_at           TEXT,
+                        status                 TEXT NOT NULL DEFAULT 'open',
+                        note                   TEXT,
+                        stage_name_at_suppress TEXT,
+                        slug_at_suppress       TEXT,
+                        UNIQUE(actress_id, finding_class)
+                    )""");
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_attribution_findings_status
+                        ON attribution_findings(status)""");
+
             // Only stamp version on fresh installs (user_version = 0).
             // On an existing DB the CREATE TABLE statements above are all no-ops, so we must
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 67");
+                h.execute("PRAGMA user_version = 68");
             }
         });
         log.info("Schema initialization complete");

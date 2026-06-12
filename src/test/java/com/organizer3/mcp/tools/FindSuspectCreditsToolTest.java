@@ -3,9 +3,11 @@ package com.organizer3.mcp.tools;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.javdb.enrichment.AttributionAuditService;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
 import com.organizer3.repository.jdbi.JdbiActressRepository;
+import com.organizer3.repository.jdbi.JdbiAttributionFindingsRepository;
 import com.organizer3.repository.jdbi.JdbiTitleActressRepository;
 import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
@@ -40,7 +42,9 @@ class FindSuspectCreditsToolTest {
         actressRepo = new JdbiActressRepository(jdbi);
         titleRepo = new JdbiTitleRepository(jdbi, new JdbiTitleLocationRepository(jdbi));
         titleActressRepo = new JdbiTitleActressRepository(jdbi);
-        tool = new FindSuspectCreditsTool(jdbi);
+        AttributionAuditService auditService = new AttributionAuditService(
+                jdbi, new JdbiAttributionFindingsRepository(jdbi), M);
+        tool = new FindSuspectCreditsTool(auditService);
     }
 
     @AfterEach

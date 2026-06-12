@@ -3,6 +3,8 @@ package com.organizer3.mcp.tools;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.javdb.enrichment.AttributionAuditService;
+import com.organizer3.repository.jdbi.JdbiAttributionFindingsRepository;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -26,7 +28,9 @@ class FindEnrichmentCastMismatchesToolTest {
         connection = DriverManager.getConnection("jdbc:sqlite::memory:");
         jdbi = Jdbi.create(connection);
         new SchemaInitializer(jdbi).initialize();
-        tool = new FindEnrichmentCastMismatchesTool(jdbi);
+        AttributionAuditService auditService = new AttributionAuditService(
+                jdbi, new JdbiAttributionFindingsRepository(jdbi), M);
+        tool = new FindEnrichmentCastMismatchesTool(auditService);
     }
 
     @AfterEach

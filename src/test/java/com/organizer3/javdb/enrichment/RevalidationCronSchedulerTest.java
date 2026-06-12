@@ -10,6 +10,8 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.*;
 
+// Note: RevalidationCronScheduler now takes AttributionAuditService as a third dependency.
+
 /**
  * Tests for RevalidationCronScheduler.tick() — the two-phase cron flow:
  * drain dirty queue, then run safety-net slice.
@@ -18,6 +20,7 @@ class RevalidationCronSchedulerTest {
 
     private RevalidationService revalidationService;
     private RevalidationPendingRepository pendingRepo;
+    private AttributionAuditService auditService;
     private RevalidationCronScheduler scheduler;
 
     private static final RevalidationService.RevalidationSummary EMPTY_SUMMARY =
@@ -27,10 +30,13 @@ class RevalidationCronSchedulerTest {
     void setUp() {
         revalidationService = mock(RevalidationService.class);
         pendingRepo = mock(RevalidationPendingRepository.class);
-        scheduler = new RevalidationCronScheduler(revalidationService, pendingRepo, 10, 50);
+        auditService = mock(AttributionAuditService.class);
+        scheduler = new RevalidationCronScheduler(revalidationService, pendingRepo, 10, 50,
+                auditService, 100);
 
         when(revalidationService.revalidateBatch(anyList())).thenReturn(EMPTY_SUMMARY);
         when(revalidationService.revalidateSafetyNetSlice(anyInt())).thenReturn(EMPTY_SUMMARY);
+        when(auditService.refreshFindings(anyInt())).thenReturn(0);
     }
 
     @Test
@@ -96,5 +102,27 @@ class RevalidationCronSchedulerTest {
         verify(pendingRepo, times(2)).drainBatch(10);
         verify(revalidationService, times(2)).revalidateBatch(any());
         verify(revalidationService).revalidateSafetyNetSlice(50);
+    }
+
+    @Test
+    void phase3AttributionAuditIsCalledOnEachTick() {
+        when(pendingRepo.drainBatch(10)).thenReturn(List.of());
+
+        scheduler.tick();
+
+        verify(auditService).refreshFindings(100);
+    }
+
+    @Test
+    void phase3AttributionAuditIsCalledEvenWhenDrainPhaseIsNotEmpty() {
+        RevalidationPendingRepository.Pending p =
+                new RevalidationPendingRepository.Pending(1L, "sync", "2026-01-01T00:00:00Z");
+        when(pendingRepo.drainBatch(10))
+                .thenReturn(List.of(p))
+                .thenReturn(List.of());
+
+        scheduler.tick();
+
+        verify(auditService).refreshFindings(100);
     }
 }

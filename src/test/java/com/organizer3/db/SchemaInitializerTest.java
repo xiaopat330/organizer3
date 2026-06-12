@@ -46,6 +46,7 @@ class SchemaInitializerTest {
         assertEquals(
                 List.of("actress_aliases", "actress_companies", "actresses",
                         "alias_capture_events",
+                        "attribution_findings",
                         "av_actresses", "av_screenshot_queue",
                         "av_tag_definitions", "av_video_screenshots", "av_video_tags", "av_videos",
                         "draft_actresses", "draft_title_actresses", "draft_title_javdb_enrichment", "draft_titles",
@@ -85,6 +86,7 @@ class SchemaInitializerTest {
                         "idx_actresses_name_nocase",
                         "idx_alias_capture_events_kind", "idx_alias_capture_events_ts",
                         "idx_asq_actress", "idx_asq_status_enqueued",
+                        "idx_attribution_findings_status",
                         "idx_av_actresses_iafd_id", "idx_av_actresses_volume",
                         "idx_av_video_screenshots_video",
                         "idx_av_video_tags_tag", "idx_av_video_tags_video",
@@ -98,7 +100,8 @@ class SchemaInitializerTest {
                         "idx_jeq_actress", "idx_jeq_claim", "idx_jeq_claim_priority", "idx_jeq_source",
                         "idx_label_tags_tag",
                         "idx_notes_entity_type",
-                        "idx_reconcile_reports_generated_at", "idx_reval_enqueued",
+                        "idx_reconcile_reports_generated_at",
+                        "idx_reval_enqueued",
                         "idx_snl_kanji", "idx_sns_kanji", "idx_sns_unreviewed",
                         "idx_tc_strategy", "idx_tet_tag",
                         "idx_title_actresses_actress", "idx_title_actresses_title",
@@ -181,7 +184,7 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(67, version);
+        assertEquals(68, version);
     }
 
     @Test

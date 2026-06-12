@@ -589,11 +589,18 @@ public class Application {
         com.organizer3.javdb.enrichment.RevalidationService revalidationService =
                 new com.organizer3.javdb.enrichment.RevalidationService(jdbi);
         com.organizer3.config.volume.EnrichmentConfig enrichmentConfig = config.enrichmentOrDefaults();
+        com.organizer3.repository.AttributionFindingsRepository attributionFindingsRepo =
+                new com.organizer3.repository.jdbi.JdbiAttributionFindingsRepository(jdbi);
+        com.organizer3.javdb.enrichment.AttributionAuditService attributionAuditService =
+                new com.organizer3.javdb.enrichment.AttributionAuditService(
+                        jdbi, attributionFindingsRepo, jsonMapper);
         com.organizer3.javdb.enrichment.RevalidationCronScheduler revalidationCronScheduler =
                 new com.organizer3.javdb.enrichment.RevalidationCronScheduler(
                         revalidationService, revalidationPendingRepo,
                         enrichmentConfig.revalidationCronOrDefaults().drainBatchSizeOrDefault(),
-                        enrichmentConfig.revalidationCronOrDefaults().safetyNetBatchSizeOrDefault());
+                        enrichmentConfig.revalidationCronOrDefaults().safetyNetBatchSizeOrDefault(),
+                        attributionAuditService,
+                        100);
         com.organizer3.javdb.enrichment.JavdbActressFilmographyRepository filmographyRepo =
                 new com.organizer3.javdb.enrichment.JdbiJavdbActressFilmographyRepository(jdbi, revalidationPendingRepo);
         com.organizer3.javdb.enrichment.FilmographyBackupWriter filmographyBackupWriter =
@@ -797,7 +804,8 @@ public class Application {
                         new com.organizer3.utilities.health.checks.DuplicateCodesCheck(jdbi),
                         new com.organizer3.utilities.health.checks.LowConfidenceEnrichmentCheck(jdbi),
                         new com.organizer3.utilities.health.checks.EnrichmentReviewQueueCheck(jdbi),
-                        new com.organizer3.utilities.health.checks.StaleFilmographyCacheCheck(jdbi));
+                        new com.organizer3.utilities.health.checks.StaleFilmographyCacheCheck(jdbi),
+                        new com.organizer3.utilities.health.checks.AttributionFindingsCheck(attributionFindingsRepo));
         com.organizer3.utilities.health.LibraryHealthReportStore healthReportStore =
                 new com.organizer3.utilities.health.LibraryHealthReportStore(
                         dataDir.resolve("library-health-report.json"));
@@ -1221,13 +1229,14 @@ public class Application {
                     .register(new com.organizer3.mcp.tools.FindLev1ActressPairsTool(actressRepo, jdbi))
                     .register(new com.organizer3.mcp.tools.FindSlugDuplicateActressesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindNameOrderVariantsTool(actressRepo))
-                    .register(new com.organizer3.mcp.tools.FindSuspectCreditsTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.FindSuspectCreditsTool(attributionAuditService))
                     .register(new com.organizer3.mcp.tools.FindAliasConflictsTool(actressRepo))
                     .register(new com.organizer3.mcp.tools.FindLoneTitlesTool(actressRepo))
                     .register(new com.organizer3.mcp.tools.FindOrphanTitlesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindDuplicateBaseCodesTool(jdbi))
                     .register(new com.organizer3.mcp.tools.FindLabelMismatchesTool(jdbi))
-                    .register(new com.organizer3.mcp.tools.FindEnrichmentCastMismatchesTool(jdbi))
+                    .register(new com.organizer3.mcp.tools.FindEnrichmentCastMismatchesTool(attributionAuditService))
+                    .register(new com.organizer3.mcp.tools.ListAttributionFindingsTool(attributionFindingsRepo))
                     .register(new com.organizer3.mcp.tools.BackfillActressSlugsFromCastTool(jdbi, enrichmentReviewQueueRepo))
                     .register(new com.organizer3.mcp.tools.FindStaleLocationsTool(jdbi))
                     .register(new com.organizer3.mcp.NoteToolHandlers.FindOrphanNotes(orphanNoteFinder))
