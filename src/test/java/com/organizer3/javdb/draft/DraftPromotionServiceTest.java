@@ -127,7 +127,8 @@ class DraftPromotionServiceTest {
                 titleRepo, historyRepo, effectiveTags, JSON, suggestionRepo,
                 javdbStagingRepo, actressRepo,   // FIX 1
                 "unsorted", renamer,             // Phase 2
-                coverWriteService);              // best-effort NAS cover write
+                coverWriteService,               // best-effort NAS cover write
+                null, null);                     // Item B: guard disabled in base tests
     }
 
     @AfterEach
@@ -1494,7 +1495,8 @@ class DraftPromotionServiceTest {
                 titleRepo, historyRepo, effectiveTags, JSON, suggestionRepo,
                 stagingSpy, actressRepo,
                 "unsorted", renamer,
-                coverWriteService);
+                coverWriteService,
+                null, null); // Item B: guard disabled in this test
 
         // Draft with a manual:1 slug (synthetic) and pick resolution linked to actress 10.
         DraftTitle dt = DraftTitle.builder()

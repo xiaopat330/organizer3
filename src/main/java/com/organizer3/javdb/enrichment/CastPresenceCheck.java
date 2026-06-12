@@ -104,6 +104,30 @@ public class CastPresenceCheck {
         return !isComp;
     }
 
+    /** Number of {@code gender == "F"} entries in the cast JSON (nfem). */
+    public int countFemales(String castJson) {
+        return countFemale(castJson);
+    }
+
+    /** The {@code name} field of every cast entry, in document order. */
+    public List<String> extractCastNames(String castJson) {
+        if (castJson == null || castJson.isBlank()) return List.of();
+        try {
+            JsonNode root = MAPPER.readTree(castJson);
+            if (!root.isArray()) return List.of();
+            List<String> names = new ArrayList<>();
+            for (JsonNode entry : root) {
+                JsonNode n = entry.get("name");
+                if (n != null && !n.isNull() && !n.asText().isBlank()) {
+                    names.add(n.asText());
+                }
+            }
+            return names;
+        } catch (JsonProcessingException e) {
+            return List.of();
+        }
+    }
+
     // ─── internals ───────────────────────────────────────────────────────────
 
     private record Names(String stageName, List<String> aliases, List<String> alternates) {}

@@ -55,7 +55,7 @@ public class EnrichmentReviewQueueRepository {
                         WHERE resolved_at IS NULL
                           AND (
                             (reason IN ('no_match', 'orphan_enriched') AND created_at < :cutoff72h)
-                            OR (reason NOT IN ('no_match', 'orphan_enriched') AND created_at < :cutoff7d)
+                            OR (reason NOT IN ('no_match', 'orphan_enriched', 'guard_cast_mismatch') AND created_at < :cutoff7d)
                           )
                         """)
                         .bind("now",       now.toString())

@@ -1154,17 +1154,21 @@ public class Application {
                         com.organizer3.javdb.draft.PromotionRenameReconcileScheduler.DEFAULT_BATCH_LIMIT);
         com.organizer3.javdb.draft.CastValidator castValidator =
                 new com.organizer3.javdb.draft.CastValidator();
+        com.organizer3.javdb.enrichment.CastPresenceCheck castPresenceCheck =
+                new com.organizer3.javdb.enrichment.CastPresenceCheck(jdbi);
         com.organizer3.javdb.draft.DraftPromotionService draftPromotionService =
                 new com.organizer3.javdb.draft.DraftPromotionService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
                         draftEnrichRepo, draftCoverStore, coverPath, castValidator,
                         titleRepo, enrichmentHistoryRepo, titleEffectiveTagsService, jsonMapper,
                         stageNameSuggestionRepo,
-                        javdbStagingRepo,    // FIX 1: learn slug→actress at promotion
-                        actressRepo,         // FIX 1: backfill actress.stage_name at promotion
-                        UNSORTED_VOLUME_ID,  // Phase 2: staging volume id for post-commit rename
-                        titleFolderRenamer,  // Phase 2: shared rename helper
-                        coverWriteService);  // best-effort NAS cover write at promotion
+                        javdbStagingRepo,         // FIX 1: learn slug→actress at promotion
+                        actressRepo,              // FIX 1: backfill actress.stage_name at promotion
+                        UNSORTED_VOLUME_ID,       // Phase 2: staging volume id for post-commit rename
+                        titleFolderRenamer,       // Phase 2: shared rename helper
+                        coverWriteService,        // best-effort NAS cover write at promotion
+                        castPresenceCheck,        // Item B: kanji-presence guard at promotion
+                        enrichmentReviewQueueRepo); // Item B: enqueue guard_cast_mismatch
         com.organizer3.javdb.draft.DraftPatchService draftPatchService =
                 new com.organizer3.javdb.draft.DraftPatchService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo);
