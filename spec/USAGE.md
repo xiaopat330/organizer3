@@ -277,6 +277,12 @@ Loads all actress YAML profiles found under `reference/actresses/`.
 
 ---
 
+### MCP: `recompute_age_at_release`
+
+Recomputes the denormalized `title_actresses.age_at_release` column (actress age in whole years on each title's release date) across the whole library, and returns the implausible-age triage list (ages outside `[18, 70]`, which usually signal a wrong slug binding or a code-reuse mis-enrichment). The recompute runs automatically on startup and after the data-changing operations that affect it (YAML loads, draft promotion, credit merges/reassignments/removals); this tool is the manual one-call resync for out-of-band database edits. `dry_run` (default false) reports what would change without writing. Powers the web UI's age-at-release browse filter (`GET /api/titles?ageMin=&ageMax=&castMode=solo|any|all`).
+
+---
+
 ## AV Stars Commands
 
 All AV commands begin with `av`. None require a mounted volume.
