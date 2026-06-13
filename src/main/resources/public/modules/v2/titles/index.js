@@ -61,6 +61,8 @@ function createState() {
     libraryCompany: null,
     librarySort: 'addedDate',
     libraryOrder: 'desc',
+    libraryAgeMin: 18,
+    libraryAgeMax: 50,
     // Browse (pool) filters
     poolVolumeId: null,
     poolSmbPath: null,
@@ -126,6 +128,8 @@ function buildUrl(state, offset, limit) {
     if (state.librarySort !== 'addedDate')      params.set('sort',             state.librarySort);
     if (state.libraryOrder !== 'desc')          params.set('order',            state.libraryOrder);
     if (state.notesFilter)                      params.set('notes',            state.notesFilter);
+    if (state.libraryAgeMin > 18)               params.set('ageMin',           state.libraryAgeMin);
+    if (state.libraryAgeMax < 50)               params.set('ageMax',           state.libraryAgeMax);
     return `/api/titles?${params}`;
   }
   return `/api/titles?offset=${offset}&limit=${limit}`;

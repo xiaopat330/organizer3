@@ -187,9 +187,11 @@ public class ActressRoutes {
                     : List.of();
             String sortBy  = ctx.queryParam("sortBy");
             String sortDir = ctx.queryParam("sortDir");
+            Integer ageMin = ctx.queryParamAsClass("ageMin", Integer.class).getOrDefault(null);
+            Integer ageMax = ctx.queryParamAsClass("ageMax", Integer.class).getOrDefault(null);
             offset = Math.max(offset, 0);
             limit  = Math.max(1, limit);
-            ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company, tags, enrichmentTagIds, sortBy, sortDir));
+            ctx.json(actressBrowseService.findTitlesByActress(id, offset, limit, company, tags, enrichmentTagIds, sortBy, sortDir, ageMin, ageMax));
         });
 
         app.get("/api/actresses/{id}/admin-titles", ctx -> {

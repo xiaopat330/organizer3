@@ -98,10 +98,26 @@ public interface TitleRepository {
     List<Title> findByActressPaged(long actressId, int limit, int offset, TitleSortSpec sort);
 
     /**
+     * Like {@link #findByActressPaged(long, int, int, TitleSortSpec)} but optionally restricts results
+     * to titles where THIS actress's credit has {@code age_at_release} within [{@code ageMin}, {@code ageMax}].
+     * Each bound is independently optional (pass null to leave that side open); both null = no age filter.
+     */
+    List<Title> findByActressPaged(long actressId, int limit, int offset, TitleSortSpec sort,
+                                   Integer ageMin, Integer ageMax);
+
+    /**
      * Find titles for an actress restricted to the given label codes (upper-case),
      * ordered by favorites/bookmarks first, then the user sort.
      */
     List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset, TitleSortSpec sort);
+
+    /**
+     * Like {@link #findByActressAndLabelsPaged} but optionally restricts results to titles where THIS
+     * actress's credit has {@code age_at_release} within [{@code ageMin}, {@code ageMax}]. Each bound is
+     * independently optional (null leaves that side open); both null = no age filter.
+     */
+    List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset, TitleSortSpec sort,
+                                            Integer ageMin, Integer ageMax);
 
     /** Find titles in random order (ignores offset — each call returns a fresh random sample). */
     List<Title> findRandom(int limit);
@@ -227,6 +243,15 @@ public interface TitleRepository {
      * Ordered by favorite → bookmark → newest first.
      */
     List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, List<Long> enrichmentTagIds, int limit, int offset, TitleSortSpec sort);
+
+    /**
+     * Like {@link #findByActressTagsFiltered(long, List, List, List, int, int, TitleSortSpec)} but optionally
+     * restricts results to titles where THIS actress's credit has {@code age_at_release} within
+     * [{@code ageMin}, {@code ageMax}]. Each bound is independently optional (null leaves that side open);
+     * both null = no age filter. The age predicate is an EXISTS subquery so it composes with the tag HAVING logic.
+     */
+    List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, List<Long> enrichmentTagIds, int limit, int offset, TitleSortSpec sort,
+                                          Integer ageMin, Integer ageMax);
 
     /**
      * Find titles on a volume, optionally restricted to label codes and/or requiring all tags.

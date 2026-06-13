@@ -14,6 +14,7 @@ import { openCustomAvatarEditor } from './custom-avatar-editor.js';
 import { renderTitleCard } from './cards/title-card.js';
 import { mountActressNotePanel } from './actress-detail-notes.js';
 import { mountTitlesPanel, mountProfilePanel } from './discovery/enrich-panels.js';
+import { ageRangeHtml, wireAgeRange, AGE_MIN, AGE_MAX } from './widgets/age-range.js';
 
 const PAGE_LIMIT = 24;
 const FILTER_DEBOUNCE_MS = 350;
@@ -28,6 +29,8 @@ let activeTags = new Set();
 let activeEnrichmentTagIds = new Set();
 let sortBy = 'release_date';
 let sortDir = 'desc';
+let catalogAgeMin = 18;
+let catalogAgeMax = 50;
 let actressTagsCache = null;
 let enrichmentTagsCache = null;
 let filterTimer = null;
@@ -671,6 +674,7 @@ function renderFilterBar(barEl, a) {
       <option value="">All companies</option>
       ${companies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
     </select>
+    ${ageRangeHtml(catalogAgeMin, catalogAgeMax, { idPrefix: 'ad-age' })}
     <select class="form-select ad-filter-select" id="ad-sort-select">
       <option value="release_date">Release date</option>
       <option value="code">Product number</option>
@@ -683,6 +687,14 @@ function renderFilterBar(barEl, a) {
   barEl.querySelector('#ad-company-select').addEventListener('change', e => {
     companyFilter = e.target.value || null;
     scheduleRefresh();
+  });
+  wireAgeRange(barEl, {
+    idPrefix: 'ad-age',
+    getLo: () => catalogAgeMin,
+    getHi: () => catalogAgeMax,
+    setLo: v => { catalogAgeMin = v; },
+    setHi: v => { catalogAgeMax = v; },
+    onChange: scheduleRefresh,
   });
   barEl.querySelector('#ad-sort-select').addEventListener('change', e => {
     sortBy = e.target.value;
@@ -788,6 +800,8 @@ function buildPortfolioUrl(offset) {
   if (activeTags.size > 0) url += `&tags=${encodeURIComponent([...activeTags].join(','))}`;
   if (activeEnrichmentTagIds.size > 0) url += `&enrichmentTagIds=${[...activeEnrichmentTagIds].join(',')}`;
   url += `&sortBy=${encodeURIComponent(sortBy)}&sortDir=${encodeURIComponent(sortDir)}`;
+  if (catalogAgeMin > AGE_MIN) url += '&ageMin=' + catalogAgeMin;
+  if (catalogAgeMax < AGE_MAX) url += '&ageMax=' + catalogAgeMax;
   return url;
 }
 
@@ -933,6 +947,8 @@ export async function mountActressDetail(rootEl, id) {
   activeEnrichmentTagIds = new Set();
   sortBy = 'release_date';
   sortDir = 'desc';
+  catalogAgeMin = 18;
+  catalogAgeMax = 50;
   actressTagsCache = null;
   enrichmentTagsCache = null;
 

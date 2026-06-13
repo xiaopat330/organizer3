@@ -380,6 +380,93 @@ class JdbiTitleRepositoryTest {
         assertEquals(paged.size(), filtered.size());
     }
 
+    // --- age-at-release filter ---
+
+    /** Insert (or update) this actress's per-credit age_at_release for a title. */
+    private void setCreditAge(long titleId, long actressId, Integer age) {
+        jdbi.useHandle(h -> {
+            int updated = h.createUpdate("UPDATE title_actresses SET age_at_release = :age " +
+                            "WHERE title_id = :tid AND actress_id = :aid")
+                    .bind("age", age).bind("tid", titleId).bind("aid", actressId).execute();
+            if (updated == 0) {
+                h.createUpdate("INSERT INTO title_actresses (title_id, actress_id, age_at_release) " +
+                                "VALUES (:tid, :aid, :age)")
+                        .bind("tid", titleId).bind("aid", actressId).bind("age", age).execute();
+            }
+        });
+    }
+
+    @Test
+    void findByActressPagedFiltersByAgeAtRelease() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        Title t19 = saveWithLocation(title("ABP-019", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-019");
+        Title t23 = saveWithLocation(title("ABP-023", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-023");
+        Title t28 = saveWithLocation(title("ABP-028", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-028");
+        setCreditAge(t19.getId(), aya.getId(), 19);
+        setCreditAge(t23.getId(), aya.getId(), 23);
+        setCreditAge(t28.getId(), aya.getId(), 28);
+
+        // ageMin=22, ageMax=30 → only the 23 and 28 titles
+        List<Title> bounded = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT, 22, 30);
+        assertEquals(2, bounded.size());
+        assertEquals(Set.of("ABP-023", "ABP-028"),
+                bounded.stream().map(Title::getCode).collect(java.util.stream.Collectors.toSet()));
+
+        // both null → all 3 (delegation unchanged)
+        List<Title> all = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT, null, null);
+        assertEquals(3, all.size());
+
+        // open-ended lower bound only
+        List<Title> minOnly = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT, 24, null);
+        assertEquals(Set.of("ABP-028"),
+                minOnly.stream().map(Title::getCode).collect(java.util.stream.Collectors.toSet()));
+
+        // open-ended upper bound only
+        List<Title> maxOnly = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT, null, 20);
+        assertEquals(Set.of("ABP-019"),
+                maxOnly.stream().map(Title::getCode).collect(java.util.stream.Collectors.toSet()));
+    }
+
+    @Test
+    void findByActressPagedAgeFilterExcludesNullAgeCredits() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        Title aged = saveWithLocation(title("ABP-100", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-100");
+        Title noAge = saveWithLocation(title("ABP-101", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-101");
+        setCreditAge(aged.getId(), aya.getId(), 25);
+        setCreditAge(noAge.getId(), aya.getId(), null); // explicit NULL age credit
+
+        List<Title> bounded = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT, 20, 30);
+        assertEquals(1, bounded.size());
+        assertEquals("ABP-100", bounded.get(0).getCode());
+    }
+
+    @Test
+    void findByActressTagsFilteredComposesWithAgeFilter() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        Title inRange  = saveWithLocation(title("ABP-200", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-200");
+        Title outRange = saveWithLocation(title("ABP-201", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-201");
+
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO enrichment_tag_definitions (id, name, title_count, surface) VALUES (10, 'big-tits', 2, 1)");
+            // both tagged with 10
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (" + inRange.getId() + ", 10)");
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (" + outRange.getId() + ", 10)");
+        });
+        setCreditAge(inRange.getId(), aya.getId(), 24);
+        setCreditAge(outRange.getId(), aya.getId(), 35);
+
+        // tag 10 + age in [20,30] → only the in-range title
+        List<Title> results = titleRepo.findByActressTagsFiltered(
+                aya.getId(), List.of(), List.of(), List.of(10L), 10, 0, TitleSortSpec.DEFAULT, 20, 30);
+        assertEquals(1, results.size());
+        assertEquals("ABP-200", results.get(0).getCode());
+
+        // without age bound → both
+        List<Title> unbounded = titleRepo.findByActressTagsFiltered(
+                aya.getId(), List.of(), List.of(), List.of(10L), 10, 0, TitleSortSpec.DEFAULT, null, null);
+        assertEquals(2, unbounded.size());
+    }
+
     // --- findByCodePrefixPaged ---
 
     @Test
