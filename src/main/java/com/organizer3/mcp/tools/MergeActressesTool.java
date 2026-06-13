@@ -397,6 +397,13 @@ public class MergeActressesTool implements Tool {
                 .bind("from", fromId).execute();
         log.info("ActressMerge step 6b: actress_companies cleared from from-row — deleted={}", companiesDeleted);
 
+        // 6c. Delete from's enrichment-queue jobs so they don't orphan (reference a
+        // now-deleted actress) and fail forever with no_slug.
+        int queueDeleted = h.createUpdate(
+                "DELETE FROM javdb_enrichment_queue WHERE actress_id = :from")
+                .bind("from", fromId).execute();
+        log.info("ActressMerge step 6c: javdb_enrichment_queue cleared from from-row — deleted={}", queueDeleted);
+
         // 7. Delete from's row
         h.createUpdate("DELETE FROM actresses WHERE id = :from")
                 .bind("from", fromId).execute();

@@ -336,6 +336,30 @@ class TrashTitleLocationToolTest {
         assertEquals(0, countWhere("title_actresses", "actress_id", aId));
     }
 
+    // ── 12b. Cascade also clears the orphan's enrichment-queue jobs ───────────
+
+    @Test
+    void trashOnlyLocation_orphansSingleActress_cascadeClearsEnrichmentQueue() {
+        long tid = titleRepo.save(title("ORF-002Q")).getId();
+        locationRepo.save(location(tid, "a", "/queue/ORF-002Q"));
+        Video v = videoRepo.save(video(tid, "orf002q.mkv", "/queue/ORF-002Q/video/orf002q.mkv"));
+        fs.file(v.getPath().toString());
+        fs.dir("/queue/ORF-002Q"); fs.dir("/queue/ORF-002Q/video");
+
+        long aId = seedActress("Queued Ghost");
+        seedQueueJob(aId);
+        linkActress(tid, aId);
+        assertEquals(1, countWhere("javdb_enrichment_queue", "actress_id", aId), "precondition: queue job seeded");
+
+        var r = (TrashTitleLocationTool.Result) tool.call(argsWithCascade("a", "/queue/ORF-002Q", false, true));
+        assertEquals("ok", r.status());
+        assertEquals(1, r.cascadedActresses());
+
+        assertEquals(0, countWhere("actresses", "id", aId), "actress deleted");
+        assertEquals(0, countWhere("javdb_enrichment_queue", "actress_id", aId),
+                "orphan's enrichment-queue jobs must be deleted, not left dangling");
+    }
+
     // ── 13. Other locations exist → no orphan ─────────────────────────────────
 
     @Test
@@ -660,6 +684,15 @@ class TrashTitleLocationToolTest {
         jdbi.useHandle(h -> h.createUpdate(
                 "INSERT INTO actress_companies (actress_id, company) VALUES (?, ?)")
                 .bind(0, actressId).bind(1, company).execute());
+    }
+
+    private void seedQueueJob(long actressId) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO javdb_enrichment_queue
+                    (job_type, target_id, actress_id, status, next_attempt_at, created_at, updated_at)
+                VALUES ('actress_profile', ?, ?, 'pending', '2026-01-01', '2026-01-01', '2026-01-01')
+                """)
+                .bind(0, actressId).bind(1, actressId).execute());
     }
 
     private void linkActress(long titleId, long actressId) {
