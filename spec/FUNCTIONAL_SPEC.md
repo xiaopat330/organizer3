@@ -194,6 +194,8 @@ An embedded Javalin web server runs on port 8080. The web UI is the primary brow
 - **Title detail** — plays video, grade, bookmark, notes, actress link, watch history
 - **Actress detail** — profile, title list, grade, tier, studio affiliations
 
+The title browse query (`GET /api/titles`) accepts an **age-at-release filter**: `ageMin` / `ageMax` (either bound optional, inclusive) plus `castMode` ∈ `solo` (default — only single-cast titles), `any` (some credited actress in range), `all` (every credit in range; unknown ages fail the title). It composes via AND with the code / company / tag / enrichment-tag filters and is backed by the denormalized `title_actresses.age_at_release` column (see §7). For solo titles the computed age is returned on each result as `ageAtRelease`. Requires the credited actress to have a `date_of_birth` and the title a release date (javdb enrichment date preferred, else `titles.release_date`).
+
 ### AV Stars Section
 
 - **Browse** — all AV actresses sorted by video count, with headshot thumbnails
@@ -269,7 +271,9 @@ title_locations     (id PK, title_id → titles, volume_id → volumes, partitio
                      path, last_seen_at, added_date; UNIQUE(title_id, volume_id, path))
 videos              (id PK, title_id → titles, volume_id, filename, path, last_seen_at,
                      duration_sec, width, height, video_codec, audio_codec, container, size_bytes)
-title_actresses     (title_id, actress_id; many-to-many; PK both)
+title_actresses     (title_id, actress_id; many-to-many; PK both;
+                     age_at_release — denormalized actress age in whole years on the
+                     title's release date, NULL when not computable)
 title_tags          (title_id, tag; PK both)
 title_effective_tags (title_id, tag, source∈{direct,label,enrichment}; PK title_id+tag)
 labels              (code PK, label_name, company, description, company_description,

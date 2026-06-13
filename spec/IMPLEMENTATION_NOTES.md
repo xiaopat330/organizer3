@@ -113,6 +113,7 @@ See `FUNCTIONAL_SPEC.md §7` for the schema overview. Full DDL is in `SchemaInit
 Key structural points:
 - A title is unique by `code`. Location data lives in `title_locations` (one title can have multiple physical locations = duplicate detection).
 - `title_effective_tags` is a denormalized union of `title_tags` (direct) and `label_tags` (inherited from the label). Maintained by `TitleTagService`.
+- `title_actresses.age_at_release` is a denormalized per-credit integer (actress age in whole years on the title's release date; NULL when not computable). Computed by `AgeAtReleaseRecomputer.recomputeAll()` — a single idempotent full re-derivation that also NULLs rows that lose a prerequisite, so it serves as both seed and self-healing repair. Re-run on app startup, after actress YAML loads, draft promotion, and the merge/reassign/remove credit tools; also exposed as the `recompute_age_at_release` MCP tool (which additionally reports ages outside `[18, 70]` as a misattribution triage list). Age math uses birthday-aware integer-date subtraction; release date prefers `title_javdb_enrichment.release_date`, falling back to `titles.release_date`.
 - `av_actresses` identity is `(volume_id, folder_name)`. Stage name defaults to folder name when not set.
 - `av_videos` identity is `(av_actress_id, relative_path)`.
 
@@ -258,7 +259,7 @@ Javalin 6, port 8080. Started before the shell loop; stopped after.
 ### Route categories
 
 - **Static assets** — JS modules, CSS, fonts served from `src/main/resources/public/`
-- **JAV browse API** — `/api/actresses/*`, `/api/titles/*`, `/api/labels/*`, `/api/search`, `/api/favorites/*`, `/api/bookmarks/*`, `/api/grades/*`, `/api/notes/*`, `/api/watch/*`
+- **JAV browse API** — `/api/actresses/*`, `/api/titles/*`, `/api/labels/*`, `/api/search`, `/api/favorites/*`, `/api/bookmarks/*`, `/api/grades/*`, `/api/notes/*`, `/api/watch/*`. `GET /api/titles` is the combined library-browse query; alongside code/company/tag/notes filters it accepts `ageMin`/`ageMax` + `castMode` (`solo`|`any`|`all`) for the actress age-at-release filter (see `FUNCTIONAL_SPEC.md §5`). Invalid age params (negative, `min > max`, unknown `castMode`) return 400.
 - **Cover / thumbnail serving** — `/covers/*`, `/thumbnails/*`, `/api/thumbnail/*`
 - **Video streaming** — `/api/video/*` (range-request aware; streams from SMB)
 - **AV browse API** — `/api/av/*` (actresses, videos, tags, curation, watch state)
