@@ -11,6 +11,7 @@ import { mountAdmin, unmountAdmin } from './actress-detail-admin/index.js';
 import { confirmDiscardIfStaged } from './actress-detail-admin/nav-guard.js';
 import { displayPath, installPathClickToCopy } from './path-utils.js';
 import { mountActressNotePanel } from './actress-detail/notes-panel.js';
+import { ageRangeHtml, wireAgeRange } from './v2/widgets/age-range.js';
 
 // ── State ─────────────────────────────────────────────────────────────────
 export let detailActressId    = null;
@@ -19,6 +20,8 @@ let detailActiveTags           = new Set();
 let detailActiveEnrichmentTagIds = new Set();
 let detailSortBy               = 'release_date';
 let detailSortDir              = 'desc';
+let detailAgeMin               = 18;
+let detailAgeMax               = 50;
 let detailFilterTimer          = null;
 let detailActressTags          = null;   // lazy-loaded curated tag list for current actress
 let detailEnrichmentTags       = null;   // lazy-loaded enrichment tag list for current actress
@@ -51,6 +54,8 @@ export const actressDetailGrid = new ScrollingGrid(
     if (detailActiveTags.size > 0) url += `&tags=${encodeURIComponent([...detailActiveTags].join(','))}`;
     if (detailActiveEnrichmentTagIds.size > 0) url += `&enrichmentTagIds=${[...detailActiveEnrichmentTagIds].join(',')}`;
     url += `&sortBy=${encodeURIComponent(detailSortBy)}&sortDir=${encodeURIComponent(detailSortDir)}`;
+    if (detailAgeMin > 18) url += `&ageMin=${detailAgeMin}`;
+    if (detailAgeMax < 50) url += `&ageMax=${detailAgeMax}`;
     return url;
   },
   makeTitleCard,
@@ -84,6 +89,8 @@ export async function openActressDetail(actressId) {
   detailActiveEnrichmentTagIds = new Set();
   detailSortBy                 = 'release_date';
   detailSortDir                = 'desc';
+  detailAgeMin                 = 18;
+  detailAgeMax                 = 50;
   detailActressTags            = null;
   detailEnrichmentTags         = null;
   detailEnrichSubtab           = 'titles';
@@ -837,11 +844,21 @@ function renderDetailFilterBar(a) {
     Tags<span class="detail-tags-count" id="detail-tags-count" style="display:none"></span>
   </button>`;
 
-  bar.innerHTML = selectHtml + sortHtml + tagsHtml;
+  // Age-range slider (mirrors v2)
+  const ageHtml = ageRangeHtml(detailAgeMin, detailAgeMax, { idPrefix: 'detail-age' });
+
+  bar.innerHTML = selectHtml + ageHtml + sortHtml + tagsHtml;
 
   document.getElementById('detail-company-select').addEventListener('change', e => {
     detailCompanyFilter = e.target.value || null;
     scheduleFilteredQuery();
+  });
+
+  wireAgeRange(document, {
+    idPrefix: 'detail-age',
+    getLo: () => detailAgeMin, getHi: () => detailAgeMax,
+    setLo: v => { detailAgeMin = v; }, setHi: v => { detailAgeMax = v; },
+    onChange: scheduleFilteredQuery,
   });
 
   document.getElementById('detail-sort-select').addEventListener('change', e => {
