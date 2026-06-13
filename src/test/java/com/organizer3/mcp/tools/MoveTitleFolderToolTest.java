@@ -3,7 +3,11 @@ package com.organizer3.mcp.tools;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.config.volume.LibraryConfig;
+import com.organizer3.config.volume.OrganizerConfig;
+import com.organizer3.config.volume.PartitionDef;
+import com.organizer3.config.volume.StructuredPartitionDef;
 import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.curation.CurationLog;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.filesystem.FileTimestamps;
@@ -58,6 +62,35 @@ class MoveTitleFolderToolTest {
     // LibraryConfig: star=2, minor=5, popular=20, superstar=50, goddess=100
     private static final LibraryConfig LIBRARY_CFG = new LibraryConfig(2, 5, 20, 50, 100);
 
+    /** Minimal OrganizerConfig providing the conventional structure (tiered stars). */
+    private static final OrganizerConfig ORGANIZER_CFG;
+    static {
+        VolumeStructureDef conventional = new VolumeStructureDef(
+                "conventional",
+                List.of(
+                        new PartitionDef("queue",     "queue"),
+                        new PartitionDef("attention", "attention"),
+                        new PartitionDef("archive",   "archive")
+                ),
+                new StructuredPartitionDef("stars", List.of(
+                        new PartitionDef("library",   "library"),
+                        new PartitionDef("minor",     "minor"),
+                        new PartitionDef("popular",   "popular"),
+                        new PartitionDef("superstar", "superstar"),
+                        new PartitionDef("goddess",   "goddess")
+                ))
+        );
+        ORGANIZER_CFG = new OrganizerConfig(
+                "test", "/tmp",
+                100, 10, 10, 10, 4, 0,
+                List.of(),
+                List.of(new VolumeConfig("s", "//host/s", "conventional", "host", null)),
+                List.of(conventional),
+                List.of(),
+                null
+        );
+    }
+
     @BeforeEach
     void setUp() throws Exception {
         connection  = DriverManager.getConnection("jdbc:sqlite::memory:");
@@ -77,7 +110,7 @@ class MoveTitleFolderToolTest {
         session     = new SessionContext();
         session.setMountedVolume(new VolumeConfig("s", "//host/s", "conventional", "host", null));
         session.setActiveConnection(new FakeConnection(fs));
-        tool = new MoveTitleFolderTool(session, titleRepo, locationRepo, actressRepo, LIBRARY_CFG, curationLog);
+        tool = new MoveTitleFolderTool(session, titleRepo, locationRepo, actressRepo, LIBRARY_CFG, curationLog, ORGANIZER_CFG);
     }
 
     @AfterEach
@@ -124,7 +157,7 @@ class MoveTitleFolderToolTest {
 
         String newPartition = jdbi.withHandle(h ->
                 h.createQuery("SELECT partition_id FROM title_locations LIMIT 1").mapTo(String.class).one());
-        assertEquals("minor", newPartition);
+        assertEquals("stars/minor", newPartition);
     }
 
     // ── toAbsolutePath ────────────────────────────────────────────────────────

@@ -1,12 +1,16 @@
 package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.organizer3.config.volume.OrganizerConfig;
+import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
 import com.organizer3.sync.FolderRegistrar;
+import com.organizer3.sync.PartitionResolver;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -29,10 +33,13 @@ public class RegisterFolderTool implements Tool {
 
     private final SessionContext session;
     private final FolderRegistrar registrar;
+    private final OrganizerConfig organizerConfig;
 
-    public RegisterFolderTool(SessionContext session, FolderRegistrar registrar) {
-        this.session   = session;
-        this.registrar = registrar;
+    public RegisterFolderTool(SessionContext session, FolderRegistrar registrar,
+                               OrganizerConfig organizerConfig) {
+        this.session         = session;
+        this.registrar       = registrar;
+        this.organizerConfig = organizerConfig;
     }
 
     @Override public String name() { return "register_folder"; }
@@ -118,17 +125,16 @@ public class RegisterFolderTool implements Tool {
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Derives a partition_id from the folder's parent path.
-     * Mirrors the logic in {@link MoveTitleFolderTool#derivePartitionId}.
+     * Resolves the partition_id for {@code parent} using the mounted volume's structure
+     * definition so the result matches what the sync scanner would assign.
      */
     private String derivePartitionId(Path parent) {
-        if (parent.getNameCount() >= 2) {
-            String top = parent.getName(0).toString();
-            if ("stars".equals(top)) {
-                return parent.getName(1).toString(); // tier
-            }
+        VolumeConfig mountedVolume = session.getMountedVolume();
+        VolumeStructureDef structure = null;
+        if (mountedVolume != null && organizerConfig != null) {
+            structure = organizerConfig.findStructureById(mountedVolume.structureType()).orElse(null);
         }
-        return parent.getName(0).toString();
+        return PartitionResolver.resolvePartitionId(structure, parent);
     }
 
     private Map<String, Object> buildPlanResponse(FolderRegistrar.RegistrationPlan plan, boolean dryRun) {

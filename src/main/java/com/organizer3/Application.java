@@ -1359,9 +1359,9 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.ReconcilePromotionRenamesTool(promotionRenameReconciler));
                 mcpTools.register(new com.organizer3.mcp.tools.RenameFolderSubstringTool(session, titleLocationRepo, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.RenameActressFolderTool(session, actressRepo, jdbi, curationLog));
-                mcpTools.register(new com.organizer3.mcp.tools.MoveTitleFolderTool(session, titleRepo, titleLocationRepo, actressRepo, config.libraryOrDefaults(), curationLog));
-                mcpTools.register(new com.organizer3.mcp.tools.RegisterFolderTool(session, folderRegistrar));
-                mcpTools.register(new com.organizer3.mcp.tools.MoveVideoFileTool(session, titleRepo, titleLocationRepo, jdbi, curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.MoveTitleFolderTool(session, titleRepo, titleLocationRepo, actressRepo, config.libraryOrDefaults(), curationLog, config));
+                mcpTools.register(new com.organizer3.mcp.tools.RegisterFolderTool(session, folderRegistrar, config));
+                mcpTools.register(new com.organizer3.mcp.tools.MoveVideoFileTool(session, titleRepo, titleLocationRepo, jdbi, curationLog, config));
                 log.info("MCP file-op tools enabled");
             }
             com.organizer3.mcp.McpServer mcpServer = new com.organizer3.mcp.McpServer(

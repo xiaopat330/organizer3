@@ -2,6 +2,9 @@ package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.organizer3.config.volume.LibraryConfig;
+import com.organizer3.config.volume.OrganizerConfig;
+import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.curation.CurationLog;
 import com.organizer3.curation.CurationLogRecord;
 import com.organizer3.filesystem.VolumeFileSystem;
@@ -15,6 +18,7 @@ import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
+import com.organizer3.sync.PartitionResolver;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -51,19 +55,22 @@ public class MoveTitleFolderTool implements Tool {
     private final ActressRepository actressRepo;
     private final LibraryConfig libraryConfig;
     private final CurationLog curationLog;
+    private final OrganizerConfig organizerConfig;
 
     public MoveTitleFolderTool(SessionContext session,
                                 TitleRepository titleRepo,
                                 TitleLocationRepository locationRepo,
                                 ActressRepository actressRepo,
                                 LibraryConfig libraryConfig,
-                                CurationLog curationLog) {
-        this.session      = session;
-        this.titleRepo    = titleRepo;
-        this.locationRepo = locationRepo;
-        this.actressRepo  = actressRepo;
+                                CurationLog curationLog,
+                                OrganizerConfig organizerConfig) {
+        this.session       = session;
+        this.titleRepo     = titleRepo;
+        this.locationRepo  = locationRepo;
+        this.actressRepo   = actressRepo;
         this.libraryConfig = libraryConfig;
-        this.curationLog  = curationLog;
+        this.curationLog   = curationLog;
+        this.organizerConfig = organizerConfig;
     }
 
     @Override public String name() { return "move_title_folder"; }
@@ -248,18 +255,16 @@ public class MoveTitleFolderTool implements Tool {
     // ── helpers ──────────────────────────────────────────────────────────────
 
     /**
-     * Derives a partition_id from the destination parent path.
-     * For {@code /stars/<tier>/...} paths, the partition is the tier name.
-     * For other paths (queue, attention, etc.), use the top-level folder name.
+     * Resolves the partition_id for {@code destParent} using the mounted volume's structure
+     * definition so the result matches what the sync scanner would assign.
      */
     private String derivePartitionId(Path destParent) {
-        if (destParent.getNameCount() >= 2) {
-            String top = destParent.getName(0).toString();
-            if ("stars".equals(top)) {
-                return destParent.getName(1).toString(); // tier
-            }
+        VolumeConfig mountedVolume = session.getMountedVolume();
+        VolumeStructureDef structure = null;
+        if (mountedVolume != null && organizerConfig != null) {
+            structure = organizerConfig.findStructureById(mountedVolume.structureType()).orElse(null);
         }
-        return destParent.getName(0).toString();
+        return PartitionResolver.resolvePartitionId(structure, destParent);
     }
 
     private Map<String, Object> buildInputs(String titleCode, long toActressId,

@@ -2,6 +2,9 @@ package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.organizer3.config.volume.MediaConfig;
+import com.organizer3.config.volume.OrganizerConfig;
+import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.curation.CurationLog;
 import com.organizer3.curation.CurationLogRecord;
 import com.organizer3.filesystem.VolumeFileSystem;
@@ -12,6 +15,7 @@ import com.organizer3.repository.TitleLocationRepository;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.smb.VolumeConnection;
+import com.organizer3.sync.PartitionResolver;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
@@ -50,17 +54,20 @@ public class MoveVideoFileTool implements Tool {
     private final TitleLocationRepository locationRepo;
     private final Jdbi jdbi;
     private final CurationLog curationLog;
+    private final OrganizerConfig organizerConfig;
 
     public MoveVideoFileTool(SessionContext session,
                              TitleRepository titleRepo,
                              TitleLocationRepository locationRepo,
                              Jdbi jdbi,
-                             CurationLog curationLog) {
-        this.session     = session;
-        this.titleRepo   = titleRepo;
-        this.locationRepo = locationRepo;
-        this.jdbi        = jdbi;
-        this.curationLog = curationLog;
+                             CurationLog curationLog,
+                             OrganizerConfig organizerConfig) {
+        this.session         = session;
+        this.titleRepo       = titleRepo;
+        this.locationRepo    = locationRepo;
+        this.jdbi            = jdbi;
+        this.curationLog     = curationLog;
+        this.organizerConfig = organizerConfig;
     }
 
     @Override public String name() { return "move_video_file"; }
@@ -395,21 +402,16 @@ public class MoveVideoFileTool implements Tool {
     }
 
     /**
-     * Derives a partition_id from the destination parent path.
-     * For {@code /stars/<tier>/...} paths, the partition is the tier name.
-     * For other paths, uses the top-level folder name.
+     * Resolves the partition_id for {@code destParent} using the mounted volume's structure
+     * definition so the result matches what the sync scanner would assign.
      */
-    static String derivePartitionId(java.nio.file.Path destParent) {
-        if (destParent.getNameCount() >= 2) {
-            String top = destParent.getName(0).toString();
-            if ("stars".equals(top)) {
-                return destParent.getName(1).toString();
-            }
+    private String derivePartitionId(java.nio.file.Path destParent) {
+        VolumeConfig mountedVolume = session.getMountedVolume();
+        VolumeStructureDef structure = null;
+        if (mountedVolume != null && organizerConfig != null) {
+            structure = organizerConfig.findStructureById(mountedVolume.structureType()).orElse(null);
         }
-        if (destParent.getNameCount() >= 1) {
-            return destParent.getName(0).toString();
-        }
-        return "unknown";
+        return PartitionResolver.resolvePartitionId(structure, destParent);
     }
 
     // ── Common helpers ──────────────────────────────────────────────────────────
