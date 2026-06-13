@@ -3,6 +3,7 @@ package com.organizer3.mcp.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.organizer3.curation.CurationLog;
 import com.organizer3.curation.CurationLogRecord;
+import com.organizer3.db.AgeAtReleaseRecomputer;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.model.Actress;
@@ -53,11 +54,14 @@ public class MergeActressesTool implements Tool {
     private final Jdbi jdbi;
     private final ActressRepository actressRepo;
     private final CurationLog curationLog;
+    private final AgeAtReleaseRecomputer ageRecomputer;
 
-    public MergeActressesTool(Jdbi jdbi, ActressRepository actressRepo, CurationLog curationLog) {
+    public MergeActressesTool(Jdbi jdbi, ActressRepository actressRepo, CurationLog curationLog,
+                              AgeAtReleaseRecomputer ageRecomputer) {
         this.jdbi = jdbi;
         this.actressRepo = actressRepo;
         this.curationLog = curationLog;
+        this.ageRecomputer = ageRecomputer;
     }
 
     @Override public String name()        { return "merge_actresses"; }
@@ -95,6 +99,11 @@ public class MergeActressesTool implements Tool {
                 dryRun ? null : Map.of("summary", result.plan().summary()),
                 status, List.of());
         curationLog.append("unknown", rec);
+        if (!dryRun) {
+            int changed = ageRecomputer.recomputeAll();
+            log.info("merge_actresses age_at_release recompute: {} rows changed (into={} from={})",
+                    changed, intoId, fromId);
+        }
         return result;
     }
 

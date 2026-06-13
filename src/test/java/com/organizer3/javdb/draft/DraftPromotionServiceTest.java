@@ -128,7 +128,8 @@ class DraftPromotionServiceTest {
                 javdbStagingRepo, actressRepo,   // FIX 1
                 "unsorted", renamer,             // Phase 2
                 coverWriteService,               // best-effort NAS cover write
-                null, null);                     // Item B: guard disabled in base tests
+                null, null,                      // Item B: guard disabled in base tests
+                null);                           // Task 2b: ageRecomputer not under test here
     }
 
     @AfterEach
@@ -1496,7 +1497,8 @@ class DraftPromotionServiceTest {
                 stagingSpy, actressRepo,
                 "unsorted", renamer,
                 coverWriteService,
-                null, null); // Item B: guard disabled in this test
+                null, null,  // Item B: guard disabled in this test
+                null);       // Task 2b: ageRecomputer not under test here
 
         // Draft with a manual:1 slug (synthetic) and pick resolution linked to actress 10.
         DraftTitle dt = DraftTitle.builder()

@@ -3,6 +3,7 @@ package com.organizer3.mcp.tools;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.curation.CurationLog;
+import com.organizer3.db.AgeAtReleaseRecomputer;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class RemoveTitleCreditToolTest {
 
@@ -36,6 +39,7 @@ class RemoveTitleCreditToolTest {
     private JdbiTitleRepository titleRepo;
     private JdbiActressRepository actressRepo;
     private JdbiTitleActressRepository titleActressRepo;
+    private AgeAtReleaseRecomputer mockRecomputer;
     private RemoveTitleCreditTool tool;
 
     @BeforeEach
@@ -49,7 +53,9 @@ class RemoveTitleCreditToolTest {
         actressRepo = new JdbiActressRepository(jdbi);
         titleActressRepo = new JdbiTitleActressRepository(jdbi);
         CurationLog curationLog = new CurationLog(tempDir);
-        tool = new RemoveTitleCreditTool(titleRepo, actressRepo, titleActressRepo, jdbi, curationLog);
+        mockRecomputer = Mockito.mock(AgeAtReleaseRecomputer.class);
+        when(mockRecomputer.recomputeAll()).thenReturn(0);
+        tool = new RemoveTitleCreditTool(titleRepo, actressRepo, titleActressRepo, jdbi, curationLog, mockRecomputer);
     }
 
     @AfterEach
@@ -225,6 +231,58 @@ class RemoveTitleCreditToolTest {
         ObjectNode noActress = M.createObjectNode();
         noActress.put("title_id", 1);
         assertThrows(IllegalArgumentException.class, () -> tool.call(noActress));
+    }
+
+    // ── age_at_release recompute trigger tests ────────────────────────────────
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void recomputeCalledExactlyOnceOnLivePath() {
+        long kotomi = saveActress("Kotomi Nagisa");
+        long ria = saveActress("Ria Horisaki");
+        long titleId = saveTitle("SOE-793", kotomi);
+        titleActressRepo.linkAll(titleId, List.of(kotomi, ria));
+
+        tool.call(liveArgsById(titleId, ria));
+
+        verify(mockRecomputer, times(1)).recomputeAll();
+    }
+
+    @Test
+    void recomputeNotCalledOnDryRun() {
+        long kotomi = saveActress("Kotomi Nagisa");
+        long ria = saveActress("Ria Horisaki");
+        long titleId = saveTitle("SOE-793", kotomi);
+        titleActressRepo.linkAll(titleId, List.of(kotomi, ria));
+
+        ObjectNode a = M.createObjectNode();
+        a.put("title_id", titleId);
+        a.put("actress_id", ria);
+        // dry_run defaults to true
+        tool.call(a);
+
+        verify(mockRecomputer, never()).recomputeAll();
+    }
+
+    @Test
+    void recomputeNotCalledOnRefused() {
+        long ria = saveActress("Ria Horisaki");
+        long titleId = saveTitle("SOE-793", ria);
+        titleActressRepo.linkAll(titleId, List.of(ria));
+
+        // no force — will be refused (would leave no credits)
+        tool.call(liveArgsById(titleId, ria));
+
+        verify(mockRecomputer, never()).recomputeAll();
+    }
+
+    @Test
+    void recomputeNotCalledOnNotFound() {
+        long ria = saveActress("Ria Horisaki");
+        // title doesn't exist
+        tool.call(liveArgsById(9999L, ria));
+
+        verify(mockRecomputer, never()).recomputeAll();
     }
 
     // ── fixtures ─────────────────────────────────────────────────────────────────

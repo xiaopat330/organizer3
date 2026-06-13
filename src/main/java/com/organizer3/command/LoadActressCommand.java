@@ -1,9 +1,10 @@
 package com.organizer3.command;
 
+import com.organizer3.db.AgeAtReleaseRecomputer;
 import com.organizer3.enrichment.ActressYamlLoader;
 import com.organizer3.shell.SessionContext;
 import com.organizer3.shell.io.CommandIO;
-import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.util.List;
@@ -22,10 +23,16 @@ import java.util.List;
  * <p>All enrichment fields are overwritten unconditionally. Operational fields
  * (tier, favorite, bookmark, grade, rejected) are never modified.
  */
-@RequiredArgsConstructor
+@Slf4j
 public class LoadActressCommand implements Command {
 
     private final ActressYamlLoader loader;
+    private final AgeAtReleaseRecomputer ageRecomputer;
+
+    public LoadActressCommand(ActressYamlLoader loader, AgeAtReleaseRecomputer ageRecomputer) {
+        this.loader = loader;
+        this.ageRecomputer = ageRecomputer;
+    }
 
     @Override
     public String name() {
@@ -77,6 +84,8 @@ public class LoadActressCommand implements Command {
         try {
             ActressYamlLoader.LoadResult result = loader.loadOne(slug, strict);
             printResult(result, io);
+            int changed = ageRecomputer.recomputeAll();
+            log.info("loadOne age_at_release recompute: {} rows changed", changed);
         } catch (IllegalArgumentException e) {
             io.println("Not found: " + e.getMessage());
         } catch (IOException e) {
@@ -100,6 +109,8 @@ public class LoadActressCommand implements Command {
                         .filter(ActressYamlLoader.LoadResult::created)
                         .forEach(r -> io.println("  [NEW] " + r.canonicalName() + " (id=" + r.actressId() + ")"));
             }
+            int changed = ageRecomputer.recomputeAll();
+            log.info("loadAll age_at_release recompute: {} rows changed", changed);
         } catch (IOException e) {
             io.println("Error loading actresses: " + e.getMessage());
         }

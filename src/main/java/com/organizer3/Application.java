@@ -172,6 +172,10 @@ public class Application {
         Jdbi jdbi = Jdbi.create(sqliteDataSource);
         new SchemaUpgrader(jdbi).upgrade();
         new SchemaInitializer(jdbi).initialize();
+        com.organizer3.db.AgeAtReleaseRecomputer ageAtReleaseRecomputer =
+                new com.organizer3.db.AgeAtReleaseRecomputer(jdbi);
+        int startupAgeChanged = ageAtReleaseRecomputer.recomputeAll();
+        log.info("startup age_at_release recompute: {} rows changed", startupAgeChanged);
         new TagSeeder(jdbi).seedIfEmpty();
         TitleEffectiveTagsService titleEffectiveTagsService = new TitleEffectiveTagsService(jdbi);
         ActressCompaniesService   actressCompaniesService   = new ActressCompaniesService(jdbi);
@@ -356,7 +360,7 @@ public class Application {
         ActressYamlLoader yamlLoader = new ActressYamlLoader(actressRepo, titleRepo, tagRepo, jdbi,
                 new com.organizer3.javdb.enrichment.CastPresenceCheck(jdbi));
         new com.organizer3.translation.StageNameSeeder(yamlLoader, stageNameLookupRepo).seed();
-        commands.add(new LoadActressCommand(yamlLoader));
+        commands.add(new LoadActressCommand(yamlLoader, ageAtReleaseRecomputer));
         commands.add(new CheckNamesCommand(actressRepo, new ActressNameCheckService()));
         ActressMergeService actressMergeService = new ActressMergeService(jdbi, titleLocationRepo, actressRepo);
         commands.add(new MergeActressCommand(actressRepo, actressMergeService));
@@ -771,7 +775,7 @@ public class Application {
         com.organizer3.utilities.task.actress.LoadActressTask loadActressTask =
                 new com.organizer3.utilities.task.actress.LoadActressTask(yamlLoader);
         com.organizer3.utilities.task.actress.LoadAllActressesTask loadAllActressesTask =
-                new com.organizer3.utilities.task.actress.LoadAllActressesTask(yamlLoader);
+                new com.organizer3.utilities.task.actress.LoadAllActressesTask(yamlLoader, ageAtReleaseRecomputer);
         com.organizer3.utilities.task.actress.SyncYamlGradesTask syncYamlGradesTask =
                 new com.organizer3.utilities.task.actress.SyncYamlGradesTask(yamlLoader);
 
@@ -1176,7 +1180,8 @@ public class Application {
                         titleFolderRenamer,       // Phase 2: shared rename helper
                         coverWriteService,        // best-effort NAS cover write at promotion
                         castPresenceCheck,        // Item B: kanji-presence guard at promotion
-                        enrichmentReviewQueueRepo); // Item B: enqueue guard_cast_mismatch
+                        enrichmentReviewQueueRepo, // Item B: enqueue guard_cast_mismatch
+                        ageAtReleaseRecomputer);  // Task 2b: recompute age_at_release post-promotion
         com.organizer3.javdb.draft.DraftPatchService draftPatchService =
                 new com.organizer3.javdb.draft.DraftPatchService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo);
@@ -1295,11 +1300,12 @@ public class Application {
                 mcpTools.register(new com.organizer3.mcp.tools.ImportFilmographyBackupTool(filmographyBackupWriter, filmographyRepo, slugResolver));
                 mcpTools.register(new com.organizer3.mcp.tools.CreateActressTool(actressRepo, jdbi));
                 mcpTools.register(new com.organizer3.mcp.tools.SetActressAliasesTool(actressRepo));
-                mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo, curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.MergeActressesTool(jdbi, actressRepo, curationLog, ageAtReleaseRecomputer));
                 mcpTools.register(new com.organizer3.mcp.tools.BulkMergeActressesTool(jdbi, actressRepo, curationLog));
                 mcpTools.register(new com.organizer3.mcp.tools.DeleteTitleTool(jdbi, titleRepo, enrichmentHistoryRepo));
-                mcpTools.register(new com.organizer3.mcp.tools.RemoveTitleCreditTool(titleRepo, actressRepo, titleActressRepo, jdbi, curationLog));
-                mcpTools.register(new com.organizer3.mcp.tools.ReassignTitleCreditTool(titleRepo, actressRepo, titleActressRepo, jdbi, curationLog));
+                mcpTools.register(new com.organizer3.mcp.tools.RemoveTitleCreditTool(titleRepo, actressRepo, titleActressRepo, jdbi, curationLog, ageAtReleaseRecomputer));
+                mcpTools.register(new com.organizer3.mcp.tools.ReassignTitleCreditTool(titleRepo, actressRepo, titleActressRepo, jdbi, curationLog, ageAtReleaseRecomputer));
+                mcpTools.register(new com.organizer3.mcp.tools.RecomputeAgeAtReleaseTool(ageAtReleaseRecomputer, jdbi));
                 mcpTools.register(new com.organizer3.mcp.tools.PruneStaleLocationsTool(jdbi));
                 mcpTools.register(new com.organizer3.mcp.NoteToolHandlers.PruneOrphanNotes(orphanNoteFinder));
                 mcpTools.register(new com.organizer3.mcp.tools.RevalidateEnrichmentTool(revalidationService, revalidationPendingRepo));

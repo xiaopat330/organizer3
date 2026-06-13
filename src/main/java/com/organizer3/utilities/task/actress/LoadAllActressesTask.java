@@ -1,10 +1,12 @@
 package com.organizer3.utilities.task.actress;
 
+import com.organizer3.db.AgeAtReleaseRecomputer;
 import com.organizer3.enrichment.ActressYamlLoader;
 import com.organizer3.utilities.task.Task;
 import com.organizer3.utilities.task.TaskIO;
 import com.organizer3.utilities.task.TaskInputs;
 import com.organizer3.utilities.task.TaskSpec;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +17,7 @@ import java.util.List;
  * but do not halt the run — the task's phase status is {@code ok} if at least one load succeeded
  * and {@code failed} only when none did.
  */
+@Slf4j
 public final class LoadAllActressesTask implements Task {
 
     public static final String ID = "actress.load_all";
@@ -27,9 +30,11 @@ public final class LoadAllActressesTask implements Task {
     );
 
     private final ActressYamlLoader loader;
+    private final AgeAtReleaseRecomputer ageRecomputer;
 
-    public LoadAllActressesTask(ActressYamlLoader loader) {
+    public LoadAllActressesTask(ActressYamlLoader loader, AgeAtReleaseRecomputer ageRecomputer) {
         this.loader = loader;
+        this.ageRecomputer = ageRecomputer;
     }
 
     @Override
@@ -89,5 +94,10 @@ public final class LoadAllActressesTask implements Task {
                 : (succeeded == 0 && !cancelled) ? "failed"
                 : "ok"; // partial is reflected in the summary text; phase-level ok covers "some work done"
         io.phaseEnd("load_all", status, summary);
+
+        if (succeeded > 0) {
+            int changed = ageRecomputer.recomputeAll();
+            log.info("load_all batch age_at_release recompute: {} rows changed", changed);
+        }
     }
 }

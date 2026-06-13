@@ -131,7 +131,8 @@ class DraftPromotionGuardTest {
                 javdbStagingRepo, actressRepo,
                 "unsorted", renamer,
                 coverWriteService,
-                guard, queue);
+                guard, queue,
+                null);       // Task 2b: ageRecomputer not under test here
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
