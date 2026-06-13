@@ -15,6 +15,9 @@ import java.util.List;
  */
 public interface TitleActressRepository {
 
+    /** A cast credit row pairing actress id with optional age at release. */
+    record CreditEntry(long actressId, Integer ageAtRelease) {}
+
     /** Links one actress to a title. No-op if the relationship already exists. */
     void link(long titleId, long actressId);
 
@@ -23,6 +26,9 @@ public interface TitleActressRepository {
 
     /** Returns all actress ids linked to the given title. */
     List<Long> findActressIdsByTitle(long titleId);
+
+    /** Returns all credit entries (actress_id + age_at_release) linked to the given title. */
+    List<CreditEntry> findCreditsByTitle(long titleId);
 
     /** Removes a single cast credit. Returns rows deleted (0 if no such credit). */
     int unlink(long titleId, long actressId);

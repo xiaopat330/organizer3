@@ -386,6 +386,16 @@ public interface TitleRepository {
      */
     List<String> findLabelCodesWithPrefix(String prefix);
 
+    /** How age-at-release filtering applies across a title's cast. */
+    enum CastMode {
+        /** Only solo-cast titles (exactly one credit row) where that credit is in range. */
+        SOLO,
+        /** Any credit in range suffices (multi-cast allowed). */
+        ANY,
+        /** All credits must be in range; NULL age fails the title; zero credits = no match. */
+        ALL
+    }
+
     /**
      * Full-library paged query with all optional filters combined via AND.
      *
@@ -398,13 +408,31 @@ public interface TitleRepository {
      * @param asc                true for ascending, false for descending
      * @param notesFilter        {@link com.organizer3.notes.NotesFilter#HAS_NOTE} / {@code NO_NOTE}
      *                           to filter by notes presence, or {@code null} for no filter
+     * @param ageMin             minimum age-at-release (inclusive); null = no lower bound
+     * @param ageMax             maximum age-at-release (inclusive); null = no upper bound
+     * @param castMode           how the age filter applies across cast ({@link CastMode#SOLO} by default);
+     *                           ignored when both ageMin and ageMax are null
      */
     List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
                                   List<String> companyLabels, List<String> tags,
                                   List<Long> enrichmentTagIds,
                                   String sort, boolean asc,
                                   int limit, int offset,
-                                  com.organizer3.notes.NotesFilter notesFilter);
+                                  com.organizer3.notes.NotesFilter notesFilter,
+                                  Integer ageMin, Integer ageMax, CastMode castMode);
+
+    /**
+     * Convenience overload — no age filter (backwards compat for all callers that don't need it).
+     */
+    default List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,
+                                          List<String> companyLabels, List<String> tags,
+                                          List<Long> enrichmentTagIds,
+                                          String sort, boolean asc,
+                                          int limit, int offset,
+                                          com.organizer3.notes.NotesFilter notesFilter) {
+        return findLibraryPaged(labelPrefix, seqPrefix, companyLabels, tags,
+                enrichmentTagIds, sort, asc, limit, offset, notesFilter, null, null, CastMode.SOLO);
+    }
 
     /** Convenience overload that forwards with an empty enrichmentTagIds list and no notes filter. */
     default List<Title> findLibraryPaged(String labelPrefix, String seqPrefix,

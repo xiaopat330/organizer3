@@ -1765,4 +1765,254 @@ class JdbiTitleRepositoryTest {
         List<Title> result = titleRepo.findByVolumeAndPartitionFiltered("vol-pool", "pool", List.of(), List.of(), 100, 0, (NotesFilter) null);
         assertEquals(3, result.size(), "null notesFilter (Any) must return all titles");
     }
+
+    // ── Age-at-release filter tests ──────────────────────────────────────────
+
+    /**
+     * Ensures title_actresses.age_at_release column exists in the in-memory test DB.
+     * SchemaInitializer predates V69; this compensates so age-filter tests can run.
+     */
+    private void ensureAgeAtReleaseColumn() {
+        jdbi.useHandle(h -> {
+            // idempotent — ALTER TABLE fails silently if column already exists
+            try {
+                h.execute("ALTER TABLE title_actresses ADD COLUMN age_at_release INTEGER");
+            } catch (Exception ignored) {
+                // column already present
+            }
+        });
+    }
+
+    /**
+     * Helper to directly set age_at_release on a title_actresses row.
+     */
+    private void insertAgeCredit(long titleId, long actressId, Integer age) {
+        ensureAgeAtReleaseColumn();
+        jdbi.useHandle(h -> {
+            // Ensure actress row exists
+            h.execute("INSERT OR IGNORE INTO actresses (id, canonical_name, tier, favorite, first_seen_at) VALUES ("
+                    + actressId + ", 'Actress " + actressId + "', 'LIBRARY', 0, '2024-01-01')");
+            h.execute("INSERT OR IGNORE INTO title_actresses (title_id, actress_id) VALUES (" + titleId + ", " + actressId + ")");
+            if (age != null) {
+                h.execute("UPDATE title_actresses SET age_at_release = " + age
+                        + " WHERE title_id = " + titleId + " AND actress_id = " + actressId);
+            }
+        });
+    }
+
+    /** Convenience: insert an actress row with a predictable id. */
+    private long nextActressId = 900L;
+    private long newActressId() { return nextActressId++; }
+
+    @Test
+    void soloAgeFilter_soloTitleInRange_matches() {
+        Title t = saveWithLocation(titleFull("SOL-001", "SOL", 1), "vol-a", "stars/library", "/sol1");
+        long aid = newActressId();
+        insertAgeCredit(t.getId(), aid, 22);
+
+        List<Title> results = titleRepo.findLibraryPaged("SOL", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, 20, 25,
+                com.organizer3.repository.TitleRepository.CastMode.SOLO);
+        assertEquals(1, results.size(), "Solo title with age 22 in [20,25] should match");
+        assertEquals("SOL-001", results.get(0).getCode());
+    }
+
+    @Test
+    void soloAgeFilter_multiCastTitleOneInRange_doesNotMatch() {
+        Title t = saveWithLocation(titleFull("SOL-002", "SOL", 2), "vol-a", "stars/library", "/sol2");
+        long aid1 = newActressId();
+        long aid2 = newActressId();
+        insertAgeCredit(t.getId(), aid1, 22);
+        insertAgeCredit(t.getId(), aid2, 30);
+
+        List<Title> results = titleRepo.findLibraryPaged("SOL", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, 20, 25,
+                com.organizer3.repository.TitleRepository.CastMode.SOLO);
+        assertEquals(0, results.size(), "Multi-cast title should NOT match SOLO mode");
+    }
+
+    @Test
+    void soloAgeFilter_zeroCreditTitle_doesNotMatch() {
+        ensureAgeAtReleaseColumn();
+        saveWithLocation(titleFull("SOL-003", "SOL", 3), "vol-a", "stars/library", "/sol3");
+        // No title_actresses row inserted
+
+        List<Title> results = titleRepo.findLibraryPaged("SOL", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, 20, 25,
+                com.organizer3.repository.TitleRepository.CastMode.SOLO);
+        assertEquals(0, results.size(), "Zero-credit title should NOT match SOLO mode");
+    }
+
+    @Test
+    void anyAgeFilter_multiCastOneInRangeOthersNull_matches() {
+        Title t = saveWithLocation(titleFull("ANY-001", "ANY", 1), "vol-a", "stars/library", "/any1");
+        long aid1 = newActressId();
+        long aid2 = newActressId();
+        long aid3 = newActressId();
+        insertAgeCredit(t.getId(), aid1, 22);  // in range
+        insertAgeCredit(t.getId(), aid2, null); // NULL age
+        insertAgeCredit(t.getId(), aid3, null); // NULL age
+
+        List<Title> results = titleRepo.findLibraryPaged("ANY", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, 20, 25,
+                com.organizer3.repository.TitleRepository.CastMode.ANY);
+        assertEquals(1, results.size(), "ANY mode: one credit in range should match even with NULL others");
+    }
+
+    @Test
+    void allAgeFilter_allCreditsInRange_matches() {
+        Title t = saveWithLocation(titleFull("ALL-001", "ALL", 1), "vol-a", "stars/library", "/all1");
+        long aid1 = newActressId();
+        long aid2 = newActressId();
+        insertAgeCredit(t.getId(), aid1, 22);
+        insertAgeCredit(t.getId(), aid2, 24);
+
+        List<Title> results = titleRepo.findLibraryPaged("ALL", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, 20, 25,
+                com.organizer3.repository.TitleRepository.CastMode.ALL);
+        assertEquals(1, results.size(), "ALL mode: all credits in range should match");
+    }
+
+    @Test
+    void allAgeFilter_oneOutOfRange_doesNotMatch() {
+        Title t = saveWithLocation(titleFull("ALL-002", "ALL", 2), "vol-a", "stars/library", "/all2");
+        long aid1 = newActressId();
+        long aid2 = newActressId();
+        insertAgeCredit(t.getId(), aid1, 22);
+        insertAgeCredit(t.getId(), aid2, 30); // out of [20,25]
+
+        List<Title> results = titleRepo.findLibraryPaged("ALL", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, 20, 25,
+                com.organizer3.repository.TitleRepository.CastMode.ALL);
+        assertEquals(0, results.size(), "ALL mode: one credit out of range should NOT match");
+    }
+
+    @Test
+    void allAgeFilter_oneNullAge_doesNotMatch() {
+        Title t = saveWithLocation(titleFull("ALL-003", "ALL", 3), "vol-a", "stars/library", "/all3");
+        long aid1 = newActressId();
+        long aid2 = newActressId();
+        insertAgeCredit(t.getId(), aid1, 22);
+        insertAgeCredit(t.getId(), aid2, null); // NULL age
+
+        List<Title> results = titleRepo.findLibraryPaged("ALL", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, 20, 25,
+                com.organizer3.repository.TitleRepository.CastMode.ALL);
+        assertEquals(0, results.size(), "ALL mode: NULL age should fail the title (strict)");
+    }
+
+    @Test
+    void allAgeFilter_zeroCreditTitle_doesNotMatch() {
+        ensureAgeAtReleaseColumn();
+        saveWithLocation(titleFull("ALL-004", "ALL", 4), "vol-a", "stars/library", "/all4");
+        // No credits
+
+        List<Title> results = titleRepo.findLibraryPaged("ALL", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, 20, 25,
+                com.organizer3.repository.TitleRepository.CastMode.ALL);
+        assertEquals(0, results.size(), "ALL mode: zero-credit title should NOT match");
+    }
+
+    @Test
+    void soloAgeFilter_nullAgeNeverSatisfiesRange() {
+        Title t = saveWithLocation(titleFull("NUL-001", "NUL", 1), "vol-a", "stars/library", "/nul1");
+        long aid = newActressId();
+        insertAgeCredit(t.getId(), aid, null); // NULL age
+
+        List<Title> results = titleRepo.findLibraryPaged("NUL", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, 20, 25,
+                com.organizer3.repository.TitleRepository.CastMode.SOLO);
+        assertEquals(0, results.size(), "NULL age should NOT satisfy SOLO range filter");
+    }
+
+    @Test
+    void anyAgeFilter_nullAgeNeverSatisfiesRange() {
+        Title t = saveWithLocation(titleFull("NUL-002", "NUL", 2), "vol-a", "stars/library", "/nul2");
+        long aid = newActressId();
+        insertAgeCredit(t.getId(), aid, null); // NULL age only
+
+        List<Title> results = titleRepo.findLibraryPaged("NUL", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, 20, 25,
+                com.organizer3.repository.TitleRepository.CastMode.ANY);
+        assertEquals(0, results.size(), "NULL age should NOT satisfy ANY range filter");
+    }
+
+    @Test
+    void ageMinOnly_openUpperBound() {
+        Title t1 = saveWithLocation(titleFull("OPE-001", "OPE", 1), "vol-a", "stars/library", "/ope1");
+        Title t2 = saveWithLocation(titleFull("OPE-002", "OPE", 2), "vol-a", "stars/library", "/ope2");
+        Title t3 = saveWithLocation(titleFull("OPE-003", "OPE", 3), "vol-a", "stars/library", "/ope3");
+        long aid1 = newActressId(); long aid2 = newActressId(); long aid3 = newActressId();
+        insertAgeCredit(t1.getId(), aid1, 25);  // >= 25 → match
+        insertAgeCredit(t2.getId(), aid2, 30);  // >= 25 → match
+        insertAgeCredit(t3.getId(), aid3, 18);  // < 25 → no match
+
+        List<Title> results = titleRepo.findLibraryPaged("OPE", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, 25, null,
+                com.organizer3.repository.TitleRepository.CastMode.SOLO);
+        assertEquals(2, results.size());
+        var codes = results.stream().map(Title::getCode).toList();
+        assertTrue(codes.contains("OPE-001") && codes.contains("OPE-002"));
+    }
+
+    @Test
+    void ageMaxOnly_openLowerBound() {
+        Title t1 = saveWithLocation(titleFull("OPE-004", "OPE", 4), "vol-a", "stars/library", "/ope4");
+        Title t2 = saveWithLocation(titleFull("OPE-005", "OPE", 5), "vol-a", "stars/library", "/ope5");
+        Title t3 = saveWithLocation(titleFull("OPE-006", "OPE", 6), "vol-a", "stars/library", "/ope6");
+        long aid1 = newActressId(); long aid2 = newActressId(); long aid3 = newActressId();
+        insertAgeCredit(t1.getId(), aid1, 18);  // <= 25 → match
+        insertAgeCredit(t2.getId(), aid2, 25);  // <= 25 → match
+        insertAgeCredit(t3.getId(), aid3, 30);  // > 25 → no match
+
+        List<Title> results = titleRepo.findLibraryPaged("OPE", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, null, 25,
+                com.organizer3.repository.TitleRepository.CastMode.SOLO);
+        assertEquals(2, results.size());
+        var codes = results.stream().map(Title::getCode).toList();
+        assertTrue(codes.contains("OPE-004") && codes.contains("OPE-005"));
+    }
+
+    @Test
+    void ageFilterCombinedWithTagFilter_intersectionAndTagHavingUnaffected() {
+        Title t1 = saveWithLocation(titleFull("CMB-001", "CMB", 1), "vol-a", "stars/library", "/cmb1");
+        Title t2 = saveWithLocation(titleFull("CMB-002", "CMB", 2), "vol-a", "stars/library", "/cmb2");
+        Title t3 = saveWithLocation(titleFull("CMB-003", "CMB", 3), "vol-a", "stars/library", "/cmb3");
+        long aid1 = newActressId(); long aid2 = newActressId(); long aid3 = newActressId();
+        insertAgeCredit(t1.getId(), aid1, 22); // in range, has tag
+        insertAgeCredit(t2.getId(), aid2, 22); // in range, no tag
+        insertAgeCredit(t3.getId(), aid3, 30); // out of range, has tag
+
+        // Add effective tag only to t1 and t3
+        jdbi.useHandle(h -> {
+            h.execute("INSERT OR IGNORE INTO title_effective_tags (title_id, tag, source) VALUES (" + t1.getId() + ", 'HD', 'direct')");
+            h.execute("INSERT OR IGNORE INTO title_effective_tags (title_id, tag, source) VALUES (" + t3.getId() + ", 'HD', 'direct')");
+        });
+
+        List<Title> results = titleRepo.findLibraryPaged("CMB", "", List.of(), List.of("HD"),
+                List.of(), null, false, 10, 0, null, 20, 25,
+                com.organizer3.repository.TitleRepository.CastMode.SOLO);
+        assertEquals(1, results.size(), "Only t1 has tag HD AND age in range");
+        assertEquals("CMB-001", results.get(0).getCode());
+    }
+
+    @Test
+    void ageFilter_inactive_whenNoAgeParams_resultIdenticalToBaseline() {
+        Title t1 = saveWithLocation(titleFull("BASE-001", "BASE", 1), "vol-a", "stars/library", "/base1");
+        Title t2 = saveWithLocation(titleFull("BASE-002", "BASE", 2), "vol-a", "stars/library", "/base2");
+        long aid1 = newActressId(); long aid2 = newActressId();
+        insertAgeCredit(t1.getId(), aid1, 22);
+        insertAgeCredit(t2.getId(), aid2, 30);
+
+        // With no age params, castMode-only is a no-op
+        List<Title> withCastModeOnly = titleRepo.findLibraryPaged("BASE", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null, null, null,
+                com.organizer3.repository.TitleRepository.CastMode.ANY);
+        List<Title> baseline = titleRepo.findLibraryPaged("BASE", "", List.of(), List.of(),
+                List.of(), null, false, 10, 0, null);
+
+        assertEquals(baseline.stream().map(Title::getCode).sorted().toList(),
+                withCastModeOnly.stream().map(Title::getCode).sorted().toList(),
+                "Filter inactive (no age bounds) must produce same results regardless of castMode");
+    }
 }

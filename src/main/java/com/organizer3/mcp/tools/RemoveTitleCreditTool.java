@@ -3,6 +3,7 @@ package com.organizer3.mcp.tools;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.organizer3.curation.CurationLog;
 import com.organizer3.curation.CurationLogRecord;
+import com.organizer3.db.AgeAtReleaseRecomputer;
 import com.organizer3.mcp.Schemas;
 import com.organizer3.mcp.Tool;
 import com.organizer3.model.Actress;
@@ -41,15 +42,17 @@ public class RemoveTitleCreditTool implements Tool {
     private final TitleActressRepository titleActressRepo;
     private final Jdbi jdbi;
     private final CurationLog curationLog;
+    private final AgeAtReleaseRecomputer ageRecomputer;
 
     public RemoveTitleCreditTool(TitleRepository titleRepo, ActressRepository actressRepo,
                                  TitleActressRepository titleActressRepo, Jdbi jdbi,
-                                 CurationLog curationLog) {
+                                 CurationLog curationLog, AgeAtReleaseRecomputer ageRecomputer) {
         this.titleRepo = titleRepo;
         this.actressRepo = actressRepo;
         this.titleActressRepo = titleActressRepo;
         this.jdbi = jdbi;
         this.curationLog = curationLog;
+        this.ageRecomputer = ageRecomputer;
     }
 
     @Override public String name() { return "remove_title_credit"; }
@@ -179,6 +182,9 @@ public class RemoveTitleCreditTool implements Tool {
                 update.execute();
             }
         });
+
+        int changed = ageRecomputer.recomputeAll();
+        log.info("remove_title_credit age_at_release recompute: {} rows changed (titleId={})", changed, title.getId());
 
         log.info("remove_title_credit: titleId={} code={} removedActressId={} ({}) remaining={} oldFiling={} newFiling={}",
                 title.getId(), title.getCode(), removeId, actress.getCanonicalName(),

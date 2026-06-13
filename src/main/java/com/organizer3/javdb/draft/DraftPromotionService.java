@@ -97,6 +97,8 @@ public class DraftPromotionService {
     private final com.organizer3.javdb.enrichment.CastPresenceCheck castPresenceCheck;
     // Review queue repo — used to enqueue guard_cast_mismatch entries on divert.
     private final com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository reviewQueueRepo;
+    // Age-at-release recomputer — called once per successful promotion. Nullable — short ctor leaves it null.
+    private final com.organizer3.db.AgeAtReleaseRecomputer ageRecomputer;
 
     /** Seam for cover-copy — injectable in tests to simulate COMMIT-failure. */
     private CoverCopier coverCopier;
@@ -120,11 +122,12 @@ public class DraftPromotionService {
             StageNameSuggestionRepository suggestionRepo) {
         this(jdbi, draftTitleRepo, draftActressRepo, draftCastRepo, draftEnrichRepo,
                 coverStore, coverPath, castValidator, titleRepo, historyRepo, effectiveTags,
-                json, suggestionRepo, null, null, null, null, null, null, null);
+                json, suggestionRepo, null, null, null, null, null, null, null, null);
     }
 
     /** Full constructor including FIX 1 dependencies (javdbStagingRepo, actressRepo),
-     *  Phase 2 dependencies (unsortedVolumeId, renamer), and Item B guard dependencies. */
+     *  Phase 2 dependencies (unsortedVolumeId, renamer), Item B guard dependencies,
+     *  and ageRecomputer for Task 2b. */
     @SuppressWarnings("checkstyle:ParameterNumber")
     public DraftPromotionService(
             Jdbi                          jdbi,
@@ -146,7 +149,8 @@ public class DraftPromotionService {
             TitleFolderRenamer            renamer,
             CoverWriteService             coverWriteService,
             com.organizer3.javdb.enrichment.CastPresenceCheck        castPresenceCheck,
-            com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository reviewQueueRepo) {
+            com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository reviewQueueRepo,
+            com.organizer3.db.AgeAtReleaseRecomputer ageRecomputer) {
         this.jdbi              = jdbi;
         this.draftTitleRepo    = draftTitleRepo;
         this.draftActressRepo  = draftActressRepo;
@@ -167,6 +171,7 @@ public class DraftPromotionService {
         this.coverWriteService = coverWriteService;
         this.castPresenceCheck = castPresenceCheck;
         this.reviewQueueRepo   = reviewQueueRepo;
+        this.ageRecomputer     = ageRecomputer;
         this.coverCopier       = this::defaultCoverCopy;
     }
 
@@ -400,6 +405,17 @@ public class DraftPromotionService {
             coverStore.delete(draftTitleId);
         } catch (IOException e) {
             log.warn("promote: failed to delete scratch cover for draft {} (non-fatal)", draftTitleId, e);
+        }
+
+        // Post-commit: recompute age_at_release for all title_actresses rows.
+        // The newly promoted title may have a release date that was previously unavailable.
+        if (ageRecomputer != null) {
+            try {
+                int changed = ageRecomputer.recomputeAll();
+                log.info("promote age_at_release recompute: {} rows changed (titleId={})", changed, titleId);
+            } catch (Exception e) {
+                log.warn("promote: age_at_release recompute failed for titleId={} (non-fatal)", titleId, e);
+            }
         }
 
         log.info("draft promoted: draftId={} → titleId={} folderRenamed={}", draftTitleId, titleId, folderRenamed);

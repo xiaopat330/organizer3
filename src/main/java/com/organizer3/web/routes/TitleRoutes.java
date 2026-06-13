@@ -84,12 +84,61 @@ public class TitleRoutes {
             String sort                = ctx.queryParam("sort");
             String order               = ctx.queryParam("order");
             String notesParam          = ctx.queryParam("notes");
+            String ageMinParam         = ctx.queryParam("ageMin");
+            String ageMaxParam         = ctx.queryParam("ageMax");
+            String castModeParam       = ctx.queryParam("castMode");
             int offset = ctx.queryParamAsClass("offset", Integer.class).getOrDefault(0);
             int limit  = ctx.queryParamAsClass("limit",  Integer.class).getOrDefault(24);
             offset = Math.max(offset, 0);
             limit  = Math.max(1, limit);
             boolean hasEnrichTags = enrichTagIdsParam != null && !enrichTagIdsParam.isBlank();
             NotesFilter notesFilter = ActressRoutes.parseNotesFilter(notesParam);
+
+            // Parse and validate age filter params
+            Integer ageMin = null;
+            Integer ageMax = null;
+            com.organizer3.repository.TitleRepository.CastMode castMode =
+                    com.organizer3.repository.TitleRepository.CastMode.SOLO;
+            if (ageMinParam != null && !ageMinParam.isBlank()) {
+                try {
+                    ageMin = Integer.parseInt(ageMinParam.trim());
+                } catch (NumberFormatException e) {
+                    ctx.status(400).result("ageMin must be a non-negative integer");
+                    return;
+                }
+                if (ageMin < 0) {
+                    ctx.status(400).result("ageMin must be non-negative");
+                    return;
+                }
+            }
+            if (ageMaxParam != null && !ageMaxParam.isBlank()) {
+                try {
+                    ageMax = Integer.parseInt(ageMaxParam.trim());
+                } catch (NumberFormatException e) {
+                    ctx.status(400).result("ageMax must be a non-negative integer");
+                    return;
+                }
+                if (ageMax < 0) {
+                    ctx.status(400).result("ageMax must be non-negative");
+                    return;
+                }
+            }
+            if (ageMin != null && ageMax != null && ageMin > ageMax) {
+                ctx.status(400).result("ageMin must not exceed ageMax");
+                return;
+            }
+            if (castModeParam != null && !castModeParam.isBlank()) {
+                try {
+                    castMode = com.organizer3.repository.TitleRepository.CastMode
+                            .valueOf(castModeParam.trim().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    ctx.status(400).result("castMode must be one of: solo, any, all");
+                    return;
+                }
+            }
+
+            boolean hasAgeFilter = ageMin != null || ageMax != null;
+
             if (search != null && !search.isBlank()) {
                 ctx.json(browseService.searchByCodePaged(search.trim(), offset, limit));
             } else if ("true".equals(favorites)) {
@@ -98,7 +147,7 @@ public class TitleRoutes {
                 ctx.json(browseService.findBookmarksPaged(offset, limit));
             } else if (codeParam != null || company != null || sort != null || order != null
                        || (tagsParam != null && !tagsParam.isBlank()) || hasEnrichTags
-                       || notesFilter != null) {
+                       || notesFilter != null || hasAgeFilter) {
                 List<String> tags = (tagsParam != null && !tagsParam.isBlank())
                         ? List.of(tagsParam.split(",")) : List.of();
                 List<Long> enrichmentTagIds = (enrichTagIdsParam != null && !enrichTagIdsParam.isBlank())
@@ -106,7 +155,8 @@ public class TitleRoutes {
                             .map(String::trim).filter(s -> !s.isEmpty())
                             .map(Long::parseLong).toList()
                         : List.of();
-                ctx.json(browseService.findLibraryPaged(codeParam, company, tags, enrichmentTagIds, sort, order, offset, limit, notesFilter));
+                ctx.json(browseService.findLibraryPaged(codeParam, company, tags, enrichmentTagIds,
+                        sort, order, offset, limit, notesFilter, ageMin, ageMax, castMode));
             } else {
                 ctx.json(browseService.findRecent(offset, limit));
             }

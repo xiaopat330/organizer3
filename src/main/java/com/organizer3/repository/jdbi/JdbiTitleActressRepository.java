@@ -51,6 +51,26 @@ public class JdbiTitleActressRepository implements TitleActressRepository {
     }
 
     @Override
+    public List<TitleActressRepository.CreditEntry> findCreditsByTitle(long titleId) {
+        return jdbi.withHandle(h -> {
+            // age_at_release was added in schema V69; defend against older in-memory test DBs
+            // by checking if the column exists before trying to read it.
+            boolean hasAgeColumn = h.createQuery(
+                            "SELECT COUNT(*) FROM pragma_table_info('title_actresses') WHERE name='age_at_release'")
+                    .mapTo(Integer.class).one() > 0;
+            String sql = hasAgeColumn
+                    ? "SELECT actress_id, age_at_release FROM title_actresses WHERE title_id = :titleId"
+                    : "SELECT actress_id, NULL AS age_at_release FROM title_actresses WHERE title_id = :titleId";
+            return h.createQuery(sql)
+                    .bind("titleId", titleId)
+                    .map((rs, ctx) -> new TitleActressRepository.CreditEntry(
+                            rs.getLong("actress_id"),
+                            rs.getObject("age_at_release") != null ? rs.getInt("age_at_release") : null))
+                    .list();
+        });
+    }
+
+    @Override
     public int unlink(long titleId, long actressId) {
         return jdbi.withHandle(h ->
                 h.createUpdate("""

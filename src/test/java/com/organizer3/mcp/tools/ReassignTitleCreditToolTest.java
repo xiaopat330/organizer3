@@ -3,6 +3,7 @@ package com.organizer3.mcp.tools;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.organizer3.curation.CurationLog;
+import com.organizer3.db.AgeAtReleaseRecomputer;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.model.Actress;
 import com.organizer3.model.Title;
@@ -15,6 +16,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mockito;
 
 import java.nio.file.Path;
 import java.sql.Connection;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 class ReassignTitleCreditToolTest {
 
@@ -36,6 +39,7 @@ class ReassignTitleCreditToolTest {
     private JdbiTitleRepository titleRepo;
     private JdbiActressRepository actressRepo;
     private JdbiTitleActressRepository titleActressRepo;
+    private AgeAtReleaseRecomputer mockRecomputer;
     private ReassignTitleCreditTool tool;
 
     @BeforeEach
@@ -49,7 +53,9 @@ class ReassignTitleCreditToolTest {
         actressRepo = new JdbiActressRepository(jdbi);
         titleActressRepo = new JdbiTitleActressRepository(jdbi);
         CurationLog curationLog = new CurationLog(tempDir);
-        tool = new ReassignTitleCreditTool(titleRepo, actressRepo, titleActressRepo, jdbi, curationLog);
+        mockRecomputer = Mockito.mock(AgeAtReleaseRecomputer.class);
+        when(mockRecomputer.recomputeAll()).thenReturn(0);
+        tool = new ReassignTitleCreditTool(titleRepo, actressRepo, titleActressRepo, jdbi, curationLog, mockRecomputer);
     }
 
     @AfterEach
@@ -241,6 +247,47 @@ class ReassignTitleCreditToolTest {
         noTo.put("title_id", 1);
         noTo.put("from_actress_id", 2);
         assertThrows(IllegalArgumentException.class, () -> tool.call(noTo));
+    }
+
+    // ── age_at_release recompute trigger tests ────────────────────────────────
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void recomputeCalledExactlyOnceOnLivePath() {
+        long a = saveActress("Actress A");
+        long b = saveActress("Actress B");
+        long titleId = saveTitle("SOE-793", a);
+        titleActressRepo.linkAll(titleId, List.of(a));
+
+        tool.call(liveArgsById(titleId, a, b));
+
+        verify(mockRecomputer, times(1)).recomputeAll();
+    }
+
+    @Test
+    void recomputeNotCalledOnDryRun() {
+        long a = saveActress("Actress A");
+        long b = saveActress("Actress B");
+        long titleId = saveTitle("SOE-793", a);
+        titleActressRepo.linkAll(titleId, List.of(a));
+
+        ObjectNode args = M.createObjectNode();
+        args.put("title_id", titleId);
+        args.put("from_actress_id", a);
+        args.put("to_actress_id", b);
+        // dry_run defaults to true
+        tool.call(args);
+
+        verify(mockRecomputer, never()).recomputeAll();
+    }
+
+    @Test
+    void recomputeNotCalledOnTitleNotFound() {
+        long a = saveActress("Actress A");
+        long b = saveActress("Actress B");
+        tool.call(liveArgsById(9999L, a, b));
+
+        verify(mockRecomputer, never()).recomputeAll();
     }
 
     // ── fixtures ─────────────────────────────────────────────────────────────────

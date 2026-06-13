@@ -276,6 +276,83 @@ class WebServerTest {
         verify(titleRepo).findRecent(10, 5);
     }
 
+    // ── Age filter route validation ──────────────────────────────────────
+
+    private WebServer startBrowseServer() {
+        TitleRepository titleRepo = mock(TitleRepository.class);
+        ActressRepository actressRepo = mock(ActressRepository.class);
+        LabelRepository labelRepo = mock(LabelRepository.class);
+        CoverPath coverPath = mock(CoverPath.class);
+        when(labelRepo.findAllAsMap()).thenReturn(Map.of());
+        when(titleRepo.findLibraryPaged(any(), any(), anyList(), anyList(), anyList(), any(),
+                anyBoolean(), anyInt(), anyInt(), any(), any(), any(), any()))
+                .thenReturn(List.of());
+        when(titleRepo.findRecent(anyInt(), anyInt())).thenReturn(List.of());
+        TitleBrowseService browseService = new TitleBrowseService(titleRepo, actressRepo, coverPath,
+                labelRepo, mock(TitleActressRepository.class), mock(WatchHistoryRepository.class),
+                Map.of(), 500);
+        server = new WebServer(0, browseService, null, null, null, null, null, null, null, null);
+        server.start();
+        return server;
+    }
+
+    @Test
+    void ageFilter_ageMinGreaterThanAgeMax_returns400() throws IOException, InterruptedException {
+        startBrowseServer();
+        HttpResponse<String> response = get("/api/titles?ageMin=30&ageMax=20");
+        assertEquals(400, response.statusCode());
+    }
+
+    @Test
+    void ageFilter_negativeAgeMin_returns400() throws IOException, InterruptedException {
+        startBrowseServer();
+        HttpResponse<String> response = get("/api/titles?ageMin=-1");
+        assertEquals(400, response.statusCode());
+    }
+
+    @Test
+    void ageFilter_negativeAgeMax_returns400() throws IOException, InterruptedException {
+        startBrowseServer();
+        HttpResponse<String> response = get("/api/titles?ageMax=-5");
+        assertEquals(400, response.statusCode());
+    }
+
+    @Test
+    void ageFilter_nonNumericAgeMin_returns400() throws IOException, InterruptedException {
+        startBrowseServer();
+        HttpResponse<String> response = get("/api/titles?ageMin=abc");
+        assertEquals(400, response.statusCode());
+    }
+
+    @Test
+    void ageFilter_nonNumericAgeMax_returns400() throws IOException, InterruptedException {
+        startBrowseServer();
+        HttpResponse<String> response = get("/api/titles?ageMax=xyz");
+        assertEquals(400, response.statusCode());
+    }
+
+    @Test
+    void ageFilter_unknownCastMode_returns400() throws IOException, InterruptedException {
+        startBrowseServer();
+        HttpResponse<String> response = get("/api/titles?ageMin=20&ageMax=30&castMode=INVALID");
+        assertEquals(400, response.statusCode());
+    }
+
+    @Test
+    void ageFilter_validParams_returns200() throws IOException, InterruptedException {
+        startBrowseServer();
+        HttpResponse<String> response = get("/api/titles?ageMin=20&ageMax=30&castMode=solo");
+        assertEquals(200, response.statusCode());
+    }
+
+    @Test
+    void ageFilter_castModeOnlyNoAgeBounds_returns200() throws IOException, InterruptedException {
+        startBrowseServer();
+        HttpResponse<String> response = get("/api/titles?castMode=any");
+        // castMode alone = no-op → should dispatch to findRecent, but the response is still 200
+        assertEquals(200, response.statusCode());
+    }
+
     // ── Queue titles API ────────────────────────────────────────────────
 
     @Test

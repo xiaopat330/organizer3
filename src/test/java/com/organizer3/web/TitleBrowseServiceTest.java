@@ -415,12 +415,12 @@ class TitleBrowseServiceTest {
     @Test
     void findLibraryPagedPassesNullCompanyListWhenCompanyBlank() {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
-        when(titleRepo.findLibraryPaged(any(), any(), eq(List.of()), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt(), any()))
+        when(titleRepo.findLibraryPaged(any(), any(), eq(List.of()), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt(), any(), any(), any(), any()))
                 .thenReturn(List.of());
 
         service.findLibraryPaged(null, null, List.of(), List.of(), "addedDate", "desc", 0, 24);
 
-        verify(titleRepo).findLibraryPaged(any(), any(), eq(List.of()), eq(List.of()), eq(List.of()), eq("addedDate"), eq(false), eq(24), eq(0), eq((NotesFilter) null));
+        verify(titleRepo).findLibraryPaged(any(), any(), eq(List.of()), eq(List.of()), eq(List.of()), eq("addedDate"), eq(false), eq(24), eq(0), eq((NotesFilter) null), any(), any(), eq(com.organizer3.repository.TitleRepository.CastMode.SOLO));
     }
 
     @Test
@@ -428,12 +428,12 @@ class TitleBrowseServiceTest {
         Label abp = new Label("ABP", "Prestige Label", "Prestige", null, null, null, null, null, null, List.of());
         Label mdvr = new Label("MDVR", "Moodyz VR", "Moodyz", null, null, null, null, null, null, List.of());
         when(labelRepo.findAllAsMap()).thenReturn(Map.of("ABP", abp, "MDVR", mdvr));
-        when(titleRepo.findLibraryPaged(any(), any(), eq(List.of("ABP")), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt(), any()))
+        when(titleRepo.findLibraryPaged(any(), any(), eq(List.of("ABP")), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt(), any(), any(), any(), any()))
                 .thenReturn(List.of());
 
         service.findLibraryPaged(null, "Prestige", List.of(), List.of(), null, null, 0, 24);
 
-        verify(titleRepo).findLibraryPaged(any(), any(), eq(List.of("ABP")), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt(), any());
+        verify(titleRepo).findLibraryPaged(any(), any(), eq(List.of("ABP")), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
@@ -441,29 +441,29 @@ class TitleBrowseServiceTest {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
 
         assertTrue(service.findLibraryPaged(null, "NonExistentCompany", List.of(), List.of(), null, null, 0, 24).isEmpty());
-        verify(titleRepo, never()).findLibraryPaged(any(), any(), anyList(), anyList(), anyList(), any(), anyBoolean(), anyInt(), anyInt(), any());
+        verify(titleRepo, never()).findLibraryPaged(any(), any(), anyList(), anyList(), anyList(), any(), anyBoolean(), anyInt(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
     void findLibraryPagedPassesAscOrder() {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
-        when(titleRepo.findLibraryPaged(any(), any(), anyList(), anyList(), anyList(), any(), eq(true), anyInt(), anyInt(), any()))
+        when(titleRepo.findLibraryPaged(any(), any(), anyList(), anyList(), anyList(), any(), eq(true), anyInt(), anyInt(), any(), any(), any(), any()))
                 .thenReturn(List.of());
 
         service.findLibraryPaged(null, null, List.of(), List.of(), "productCode", "asc", 0, 24);
 
-        verify(titleRepo).findLibraryPaged(any(), any(), anyList(), anyList(), anyList(), eq("productCode"), eq(true), anyInt(), anyInt(), any());
+        verify(titleRepo).findLibraryPaged(any(), any(), anyList(), anyList(), anyList(), eq("productCode"), eq(true), anyInt(), anyInt(), any(), any(), any(), any());
     }
 
     @Test
     void findLibraryPagedTreatsNullTagsAsEmpty() {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
-        when(titleRepo.findLibraryPaged(any(), any(), anyList(), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt(), any()))
+        when(titleRepo.findLibraryPaged(any(), any(), anyList(), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt(), any(), any(), any(), any()))
                 .thenReturn(List.of());
 
         service.findLibraryPaged(null, null, null, null, null, null, 0, 24);
 
-        verify(titleRepo).findLibraryPaged(any(), any(), anyList(), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt(), any());
+        verify(titleRepo).findLibraryPaged(any(), any(), anyList(), eq(List.of()), eq(List.of()), any(), anyBoolean(), anyInt(), anyInt(), any(), any(), any(), any());
     }
 
     // ── findByTagsPaged / findRandom ───────────────────────────────────────
@@ -849,6 +849,64 @@ class TitleBrowseServiceTest {
         var result = service.toggleRejected("MISSING-003");
 
         assertInstanceOf(TitleBrowseService.FlagResult.NotFound.class, result);
+    }
+
+    // ── TitleSummary.ageAtRelease population ───────────────────────────────
+
+    @Test
+    void ageAtRelease_soloTitleWithComputableAge_isPopulated() {
+        Title t = title("ABP-001", "ABP-00001", "ABP", null, null);
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(t));
+        when(coverPath.find(t)).thenReturn(Optional.empty());
+        when(titleActressRepo.findCreditsByTitle(1L))
+                .thenReturn(List.of(new TitleActressRepository.CreditEntry(5L, 22)));
+
+        TitleSummary s = service.findRecent(0, 24).get(0);
+        assertEquals(22, s.getAgeAtRelease(), "Solo title with age 22 should have ageAtRelease=22");
+    }
+
+    @Test
+    void ageAtRelease_soloTitleWithNullAge_isNull() {
+        Title t = title("ABP-002", "ABP-00002", "ABP", null, null);
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(t));
+        when(coverPath.find(t)).thenReturn(Optional.empty());
+        when(titleActressRepo.findCreditsByTitle(1L))
+                .thenReturn(List.of(new TitleActressRepository.CreditEntry(5L, null)));
+
+        TitleSummary s = service.findRecent(0, 24).get(0);
+        assertNull(s.getAgeAtRelease(), "Solo title with NULL age should have ageAtRelease=null");
+    }
+
+    @Test
+    void ageAtRelease_multiCastTitle_isNull() {
+        Title t = title("ABP-003", "ABP-00003", "ABP", null, null);
+        Actress a1 = Actress.builder().id(5L).canonicalName("Yui Hatano")
+                .tier(Actress.Tier.POPULAR).favorite(false).firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+        Actress a2 = Actress.builder().id(6L).canonicalName("Airi Suzumura")
+                .tier(Actress.Tier.POPULAR).favorite(false).firstSeenAt(LocalDate.of(2023, 1, 1)).build();
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(t));
+        when(coverPath.find(t)).thenReturn(Optional.empty());
+        when(titleActressRepo.findCreditsByTitle(1L))
+                .thenReturn(List.of(
+                        new TitleActressRepository.CreditEntry(5L, 25),
+                        new TitleActressRepository.CreditEntry(6L, 27)));
+        when(actressRepo.findById(5L)).thenReturn(Optional.of(a1));
+        when(actressRepo.findById(6L)).thenReturn(Optional.of(a2));
+
+        TitleSummary s = service.findRecent(0, 24).get(0);
+        assertNull(s.getAgeAtRelease(), "Multi-cast title should have ageAtRelease=null");
+        assertEquals(2, s.getActresses().size(), "Multi-cast actresses list should be populated");
+    }
+
+    @Test
+    void ageAtRelease_zeroCreditTitle_isNull() {
+        Title t = title("ABP-004", "ABP-00004", "ABP", null, null);
+        when(titleRepo.findRecent(24, 0)).thenReturn(List.of(t));
+        when(coverPath.find(t)).thenReturn(Optional.empty());
+        when(titleActressRepo.findCreditsByTitle(1L)).thenReturn(List.of());
+
+        TitleSummary s = service.findRecent(0, 24).get(0);
+        assertNull(s.getAgeAtRelease(), "Zero-credit title should have ageAtRelease=null");
     }
 
     // --- helpers ---

@@ -39,6 +39,13 @@ public class TitleSummary {
     @Builder.Default
     List<ActressEntry> actresses = List.of();
 
+    /**
+     * Age of the solo actress at time of release. Populated only for solo-cast titles
+     * (exactly one credit row in title_actresses) when the age is computable.
+     * Null for multi-cast titles, zero-cast titles, or when age is not available.
+     */
+    Integer ageAtRelease;
+
     // Enrichment fields (populated via load actress command)
     String titleEnglish;
     String titleOriginal;

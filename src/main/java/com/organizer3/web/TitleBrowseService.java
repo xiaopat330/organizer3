@@ -191,6 +191,26 @@ public class TitleBrowseService {
                                                 String sort, String order,
                                                 int offset, int limit,
                                                 NotesFilter notesFilter) {
+        return findLibraryPaged(code, company, tags, enrichmentTagIds, sort, order, offset, limit,
+                notesFilter, null, null, com.organizer3.repository.TitleRepository.CastMode.SOLO);
+    }
+
+    /**
+     * Full-library paged query with all optional filters, including age-at-release filter.
+     *
+     * @param notesFilter {@link NotesFilter#HAS_NOTE} / {@link NotesFilter#NO_NOTE}
+     *                    to restrict results, or {@code null} for no filter
+     * @param ageMin      minimum age at release (inclusive); null = open lower bound
+     * @param ageMax      maximum age at release (inclusive); null = open upper bound
+     * @param castMode    how the age filter applies across cast; ignored when both ageMin+ageMax are null
+     */
+    public List<TitleSummary> findLibraryPaged(String code, String company,
+                                                List<String> tags, List<Long> enrichmentTagIds,
+                                                String sort, String order,
+                                                int offset, int limit,
+                                                NotesFilter notesFilter,
+                                                Integer ageMin, Integer ageMax,
+                                                com.organizer3.repository.TitleRepository.CastMode castMode) {
         limit = cappedLimit(limit);
         com.organizer3.sync.TitleCodeQuery.ParsedQuery parsed =
                 com.organizer3.sync.TitleCodeQuery.parse(code);
@@ -202,7 +222,8 @@ public class TitleBrowseService {
                 parsed.labelPrefix(), parsed.seqPrefix(),
                 companyLabels, tags != null ? tags : List.of(),
                 enrichmentTagIds != null ? enrichmentTagIds : List.of(),
-                sort, asc, limit, offset, notesFilter));
+                sort, asc, limit, offset, notesFilter,
+                ageMin, ageMax, castMode));
     }
 
     /** Returns a map of curated tag name → distinct title count from {@code title_effective_tags}. */
@@ -418,13 +439,19 @@ public class TitleBrowseService {
                             .map(TitleSummary.LocationEntry::getNasPath)
                             .toList();
 
-                    // Multi-actress entries from junction table
+                    // Multi-actress entries from junction table + solo ageAtRelease
                     List<TitleSummary.ActressEntry> actresses = List.of();
+                    Integer ageAtRelease = null;
                     if (t.getId() != null) {
-                        List<Long> linkedIds = titleActressRepo.findActressIdsByTitle(t.getId());
-                        if (linkedIds.size() > 1) {
-                            actresses = linkedIds.stream()
-                                    .map(id -> {
+                        List<com.organizer3.repository.TitleActressRepository.CreditEntry> credits =
+                                titleActressRepo.findCreditsByTitle(t.getId());
+                        if (credits.size() == 1) {
+                            // Solo title: expose ageAtRelease when computable
+                            ageAtRelease = credits.get(0).ageAtRelease();
+                        } else if (credits.size() > 1) {
+                            actresses = credits.stream()
+                                    .map(credit -> {
+                                        long id = credit.actressId();
                                         ActressInfo linked = actressInfo.computeIfAbsent(id,
                                                 k -> actressRepo.findById(k)
                                                         .map(a -> new ActressInfo(a.getCanonicalName(),
@@ -471,6 +498,7 @@ public class TitleBrowseService {
                             .nasPaths(nasPaths)
                             .locationEntries(locationEntries)
                             .actresses(actresses)
+                            .ageAtRelease(ageAtRelease)
                             .titleEnglish(t.getTitleEnglish())
                             .titleOriginal(t.getTitleOriginal())
                             .titleOriginalEn(t.getId() != null ? titleOriginalEnMap.get(t.getId()) : null)

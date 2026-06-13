@@ -179,12 +179,23 @@ class SchemaInitializerTest {
     }
 
     @Test
+    void titleActressesTableHasAgeAtReleaseColumn() {
+        new SchemaInitializer(jdbi).initialize();
+
+        boolean hasCol = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM pragma_table_info('title_actresses') WHERE name='age_at_release'")
+                        .mapTo(Integer.class)
+                        .one() > 0);
+        assertTrue(hasCol, "fresh install should include title_actresses.age_at_release");
+    }
+
+    @Test
     void freshSchemaIsStampedAtCurrentVersion() {
         new SchemaInitializer(jdbi).initialize();
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(68, version);
+        assertEquals(69, version);
     }
 
     @Test
