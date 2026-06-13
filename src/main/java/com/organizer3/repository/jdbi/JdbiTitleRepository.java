@@ -1539,7 +1539,9 @@ public class JdbiTitleRepository implements TitleRepository {
                                          List<Long> enrichmentTagIds,
                                          String sort, boolean asc,
                                          int limit, int offset,
-                                         com.organizer3.notes.NotesFilter notesFilter) {
+                                         com.organizer3.notes.NotesFilter notesFilter,
+                                         Integer ageMin, Integer ageMax,
+                                         com.organizer3.repository.TitleRepository.CastMode castMode) {
         String safeLabel   = labelPrefix   != null ? labelPrefix   : "";
         String safeSeq     = seqPrefix     != null ? seqPrefix     : "";
         List<String> safeCompany       = companyLabels    != null ? companyLabels    : List.of();
@@ -1553,6 +1555,11 @@ public class JdbiTitleRepository implements TitleRepository {
         boolean sortByActress     = "actressName".equals(sort);
         boolean sortByProduct     = "productCode".equals(sort);
         // default is "addedDate"
+
+        // Age filter is active only when at least one bound is provided
+        boolean ageActive = (ageMin != null || ageMax != null);
+        com.organizer3.repository.TitleRepository.CastMode safeCastMode =
+                castMode != null ? castMode : com.organizer3.repository.TitleRepository.CastMode.SOLO;
 
         StringBuilder sql = new StringBuilder("SELECT t.* FROM titles t\n");
         sql.append("LEFT JOIN title_locations tl ON t.id = tl.title_id AND tl.stale_since IS NULL\n");
@@ -1583,6 +1590,9 @@ public class JdbiTitleRepository implements TitleRepository {
             } else {
                 sql.append("AND NOT ").append(exists).append("\n");
             }
+        }
+        if (ageActive) {
+            appendAgeFilter(sql, safeCastMode, ageMin, ageMax);
         }
         sql.append("GROUP BY t.id\n");
         if (hasTags || hasEnrichmentTags) {
@@ -1617,9 +1627,67 @@ public class JdbiTitleRepository implements TitleRepository {
             if (hasCompany)        q = q.bindList("companyLabels", safeCompany.stream().map(String::toUpperCase).toList());
             if (hasTags)           q = q.bindList("tags", safeTags).bind("tagCount", safeTags.size());
             if (hasEnrichmentTags) q = q.bindList("enrichmentTagIds", safeEnrichTags).bind("enrichmentTagCount", safeEnrichTags.size());
+            if (ageActive) {
+                if (ageMin != null) q = q.bind("ageMin", ageMin);
+                if (ageMax != null) q = q.bind("ageMax", ageMax);
+            }
             return q.map(MAPPER).list();
         });
         return populateLocationsBatch(titles);
+    }
+
+    /**
+     * Appends the age-at-release EXISTS predicates to {@code sql} for the given castMode.
+     * Uses {@code :ageMin} / {@code :ageMax} named params — caller must bind them when active.
+     * Only the params present in the SQL will be bound (open-ended bounds).
+     */
+    private static void appendAgeFilter(StringBuilder sql,
+                                         com.organizer3.repository.TitleRepository.CastMode mode,
+                                         Integer ageMin, Integer ageMax) {
+        // Build the inclusive age comparison for positive EXISTS checks
+        String ageRange = buildAgeRange("ta.age_at_release", ageMin, ageMax);
+
+        switch (mode) {
+            case SOLO -> {
+                sql.append("AND EXISTS (SELECT 1 FROM title_actresses ta WHERE ta.title_id = t.id AND ").append(ageRange).append(")\n");
+                sql.append("AND NOT EXISTS (SELECT 1 FROM title_actresses ta1, title_actresses ta2 WHERE ta1.title_id = t.id AND ta2.title_id = t.id AND ta1.actress_id <> ta2.actress_id)\n");
+            }
+            case ANY -> {
+                sql.append("AND EXISTS (SELECT 1 FROM title_actresses ta WHERE ta.title_id = t.id AND ").append(ageRange).append(")\n");
+            }
+            case ALL -> {
+                // Must have at least one credit row
+                sql.append("AND EXISTS (SELECT 1 FROM title_actresses ta WHERE ta.title_id = t.id)\n");
+                // And no credit row that fails range (strict: NULL fails)
+                String negRange = buildAgeNegRange("ta.age_at_release", ageMin, ageMax);
+                sql.append("AND NOT EXISTS (SELECT 1 FROM title_actresses ta WHERE ta.title_id = t.id AND (").append(negRange).append("))\n");
+            }
+        }
+    }
+
+    /** Returns an SQL expression matching age_at_release within [ageMin, ageMax] (open-ended when null). */
+    private static String buildAgeRange(String col, Integer ageMin, Integer ageMax) {
+        if (ageMin != null && ageMax != null) {
+            return col + " BETWEEN :ageMin AND :ageMax";
+        } else if (ageMin != null) {
+            return col + " >= :ageMin";
+        } else {
+            return col + " <= :ageMax";
+        }
+    }
+
+    /**
+     * Returns an SQL expression that is TRUE when the credit FAILS the range
+     * (used in NOT EXISTS for ALL mode). NULL age always fails (strict ALL).
+     */
+    private static String buildAgeNegRange(String col, Integer ageMin, Integer ageMax) {
+        if (ageMin != null && ageMax != null) {
+            return col + " NOT BETWEEN :ageMin AND :ageMax OR " + col + " IS NULL";
+        } else if (ageMin != null) {
+            return col + " < :ageMin OR " + col + " IS NULL";
+        } else {
+            return col + " > :ageMax OR " + col + " IS NULL";
+        }
     }
 
     @Override

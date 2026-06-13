@@ -181,7 +181,7 @@ class AdminTitlesPagedTest {
         when(titleRepo.findEnrichmentTagsByTitleIds(any())).thenReturn(Map.of());
         when(titleRepo.findRatingDataByTitleIds(any())).thenReturn(Map.of());
         when(titleRepo.findTitleOriginalEnByTitleIds(any())).thenReturn(Map.of());
-        when(titleActressRepo.findActressIdsByTitle(anyLong())).thenReturn(List.of());
+        when(titleActressRepo.findCreditsByTitle(anyLong())).thenReturn(List.of());
     }
 
     private static Title title(long id, String code, LocalDate releaseDate, TitleLocation... locs) {
