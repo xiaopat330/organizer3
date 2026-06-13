@@ -2,6 +2,11 @@ package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.organizer3.config.volume.OrganizerConfig;
+import com.organizer3.config.volume.PartitionDef;
+import com.organizer3.config.volume.StructuredPartitionDef;
+import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.covers.CoverPath;
 import com.organizer3.db.ActressCompaniesService;
 import com.organizer3.db.SchemaInitializer;
@@ -50,6 +55,35 @@ class RegisterFolderToolTest {
     private static final ObjectMapper M = new ObjectMapper();
     private static final String VOLUME_ID = "s";
     private static final String OTHER_VOLUME_ID = "a";
+
+    /** Minimal OrganizerConfig providing the conventional structure. */
+    private static final OrganizerConfig ORGANIZER_CFG;
+    static {
+        VolumeStructureDef conventional = new VolumeStructureDef(
+                "conventional",
+                List.of(
+                        new PartitionDef("queue",     "queue"),
+                        new PartitionDef("attention", "attention"),
+                        new PartitionDef("archive",   "archive")
+                ),
+                new StructuredPartitionDef("stars", List.of(
+                        new PartitionDef("library",   "library"),
+                        new PartitionDef("minor",     "minor"),
+                        new PartitionDef("popular",   "popular"),
+                        new PartitionDef("superstar", "superstar"),
+                        new PartitionDef("goddess",   "goddess")
+                ))
+        );
+        ORGANIZER_CFG = new OrganizerConfig(
+                "test", "/tmp",
+                100, 10, 10, 10, 4, 0,
+                List.of(),
+                List.of(new VolumeConfig(VOLUME_ID, "//host/s", "conventional", "host", null)),
+                List.of(conventional),
+                List.of(),
+                null
+        );
+    }
 
     @TempDir Path tempDir;
 
@@ -100,11 +134,12 @@ class RegisterFolderToolTest {
         session = mock(SessionContext.class);
         VolumeConnection conn = mock(VolumeConnection.class);
         when(session.getMountedVolumeId()).thenReturn(VOLUME_ID);
+        when(session.getMountedVolume()).thenReturn(new VolumeConfig(VOLUME_ID, "//host/s", "conventional", "host", null));
         when(session.getActiveConnection()).thenReturn(conn);
         when(conn.isConnected()).thenReturn(true);
         when(conn.fileSystem()).thenReturn(fs);
 
-        tool = new RegisterFolderTool(session, registrar);
+        tool = new RegisterFolderTool(session, registrar, ORGANIZER_CFG);
     }
 
     @AfterEach

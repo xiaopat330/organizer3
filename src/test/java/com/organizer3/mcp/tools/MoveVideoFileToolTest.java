@@ -2,7 +2,11 @@ package com.organizer3.mcp.tools;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.organizer3.config.volume.OrganizerConfig;
+import com.organizer3.config.volume.PartitionDef;
+import com.organizer3.config.volume.StructuredPartitionDef;
 import com.organizer3.config.volume.VolumeConfig;
+import com.organizer3.config.volume.VolumeStructureDef;
 import com.organizer3.curation.CurationLog;
 import com.organizer3.db.SchemaInitializer;
 import com.organizer3.filesystem.FileTimestamps;
@@ -20,6 +24,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Path;
+import com.organizer3.sync.PartitionResolver;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.Instant;
@@ -37,6 +42,36 @@ class MoveVideoFileToolTest {
 
     @TempDir
     Path logDir;
+
+    /** Minimal OrganizerConfig providing the conventional structure. */
+    private static final OrganizerConfig ORGANIZER_CFG;
+    static {
+        VolumeStructureDef conventional = new VolumeStructureDef(
+                "conventional",
+                List.of(
+                        new PartitionDef("queue",     "queue"),
+                        new PartitionDef("attention", "attention"),
+                        new PartitionDef("archive",   "archive")
+                ),
+                new StructuredPartitionDef("stars", List.of(
+                        new PartitionDef("library",   "library"),
+                        new PartitionDef("minor",     "minor"),
+                        new PartitionDef("popular",   "popular"),
+                        new PartitionDef("superstar", "superstar"),
+                        new PartitionDef("goddess",   "goddess"),
+                        new PartitionDef("star",      "star")
+                ))
+        );
+        ORGANIZER_CFG = new OrganizerConfig(
+                "test", "/tmp",
+                100, 10, 10, 10, 4, 0,
+                List.of(),
+                List.of(new VolumeConfig("s", "//host/s", "conventional", "host", null)),
+                List.of(conventional),
+                List.of(),
+                null
+        );
+    }
 
     private static final ObjectMapper M = new ObjectMapper();
 
@@ -66,7 +101,7 @@ class MoveVideoFileToolTest {
         session     = new SessionContext();
         session.setMountedVolume(new VolumeConfig("s", "//host/s", "conventional", "host", null));
         session.setActiveConnection(new FakeConnection(fs));
-        tool = new MoveVideoFileTool(session, titleRepo, locationRepo, jdbi, curationLog);
+        tool = new MoveVideoFileTool(session, titleRepo, locationRepo, jdbi, curationLog, ORGANIZER_CFG);
     }
 
     @AfterEach
@@ -183,7 +218,7 @@ class MoveVideoFileToolTest {
         String partition = jdbi.withHandle(h -> h.createQuery(
                 "SELECT partition_id FROM title_locations WHERE title_id = " + titleId)
                 .mapTo(String.class).one());
-        assertEquals("star", partition);
+        assertEquals("stars/star", partition);
     }
 
     @Test
@@ -489,16 +524,19 @@ class MoveVideoFileToolTest {
 
     @Test
     void derivePartitionIdForStarsPath() {
-        assertEquals("goddess", MoveVideoFileTool.derivePartitionId(
+        // With a conventional structure, tiered stars paths resolve to "stars/<tier>" (long form)
+        VolumeStructureDef structure = ORGANIZER_CFG.findStructureById("conventional").orElseThrow();
+        assertEquals("stars/goddess", PartitionResolver.resolvePartitionId(structure,
                 Path.of("/stars/goddess/Saki/Saki (MIMK-190)/h265")));
-        assertEquals("library", MoveVideoFileTool.derivePartitionId(
+        assertEquals("stars/library", PartitionResolver.resolvePartitionId(structure,
                 Path.of("/stars/library/A/A (B-001)")));
     }
 
     @Test
     void derivePartitionIdForNonStarsPath() {
-        assertEquals("attention", MoveVideoFileTool.derivePartitionId(Path.of("/attention/review")));
-        assertEquals("queue",     MoveVideoFileTool.derivePartitionId(Path.of("/queue")));
+        VolumeStructureDef structure = ORGANIZER_CFG.findStructureById("conventional").orElseThrow();
+        assertEquals("attention", PartitionResolver.resolvePartitionId(structure, Path.of("/attention/review")));
+        assertEquals("queue",     PartitionResolver.resolvePartitionId(structure, Path.of("/queue")));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
