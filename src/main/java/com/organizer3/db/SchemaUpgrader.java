@@ -24,7 +24,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 68;
+    private static final int CURRENT_VERSION = 69;
 
     private final Jdbi jdbi;
 
@@ -366,6 +366,11 @@ public class SchemaUpgrader {
         if (version < 68) {
             applyV68();
             setVersion(68);
+        }
+
+        if (version < 69) {
+            applyV69();
+            setVersion(69);
         }
 
         log.info("Schema upgrade complete");
@@ -2300,6 +2305,39 @@ public class SchemaUpgrader {
             h.execute("""
                     CREATE INDEX IF NOT EXISTS idx_attribution_findings_status
                         ON attribution_findings(status)""");
+        });
+    }
+
+    /**
+     * v69: {@code age_at_release} column on {@code title_actresses}.
+     *
+     * <p>Adds a nullable INTEGER column holding the credited actress's age in whole years
+     * on the title's release date (birthday-aware: uses the %Y%m%d integer subtraction
+     * formula so the birthday boundary is exact).
+     *
+     * <p>Release-date precedence: {@code title_javdb_enrichment.release_date} (canonical)
+     * then {@code titles.release_date} (fallback); empty-string values are treated as NULL.
+     * Rows that are not computable are explicitly set to NULL.
+     *
+     * <p>Idempotent via {@link #addColumnIfMissing}; the seed UPDATE is also idempotent.
+     */
+    private void applyV69() {
+        log.info("Applying migration v69: age_at_release column on title_actresses");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "title_actresses", "age_at_release", "INTEGER");
+            h.execute("""
+                    UPDATE title_actresses SET age_at_release = (
+                        SELECT CASE
+                            WHEN a.date_of_birth IS NULL OR a.date_of_birth = '' THEN NULL
+                            WHEN COALESCE(NULLIF(e.release_date,''), NULLIF(t.release_date,'')) IS NULL THEN NULL
+                            ELSE (CAST(strftime('%Y%m%d', COALESCE(NULLIF(e.release_date,''), NULLIF(t.release_date,''))) AS INTEGER)
+                                - CAST(strftime('%Y%m%d', a.date_of_birth) AS INTEGER)) / 10000
+                        END
+                        FROM titles t
+                        JOIN actresses a ON a.id = title_actresses.actress_id
+                        LEFT JOIN title_javdb_enrichment e ON e.title_id = t.id
+                        WHERE t.id = title_actresses.title_id
+                    )""");
         });
     }
 

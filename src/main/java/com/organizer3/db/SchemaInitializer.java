@@ -162,8 +162,9 @@ public class SchemaInitializer {
 
             h.execute("""
                     CREATE TABLE IF NOT EXISTS title_actresses (
-                        title_id    INTEGER NOT NULL REFERENCES titles(id),
-                        actress_id  INTEGER NOT NULL REFERENCES actresses(id),
+                        title_id         INTEGER NOT NULL REFERENCES titles(id),
+                        actress_id       INTEGER NOT NULL REFERENCES actresses(id),
+                        age_at_release   INTEGER,
                         PRIMARY KEY (title_id, actress_id)
                     )""");
 
@@ -848,7 +849,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 68");
+                h.execute("PRAGMA user_version = 69");
             }
         });
         log.info("Schema initialization complete");
