@@ -100,7 +100,7 @@ class SmbSettingsTest {
         SmbSettings custom = new SmbSettings(7, 8, 9, 45, 10, null);
         // Use the full canonical ctor with smb= custom
         OrganizerConfig config = new OrganizerConfig(
-                "test", "/tmp", null, null, null, null, null, null,
+                "test", "/tmp", null, null, null, null, null, null, null,
                 List.of(), List.of(), List.of(), List.of(), null, null,
                 null, null, null, null, null, null, null, null, custom, null);
 

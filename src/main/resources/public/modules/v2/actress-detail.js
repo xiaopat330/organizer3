@@ -29,8 +29,8 @@ let activeTags = new Set();
 let activeEnrichmentTagIds = new Set();
 let sortBy = 'release_date';
 let sortDir = 'desc';
-let catalogAgeMin = 18;
-let catalogAgeMax = 50;
+let catalogAgeMin = AGE_MIN;
+let catalogAgeMax = AGE_MAX;
 let actressTagsCache = null;
 let enrichmentTagsCache = null;
 let filterTimer = null;
@@ -947,8 +947,8 @@ export async function mountActressDetail(rootEl, id) {
   activeEnrichmentTagIds = new Set();
   sortBy = 'release_date';
   sortDir = 'desc';
-  catalogAgeMin = 18;
-  catalogAgeMax = 50;
+  catalogAgeMin = AGE_MIN;
+  catalogAgeMax = AGE_MAX;
   actressTagsCache = null;
   enrichmentTagsCache = null;
 

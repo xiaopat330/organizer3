@@ -378,6 +378,7 @@ public class WebServer {
             result.put("maxRandomActresses", cfg.maxRandomActresses() != null ? cfg.maxRandomActresses() : 500);
             result.put("thumbnailColumns",   cfg.thumbnailColumns()   != null ? cfg.thumbnailColumns()   : 5);
             result.put("coverCropPercent",   cfg.coverCropPercent()   != null ? cfg.coverCropPercent()   : 47);
+            result.put("ageFilterMaxAge",    cfg.ageFilterMaxAge()    != null ? cfg.ageFilterMaxAge()    : 45);
             var exhibitionVolumes = cfg.volumes().stream()
                     .filter(v -> "exhibition".equals(v.group()))
                     .map(VolumeConfig::id)

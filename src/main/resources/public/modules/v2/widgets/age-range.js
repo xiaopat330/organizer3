@@ -6,7 +6,10 @@
    instantiated more than once per page.
    ───────────────────────────────────────────────────────────────────── */
 
-export const AGE_MIN = 18, AGE_MAX = 50;
+export const AGE_MIN = 18;
+export let AGE_MAX = 45;
+
+export function setAgeMaxAge(n) { if (Number.isInteger(n) && n > AGE_MIN) AGE_MAX = n; }
 
 const pct = v => ((v - AGE_MIN) / (AGE_MAX - AGE_MIN)) * 100;
 
@@ -65,3 +68,11 @@ export function wireAgeRange(rootEl, { idPrefix = 'age', getLo, getHi, setLo, se
 
   update();
 }
+
+// Self-configure the upper bound from server config (falls back to the 45 default).
+try {
+  fetch('/api/config')
+    .then(r => (r.ok ? r.json() : null))
+    .then(c => { if (c && c.ageFilterMaxAge) setAgeMaxAge(c.ageFilterMaxAge); })
+    .catch(() => {});
+} catch (_) {}

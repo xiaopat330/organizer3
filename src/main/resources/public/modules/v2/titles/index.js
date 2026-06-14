@@ -16,6 +16,7 @@ import {
   resetBrowseFilters,
 } from './pool.js';
 import { mountStudio, unmountStudio } from './studio.js';
+import { AGE_MIN, AGE_MAX } from '../widgets/age-range.js';
 import {
   injectNotesTokens,
   decorateWithNotesIcon,
@@ -61,8 +62,8 @@ function createState() {
     libraryCompany: null,
     librarySort: 'addedDate',
     libraryOrder: 'desc',
-    libraryAgeMin: 18,
-    libraryAgeMax: 50,
+    libraryAgeMin: AGE_MIN,
+    libraryAgeMax: AGE_MAX,
     // Browse (pool) filters
     poolVolumeId: null,
     poolSmbPath: null,
@@ -128,8 +129,8 @@ function buildUrl(state, offset, limit) {
     if (state.librarySort !== 'addedDate')      params.set('sort',             state.librarySort);
     if (state.libraryOrder !== 'desc')          params.set('order',            state.libraryOrder);
     if (state.notesFilter)                      params.set('notes',            state.notesFilter);
-    if (state.libraryAgeMin > 18)               params.set('ageMin',           state.libraryAgeMin);
-    if (state.libraryAgeMax < 50)               params.set('ageMax',           state.libraryAgeMax);
+    if (state.libraryAgeMin > AGE_MIN)          params.set('ageMin',           state.libraryAgeMin);
+    if (state.libraryAgeMax < AGE_MAX)          params.set('ageMax',           state.libraryAgeMax);
     return `/api/titles?${params}`;
   }
   return `/api/titles?offset=${offset}&limit=${limit}`;

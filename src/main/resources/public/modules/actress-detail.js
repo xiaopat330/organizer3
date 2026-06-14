@@ -11,7 +11,7 @@ import { mountAdmin, unmountAdmin } from './actress-detail-admin/index.js';
 import { confirmDiscardIfStaged } from './actress-detail-admin/nav-guard.js';
 import { displayPath, installPathClickToCopy } from './path-utils.js';
 import { mountActressNotePanel } from './actress-detail/notes-panel.js';
-import { ageRangeHtml, wireAgeRange } from './v2/widgets/age-range.js';
+import { ageRangeHtml, wireAgeRange, AGE_MIN, AGE_MAX } from './v2/widgets/age-range.js';
 
 // ── State ─────────────────────────────────────────────────────────────────
 export let detailActressId    = null;
@@ -20,8 +20,8 @@ let detailActiveTags           = new Set();
 let detailActiveEnrichmentTagIds = new Set();
 let detailSortBy               = 'release_date';
 let detailSortDir              = 'desc';
-let detailAgeMin               = 18;
-let detailAgeMax               = 50;
+let detailAgeMin               = AGE_MIN;
+let detailAgeMax               = AGE_MAX;
 let detailFilterTimer          = null;
 let detailActressTags          = null;   // lazy-loaded curated tag list for current actress
 let detailEnrichmentTags       = null;   // lazy-loaded enrichment tag list for current actress
@@ -54,8 +54,8 @@ export const actressDetailGrid = new ScrollingGrid(
     if (detailActiveTags.size > 0) url += `&tags=${encodeURIComponent([...detailActiveTags].join(','))}`;
     if (detailActiveEnrichmentTagIds.size > 0) url += `&enrichmentTagIds=${[...detailActiveEnrichmentTagIds].join(',')}`;
     url += `&sortBy=${encodeURIComponent(detailSortBy)}&sortDir=${encodeURIComponent(detailSortDir)}`;
-    if (detailAgeMin > 18) url += `&ageMin=${detailAgeMin}`;
-    if (detailAgeMax < 50) url += `&ageMax=${detailAgeMax}`;
+    if (detailAgeMin > AGE_MIN) url += `&ageMin=${detailAgeMin}`;
+    if (detailAgeMax < AGE_MAX) url += `&ageMax=${detailAgeMax}`;
     return url;
   },
   makeTitleCard,
@@ -89,8 +89,8 @@ export async function openActressDetail(actressId) {
   detailActiveEnrichmentTagIds = new Set();
   detailSortBy                 = 'release_date';
   detailSortDir                = 'desc';
-  detailAgeMin                 = 18;
-  detailAgeMax                 = 50;
+  detailAgeMin                 = AGE_MIN;
+  detailAgeMax                 = AGE_MAX;
   detailActressTags            = null;
   detailEnrichmentTags         = null;
   detailEnrichSubtab           = 'titles';

@@ -12,6 +12,7 @@ import { renderLibraryFilterPanel, hideTagsPanel, scheduleLibraryQuery } from '.
 import { enterUnsortedMode as enterUnsortedModeImpl, enterArchiveMode as enterArchiveModeImpl, showBrowseFilterBar, hideBrowseFilterBar, resetBrowseFilters } from './pool.js';
 import { loadAndRenderStudioGroupRow, selectStudioGroup, showStudioGroupRow, hideStudioGroupRow } from './studio.js';
 import { injectNotesTokens, decorateWithNotesIcon, scheduleBatchHydration } from './notes.js';
+import { AGE_MIN, AGE_MAX } from '../v2/widgets/age-range.js';
 
 // Inject the post-it design tokens once at module load time.
 injectNotesTokens();
@@ -92,8 +93,8 @@ function createTitleBrowseState() {
     libraryCompany: null,
     librarySort: 'addedDate',
     libraryOrder: 'desc',
-    libraryAgeMin: 18,
-    libraryAgeMax: 50,
+    libraryAgeMin: AGE_MIN,
+    libraryAgeMax: AGE_MAX,
     libraryAutoTimer: null,
     libraryAutoVisible: false,
     poolVolumeId: null,
@@ -180,8 +181,8 @@ export const allTitlesGrid = new ScrollingGrid(
       if (state.librarySort !== 'addedDate')         params.set('sort',             state.librarySort);
       if (state.libraryOrder !== 'desc')             params.set('order',            state.libraryOrder);
       if (state.notesFilter)                         params.set('notes',            state.notesFilter);
-      if (state.libraryAgeMin > 18) params.set('ageMin', state.libraryAgeMin);
-      if (state.libraryAgeMax < 50) params.set('ageMax', state.libraryAgeMax);
+      if (state.libraryAgeMin > AGE_MIN) params.set('ageMin', state.libraryAgeMin);
+      if (state.libraryAgeMax < AGE_MAX) params.set('ageMax', state.libraryAgeMax);
       return `/api/titles?${params}`;
     }
     {
