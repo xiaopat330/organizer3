@@ -2102,4 +2102,81 @@ class JdbiTitleRepositoryTest {
                 withCastModeOnly.stream().map(Title::getCode).sorted().toList(),
                 "Filter inactive (no age bounds) must produce same results regardless of castMode");
     }
+
+    // ── Age-at-release filter tests: findByVolumeFiltered (collections path) ──
+
+    @Test
+    void findByVolumeFilteredAge_anyMultiCastOneInRange_matches() {
+        Title t = saveWithLocation(titleFull("CAN-001", "CAN", 1), "vol-pool", "pool", "/can1");
+        insertAgeCredit(t.getId(), newActressId(), 22);   // in range
+        insertAgeCredit(t.getId(), newActressId(), null); // unknown
+        insertAgeCredit(t.getId(), newActressId(), 31);   // out of range
+
+        List<Title> results = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, 20, 25, com.organizer3.repository.TitleRepository.CastMode.ANY);
+        assertEquals(1, results.size(), "ANY: one credit in range (unknown ignored) should match");
+        assertEquals("CAN-001", results.get(0).getCode());
+    }
+
+    @Test
+    void findByVolumeFilteredAge_anyNoCreditInRange_doesNotMatch() {
+        Title t = saveWithLocation(titleFull("CAN-002", "CAN", 2), "vol-pool", "pool", "/can2");
+        insertAgeCredit(t.getId(), newActressId(), 22);
+        insertAgeCredit(t.getId(), newActressId(), null);
+        insertAgeCredit(t.getId(), newActressId(), 31);
+
+        List<Title> results = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, 40, 45, com.organizer3.repository.TitleRepository.CastMode.ANY);
+        assertEquals(0, results.size(), "ANY: no credit in [40,45] should not match");
+    }
+
+    @Test
+    void findByVolumeFilteredAge_allCreditsInRange_matches() {
+        Title t = saveWithLocation(titleFull("CAN-003", "CAN", 3), "vol-pool", "pool", "/can3");
+        insertAgeCredit(t.getId(), newActressId(), 22);
+        insertAgeCredit(t.getId(), newActressId(), 24);
+
+        List<Title> results = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, 20, 25, com.organizer3.repository.TitleRepository.CastMode.ALL);
+        assertEquals(1, results.size(), "ALL: every credit in range should match");
+        assertEquals("CAN-003", results.get(0).getCode());
+    }
+
+    @Test
+    void findByVolumeFilteredAge_allWithUnknown_doesNotMatch() {
+        Title t = saveWithLocation(titleFull("CAN-004", "CAN", 4), "vol-pool", "pool", "/can4");
+        insertAgeCredit(t.getId(), newActressId(), 22);
+        insertAgeCredit(t.getId(), newActressId(), null); // unknown fails ALL (strict)
+
+        List<Title> results = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, 20, 25, com.organizer3.repository.TitleRepository.CastMode.ALL);
+        assertEquals(0, results.size(), "ALL: an unknown-age credit must fail the title (strict)");
+    }
+
+    @Test
+    void findByVolumeFilteredAge_allOneOutOfRange_doesNotMatch() {
+        Title t = saveWithLocation(titleFull("CAN-005", "CAN", 5), "vol-pool", "pool", "/can5");
+        insertAgeCredit(t.getId(), newActressId(), 22);
+        insertAgeCredit(t.getId(), newActressId(), 31); // out of [20,25]
+
+        List<Title> results = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, 20, 25, com.organizer3.repository.TitleRepository.CastMode.ALL);
+        assertEquals(0, results.size(), "ALL: one credit out of range should not match");
+    }
+
+    @Test
+    void findByVolumeFilteredAge_bothNull_returnsAll() {
+        saveWithLocation(titleFull("CAN-006", "CAN", 6), "vol-pool", "pool", "/can6");
+        Title t = saveWithLocation(titleFull("CAN-007", "CAN", 7), "vol-pool", "pool", "/can7");
+        insertAgeCredit(t.getId(), newActressId(), 22);
+
+        List<Title> withMode = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, null, null, com.organizer3.repository.TitleRepository.CastMode.ALL);
+        List<Title> baseline = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0, null);
+
+        assertEquals(2, withMode.size(), "both-null age args must return all titles regardless of castMode");
+        assertEquals(baseline.stream().map(Title::getCode).sorted().toList(),
+                withMode.stream().map(Title::getCode).sorted().toList(),
+                "both-null age args must equal the delegating (no-age) overload");
+    }
 }

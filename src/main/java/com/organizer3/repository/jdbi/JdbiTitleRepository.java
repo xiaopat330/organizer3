@@ -658,6 +658,19 @@ public class JdbiTitleRepository implements TitleRepository {
     @Override
     public List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset,
                                              com.organizer3.notes.NotesFilter notesFilter) {
+        return findByVolumeFiltered(volumeId, labels, tags, limit, offset, notesFilter,
+                null, null, com.organizer3.repository.TitleRepository.CastMode.SOLO);
+    }
+
+    @Override
+    public List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset,
+                                             com.organizer3.notes.NotesFilter notesFilter,
+                                             Integer ageMin, Integer ageMax,
+                                             com.organizer3.repository.TitleRepository.CastMode castMode) {
+        boolean ageActive = (ageMin != null || ageMax != null);
+        com.organizer3.repository.TitleRepository.CastMode safeCastMode =
+                castMode != null ? castMode : com.organizer3.repository.TitleRepository.CastMode.SOLO;
+
         StringBuilder sql = new StringBuilder("SELECT t.* FROM titles t\n");
         sql.append("JOIN title_locations tl ON t.id = tl.title_id\n");
         if (!tags.isEmpty()) {
@@ -676,6 +689,9 @@ public class JdbiTitleRepository implements TitleRepository {
                 sql.append("AND NOT ").append(exists).append("\n");
             }
         }
+        if (ageActive) {
+            appendAgeFilter(sql, safeCastMode, ageMin, ageMax);
+        }
         sql.append("GROUP BY t.id\n");
         if (!tags.isEmpty()) {
             sql.append("HAVING COUNT(DISTINCT tet.tag) = :tagCount\n");
@@ -689,6 +705,10 @@ public class JdbiTitleRepository implements TitleRepository {
                     .bind("offset", offset);
             if (!labels.isEmpty()) q = q.bindList("labels", labels.stream().map(String::toUpperCase).toList());
             if (!tags.isEmpty())   q = q.bindList("tags", tags).bind("tagCount", tags.size());
+            if (ageActive) {
+                if (ageMin != null) q = q.bind("ageMin", ageMin);
+                if (ageMax != null) q = q.bind("ageMax", ageMax);
+            }
             return q.map(MAPPER).list();
         });
         return populateLocationsBatch(titles);

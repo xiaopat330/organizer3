@@ -75,6 +75,9 @@ function createState() {
     browseFilterTimer: null,
     browseCatalogTags: null,
     browseTagsForMode: null,
+    collectionsAgeMin: AGE_MIN,
+    collectionsAgeMax: AGE_MAX,
+    collectionsCastMode: 'any',
     allCompanies: null,
     // Studio
     selectedStudioSlug: null,
@@ -104,6 +107,9 @@ function buildUrl(state, offset, limit) {
     if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
     if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
     if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
+    if (state.collectionsAgeMin > AGE_MIN) url += `&ageMin=${state.collectionsAgeMin}`;
+    if (state.collectionsAgeMax < AGE_MAX) url += `&ageMax=${state.collectionsAgeMax}`;
+    if (state.collectionsAgeMin > AGE_MIN || state.collectionsAgeMax < AGE_MAX) url += `&castMode=${encodeURIComponent(state.collectionsCastMode)}`;
     return url;
   }
   if (state.mode === 'unsorted') {

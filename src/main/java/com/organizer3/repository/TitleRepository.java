@@ -267,6 +267,16 @@ public interface TitleRepository {
                                       com.organizer3.notes.NotesFilter notesFilter);
 
     /**
+     * Like {@link #findByVolumeFiltered} but also applies an age-at-release filter across cast.
+     * Pass {@code null} for both {@code ageMin} and {@code ageMax} to skip the age filter
+     * (in which case {@code castMode} is irrelevant). The age predicate is composed as EXISTS
+     * subqueries so it stacks with the tag HAVING logic.
+     */
+    List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset,
+                                      com.organizer3.notes.NotesFilter notesFilter,
+                                      Integer ageMin, Integer ageMax, CastMode castMode);
+
+    /**
      * Find titles in a volume+partition, optionally restricted to label codes and/or requiring
      * all tags. Pass empty lists to skip that dimension. Ordered by favorite → bookmark → newest first.
      */

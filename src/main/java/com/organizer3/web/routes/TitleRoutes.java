@@ -261,8 +261,26 @@ public class TitleRoutes {
             List<String> tags = (tagsParam != null && !tagsParam.isBlank())
                     ? List.of(tagsParam.split(",")) : List.of();
             NotesFilter notesFilter = ActressRoutes.parseNotesFilter(ctx.queryParam("notes"));
-            if ((company != null && !company.isBlank()) || !tags.isEmpty() || notesFilter != null) {
-                ctx.json(browseService.findByVolumePagedFiltered("collections", company, tags, offset, limit, notesFilter));
+
+            Integer ageMin = ctx.queryParamAsClass("ageMin", Integer.class).getOrDefault(null);
+            Integer ageMax = ctx.queryParamAsClass("ageMax", Integer.class).getOrDefault(null);
+            com.organizer3.repository.TitleRepository.CastMode castMode =
+                    com.organizer3.repository.TitleRepository.CastMode.ANY;
+            String castModeParam = ctx.queryParam("castMode");
+            if (castModeParam != null && !castModeParam.isBlank()) {
+                try {
+                    castMode = com.organizer3.repository.TitleRepository.CastMode
+                            .valueOf(castModeParam.trim().toUpperCase());
+                } catch (IllegalArgumentException e) {
+                    ctx.status(400).result("castMode must be one of: solo, any, all");
+                    return;
+                }
+            }
+            boolean hasAgeFilter = ageMin != null || ageMax != null;
+
+            if ((company != null && !company.isBlank()) || !tags.isEmpty() || notesFilter != null || hasAgeFilter) {
+                ctx.json(browseService.findByVolumePagedFiltered("collections", company, tags, offset, limit,
+                        notesFilter, ageMin, ageMax, castMode));
             } else {
                 ctx.json(browseService.findByVolumePaged("collections", offset, limit));
             }
