@@ -28,6 +28,16 @@ function esc(s) {
   }[c]));
 }
 
+// javdb indexes codes with minimal zero-padding (SEND-2, SCOP-515); our row.code is
+// minimally padded and row.baseCode is 5-digit zero-padded — both miss javdb's search.
+// Strip leading zeros from the numeric part so the human "Search javdb" link is far more
+// likely to hit. Mirrors JavdbCode.normalizeForMatch on the server (search links only —
+// cover resolution stays keyed on base_code).
+function javdbSearchCode(row) {
+  return (row.code || row.baseCode || '')
+    .replace(/^([A-Za-z][A-Za-z0-9]{0,9}-[A-Za-z]?)0*(\d)/, '$1$2');
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 export async function mountNoMatch(rootEl) {
@@ -169,7 +179,7 @@ export async function mountNoMatch(rootEl) {
 
     // Javdb search link
     const javdbLink = document.createElement('a');
-    javdbLink.href = 'https://javdb.com/search?q=' + encodeURIComponent(row.baseCode || row.code);
+    javdbLink.href = 'https://javdb.com/search?q=' + encodeURIComponent(javdbSearchCode(row));
     javdbLink.target = '_blank';
     javdbLink.rel = 'noopener noreferrer';
     javdbLink.className = 'nm-javdb-link';
@@ -268,7 +278,7 @@ export async function mountNoMatch(rootEl) {
     if (coverUrl) {
       const cover = document.createElement('a');
       cover.className = 'nm-cover';
-      cover.href = 'https://javdb.com/search?q=' + encodeURIComponent(row.baseCode || row.code);
+      cover.href = 'https://javdb.com/search?q=' + encodeURIComponent(javdbSearchCode(row));
       cover.target = '_blank';
       cover.rel = 'noopener noreferrer';
 

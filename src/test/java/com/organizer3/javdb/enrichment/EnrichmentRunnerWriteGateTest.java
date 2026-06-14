@@ -124,10 +124,18 @@ class EnrichmentRunnerWriteGateTest {
         return "<html><body><div class=\"movie-panel-info\"></div></body></html>";
     }
 
-    private JavdbClient fakeClient(String slug, String titleHtml) {
-        String searchHtml = "<a href=\"/v/" + slug + "\">DUMMY</a>";
+    /**
+     * Fake client returning a single-card search page (code + slug) and a fixed title page.
+     * The code-search fallback validates the result code against the query, so the card echoes
+     * the queried {@code code} back inside {@code .video-title strong}.
+     */
+    private JavdbClient fakeClient(String code, String slug, String titleHtml) {
+        String searchHtml = "<html><body>"
+                + "<div class=\"item\"><a href=\"/v/" + slug + "\" class=\"box\">"
+                + "<div class=\"video-title\"><strong>" + code + "</strong></div></a></div>"
+                + "</body></html>";
         return new JavdbClient() {
-            @Override public String searchByCode(String code) { return searchHtml; }
+            @Override public String searchByCode(String c) { return searchHtml; }
             @Override public String fetchTitlePage(String s)  { return titleHtml; }
             @Override public String fetchActressPage(String s) { throw new AssertionError("not expected"); }
         };
@@ -206,7 +214,7 @@ class EnrichmentRunnerWriteGateTest {
                 java.time.Instant.now().toString(), 1, null, "http",
                 java.util.List.of(new FilmographyEntry("IPX-100", "ipx100"))));
 
-        JavdbClient client = fakeClient("ipx100", titleHtmlEmptyCast());
+        JavdbClient client = fakeClient("IPX-100", "ipx100", titleHtmlEmptyCast());
         var slugResolver = new JavdbSlugResolver(client, filmographyRepo,
                 new com.organizer3.javdb.JavdbConfig(true, 1.0, 90, new int[]{1, 5, 30}, 5, null, null, null, null, 3, null, null));
         EnrichmentRunner runner = new EnrichmentRunner(
@@ -240,7 +248,7 @@ class EnrichmentRunnerWriteGateTest {
                 java.time.Instant.now().toString(), 1, null, "http",
                 java.util.List.of(new FilmographyEntry("PRED-100", "pred100"))));
 
-        JavdbClient client = fakeClient("pred100", titleHtmlWithCast("波多野結衣"));
+        JavdbClient client = fakeClient("PRED-100", "pred100", titleHtmlWithCast("波多野結衣"));
         var slugResolver = new JavdbSlugResolver(client, filmographyRepo,
                 new com.organizer3.javdb.JavdbConfig(true, 1.0, 90, new int[]{1, 5, 30}, 5, null, null, null, null, 3, null, null));
         EnrichmentRunner runner = new EnrichmentRunner(
@@ -274,7 +282,7 @@ class EnrichmentRunnerWriteGateTest {
                 java.util.List.of(new FilmographyEntry("PRED-200", "pred200"))));
 
         // Cast contains a different actress — mismatch
-        JavdbClient client = fakeClient("pred200", titleHtmlWithCast("別の女優"));
+        JavdbClient client = fakeClient("PRED-200", "pred200", titleHtmlWithCast("別の女優"));
         var slugResolver = new JavdbSlugResolver(client, filmographyRepo,
                 new com.organizer3.javdb.JavdbConfig(true, 1.0, 90, new int[]{1, 5, 30}, 5, null, null, null, null, 3, null, null));
         EnrichmentRunner runner = new EnrichmentRunner(
@@ -301,7 +309,7 @@ class EnrichmentRunnerWriteGateTest {
         long titleId = seedTitle("COL-001");
         // No actress linked — collection-style or sentinel-only title
 
-        JavdbClient client = fakeClient("col001", titleHtmlWithCast("SomeActress"));
+        JavdbClient client = fakeClient("COL-001", "col001", titleHtmlWithCast("SomeActress"));
         EnrichmentRunner runner = makeRunner(client);
 
         // Enqueue with actressId=0 (no actress anchor)
@@ -322,7 +330,7 @@ class EnrichmentRunnerWriteGateTest {
         long titleId = seedTitle("ALI-001");
         link(titleId, actressId);
 
-        JavdbClient client = fakeClient("ali001", titleHtmlWithCast("Alice Mizuki"));
+        JavdbClient client = fakeClient("ALI-001", "ali001", titleHtmlWithCast("Alice Mizuki"));
         EnrichmentRunner runner = makeRunner(client);
 
         // Use actress-driven enqueue but actress has no staging slug → falls to code-search
@@ -344,7 +352,7 @@ class EnrichmentRunnerWriteGateTest {
         link(titleId, actressId);
 
         // Cast contains somebody else, not Alice
-        JavdbClient client = fakeClient("ali002", titleHtmlWithCast("Completely Different Actress"));
+        JavdbClient client = fakeClient("ALI-002", "ali002", titleHtmlWithCast("Completely Different Actress"));
         EnrichmentRunner runner = makeRunner(client);
 
         queue.enqueueTitle(titleId, actressId);
@@ -388,7 +396,7 @@ class EnrichmentRunnerWriteGateTest {
         link(titleId, realId);
 
         // Collection job has actressId=0 so sentinel check is skipped
-        JavdbClient client = fakeClient("mix001", titleHtmlWithCast("Various", "Real Actress"));
+        JavdbClient client = fakeClient("MIX-001", "mix001", titleHtmlWithCast("Various", "Real Actress"));
         EnrichmentRunner runner = makeRunner(client);
 
         queue.enqueueTitle(EnrichmentJob.SOURCE_COLLECTION, titleId, null);
@@ -419,7 +427,7 @@ class EnrichmentRunnerWriteGateTest {
         reviewQueueRepo.enqueue(titleId, "titleSlug", "cast_anomaly", "actress_filmography");
         assertTrue(reviewQueueRepo.hasOpen(titleId, "cast_anomaly"));
 
-        EnrichmentRunner runner = makeRunner(fakeClient("titleSlug", titleHtmlEmptyCast()));
+        EnrichmentRunner runner = makeRunner(fakeClient("AIK-001", "titleSlug", titleHtmlEmptyCast()));
         runner.recoverCastAnomaliesAfterMatcherFix();
 
         // Review row resolved with 'cast_recovered'
@@ -452,7 +460,7 @@ class EnrichmentRunnerWriteGateTest {
                 titleId, castJson));
         reviewQueueRepo.enqueue(titleId, "kmm001", "cast_anomaly", "actress_filmography");
 
-        EnrichmentRunner runner = makeRunner(fakeClient("kmm001", titleHtmlEmptyCast()));
+        EnrichmentRunner runner = makeRunner(fakeClient("KMM-001", "kmm001", titleHtmlEmptyCast()));
         runner.recoverCastAnomaliesAfterMatcherFix();
 
         // Still open
@@ -470,7 +478,7 @@ class EnrichmentRunnerWriteGateTest {
         // The key behaviour: a gate-passing write must enqueue the title for revalidation.
         long titleId = seedTitle("ENQ-001");
 
-        JavdbClient client = fakeClient("enq001", titleHtmlNoCast());
+        JavdbClient client = fakeClient("ENQ-001", "enq001", titleHtmlNoCast());
         EnrichmentRunner runner = makeRunner(client);
 
         queue.enqueueTitle(EnrichmentJob.SOURCE_RECENT, titleId, 0L);

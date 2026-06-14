@@ -68,7 +68,7 @@ class EnrichmentRunnerTest {
                         .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
 
         // Fake client: search returns a page with /v/deD0v; title page returns the fixture HTML
-        String searchHtml = "<a href=\"/v/deD0v\">DV-948</a>";
+        String searchHtml = searchCardHtml("DV-948", "deD0v");
         String titleHtml = loadFixture("title_detail.html");
         JavdbClient fakeClient = new JavdbClient() {
             @Override public String searchByCode(String code) { return searchHtml; }
@@ -402,7 +402,7 @@ class EnrichmentRunnerTest {
         // Title page returns a single cast entry matching the actress's stage name so the gate
         // reaches the CODE_SEARCH_FALLBACK "no real linked actress in cast" row and writes MEDIUM.
         // The actress is in the cast, so row 6 applies: write MEDIUM + chain profile.
-        String searchHtml = "<a href=\"/v/var01\">VAR-001</a>";
+        String searchHtml = searchCardHtml("VAR-001", "var01");
         String titleHtml = buildFakeTitleHtml("Rika Takasugi");
         JavdbClient fakeClient = new JavdbClient() {
             @Override public String searchByCode(String code) { return searchHtml; }
@@ -441,7 +441,7 @@ class EnrichmentRunnerTest {
                         .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
         jdbi.useHandle(h -> h.execute("INSERT INTO title_actresses (actress_id, title_id) VALUES (?,?)", actressId, titleId));
 
-        String searchHtml = "<a href=\"/v/amt01\">AMT-001</a>";
+        String searchHtml = searchCardHtml("AMT-001", "amt01");
         JavdbClient fakeClient = new JavdbClient() {
             @Override public String searchByCode(String code) { return searchHtml; }
             @Override public String fetchTitlePage(String slug) { return buildFakeTitleHtml("Amateur"); }
@@ -483,7 +483,7 @@ class EnrichmentRunnerTest {
         long enrichTitleId = jdbi.withHandle(h -> h.createQuery(
                 "SELECT id FROM titles WHERE code = 'PRED-001'").mapTo(Long.class).one());
 
-        String searchHtml = "<a href=\"/v/pred01\">PRED-001</a>";
+        String searchHtml = searchCardHtml("PRED-001", "pred01");
         JavdbClient fakeClient = new JavdbClient() {
             @Override public String searchByCode(String code) { return searchHtml; }
             @Override public String fetchTitlePage(String slug) { return buildFakeTitleHtml("Yui Hatano"); }
@@ -722,6 +722,18 @@ class EnrichmentRunnerTest {
         }
     }
 
+    /**
+     * Builds a javdb search-results page with one movie card whose code+slug match the args.
+     * The code-search fallback validates the result code against the query, so a bare anchor
+     * (no .item / .video-title strong) would be rejected — this emits the full card markup.
+     */
+    private static String searchCardHtml(String code, String slug) {
+        return "<html><body>"
+                + "<div class=\"item\"><a href=\"/v/" + slug + "\" class=\"box\">"
+                + "<div class=\"video-title\"><strong>" + code + "</strong></div></a></div>"
+                + "</body></html>";
+    }
+
     private JavdbClient multiCastClient(String expectedCode, String... castNames) {
         String slug = "lone1";
         StringBuilder html = new StringBuilder("""
@@ -736,7 +748,7 @@ class EnrichmentRunnerTest {
             html.append("<a href=\"/actors/fk0").append(++i).append("\">").append(name).append("</a> ");
         }
         html.append("</span></div></div></body></html>");
-        String search = "<a href=\"/v/" + slug + "\">" + expectedCode + "</a>";
+        String search = searchCardHtml(expectedCode, slug);
         String titleHtml = html.toString();
         return new JavdbClient() {
             @Override public String searchByCode(String code) { return search; }
