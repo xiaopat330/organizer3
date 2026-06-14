@@ -103,6 +103,9 @@ function createTitleBrowseState() {
     archivePoolSmbPath: null,
     queuesVolumeData: null,
     browseCompanyFilter: null,
+    collectionsAgeMin: AGE_MIN,
+    collectionsAgeMax: AGE_MAX,
+    collectionsCastMode: 'any',
     browseActiveTags: new Set(),
     browseFilterTimer: null,
     browseCatalogTags: null,
@@ -114,6 +117,9 @@ function createTitleBrowseState() {
     /** Clears collections/unsorted/archive filter state only. */
     resetBrowse() {
       this.browseCompanyFilter = null;
+      this.collectionsAgeMin   = AGE_MIN;
+      this.collectionsAgeMax   = AGE_MAX;
+      this.collectionsCastMode = 'any';
       this.browseActiveTags    = new Set();
       this.browseCatalogTags   = null;
       this.browseTagsForMode   = null;
@@ -156,6 +162,9 @@ export const allTitlesGrid = new ScrollingGrid(
       if (state.browseCompanyFilter) url += `&company=${encodeURIComponent(state.browseCompanyFilter)}`;
       if (state.browseActiveTags.size > 0) url += `&tags=${encodeURIComponent([...state.browseActiveTags].join(','))}`;
       if (state.notesFilter) url += `&notes=${encodeURIComponent(state.notesFilter)}`;
+      if (state.collectionsAgeMin > AGE_MIN) url += `&ageMin=${state.collectionsAgeMin}`;
+      if (state.collectionsAgeMax < AGE_MAX) url += `&ageMax=${state.collectionsAgeMax}`;
+      if (state.collectionsAgeMin > AGE_MIN || state.collectionsAgeMax < AGE_MAX) url += `&castMode=${encodeURIComponent(state.collectionsCastMode)}`;
       return url;
     }
     if (state.mode === 'unsorted') {
