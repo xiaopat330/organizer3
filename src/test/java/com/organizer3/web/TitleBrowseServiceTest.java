@@ -521,10 +521,12 @@ class TitleBrowseServiceTest {
     @Test
     void findByVolumePagedFilteredUsesFilteredRepoWhenTagsPresent() {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
-        when(titleRepo.findByVolumeFiltered(eq("vol-a"), eq(List.of()), eq(List.of("creampie")), eq(24), eq(0), eq((NotesFilter) null)))
+        when(titleRepo.findByVolumeFiltered(eq("vol-a"), eq(List.of()), eq(List.of("creampie")), eq(24), eq(0),
+                eq((NotesFilter) null), isNull(), isNull(), any(com.organizer3.repository.TitleRepository.CastMode.class)))
                 .thenReturn(List.of());
         service.findByVolumePagedFiltered("vol-a", null, List.of("creampie"), 0, 24);
-        verify(titleRepo).findByVolumeFiltered("vol-a", List.of(), List.of("creampie"), 24, 0, (NotesFilter) null);
+        verify(titleRepo).findByVolumeFiltered(eq("vol-a"), eq(List.of()), eq(List.of("creampie")), eq(24), eq(0),
+                eq((NotesFilter) null), isNull(), isNull(), any(com.organizer3.repository.TitleRepository.CastMode.class));
     }
 
     @Test
@@ -537,10 +539,12 @@ class TitleBrowseServiceTest {
     @Test
     void findByVolumePagedFilteredUsesFilteredRepoWhenNotesFilterPresent() {
         when(labelRepo.findAllAsMap()).thenReturn(Map.of());
-        when(titleRepo.findByVolumeFiltered(eq("vol-a"), eq(List.of()), eq(List.of()), eq(24), eq(0), eq(NotesFilter.HAS_NOTE)))
+        when(titleRepo.findByVolumeFiltered(eq("vol-a"), eq(List.of()), eq(List.of()), eq(24), eq(0),
+                eq(NotesFilter.HAS_NOTE), isNull(), isNull(), any(com.organizer3.repository.TitleRepository.CastMode.class)))
                 .thenReturn(List.of());
         service.findByVolumePagedFiltered("vol-a", null, List.of(), 0, 24, NotesFilter.HAS_NOTE);
-        verify(titleRepo).findByVolumeFiltered("vol-a", List.of(), List.of(), 24, 0, NotesFilter.HAS_NOTE);
+        verify(titleRepo).findByVolumeFiltered(eq("vol-a"), eq(List.of()), eq(List.of()), eq(24), eq(0),
+                eq(NotesFilter.HAS_NOTE), isNull(), isNull(), any(com.organizer3.repository.TitleRepository.CastMode.class));
         verify(titleRepo, never()).findByVolumePaged(any(), anyInt(), anyInt());
     }
 

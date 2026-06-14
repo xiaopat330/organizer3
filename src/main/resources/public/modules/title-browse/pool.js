@@ -15,6 +15,7 @@ import { esc } from '../utils.js';
 import { effectiveCols, colsSliderHtml, wireColsSlider } from '../grid-cols.js';
 import { ensureSentinel } from '../grid.js';
 import { updateCompanyMarquee } from '../studio-data.js';
+import { ageRangeHtml, wireAgeRange } from '../v2/widgets/age-range.js';
 
 const FILTERABLE_MODES = new Set(['collections', 'unsorted', 'archive-pool']);
 const BROWSE_FILTER_DEBOUNCE_MS = 350;
@@ -160,12 +161,19 @@ export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCo
   const notesLabel  = notesVal === 'has_note' ? 'Notes: Has' : notesVal === 'no_note' ? 'Notes: None' : 'Notes: Any';
   const notesActive = notesVal ? ' title-notes-chip-active' : '';
 
+  const collAgeHtml = state.mode === 'collections'
+    ? ageRangeHtml(state.collectionsAgeMin, state.collectionsAgeMax, { idPrefix: 'browse-age' })
+      + `<button type="button" class="detail-tags-btn" id="browse-cast-btn"
+           title="How the age range matches multi-cast titles">Cast: ${state.collectionsCastMode === 'all' ? 'All' : 'Any'}</button>`
+    : '';
+
   bar.innerHTML = `
     <select class="detail-company-select" id="browse-company-select">
       <option value="">All Companies</option>
       ${state.allCompanies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
     </select>
     <div class="company-marquee company-marquee-browse" id="browse-company-marquee" style="display:none"><span class="company-marquee-inner"></span></div>
+    ${collAgeHtml}
     <button type="button" class="detail-tags-btn" id="browse-tags-btn">
       Tags<span class="detail-tags-count" id="browse-tags-count" style="display:none"></span>
     </button>
@@ -187,6 +195,21 @@ export async function showBrowseFilterBar(state, allTitlesGrid, applyTitleGridCo
     scheduleBrowseFilteredQuery(state, allTitlesGrid);
   });
   document.getElementById('browse-tags-btn').addEventListener('click', () => toggleBrowseTagsPanel(state, allTitlesGrid));
+
+  if (state.mode === 'collections') {
+    wireAgeRange(document, {
+      idPrefix: 'browse-age',
+      getLo: () => state.collectionsAgeMin, getHi: () => state.collectionsAgeMax,
+      setLo: v => { state.collectionsAgeMin = v; }, setHi: v => { state.collectionsAgeMax = v; },
+      onChange: () => scheduleBrowseFilteredQuery(state, allTitlesGrid),
+    });
+    const castBtn = document.getElementById('browse-cast-btn');
+    if (castBtn) castBtn.addEventListener('click', () => {
+      state.collectionsCastMode = state.collectionsCastMode === 'all' ? 'any' : 'all';
+      castBtn.textContent = `Cast: ${state.collectionsCastMode === 'all' ? 'All' : 'Any'}`;
+      scheduleBrowseFilteredQuery(state, allTitlesGrid);
+    });
+  }
 
   const notesChip = document.getElementById('title-notes-filter-chip');
   if (notesChip && onNotesChipClick) {

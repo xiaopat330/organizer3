@@ -23,6 +23,7 @@ public record OrganizerConfig(
         @JsonProperty("thumbnailInterval")  Integer thumbnailInterval,
         @JsonProperty("thumbnailColumns")   Integer thumbnailColumns,
         @JsonProperty("coverCropPercent")   Integer coverCropPercent,
+        @JsonProperty("ageFilterMaxAge")    Integer ageFilterMaxAge,
         @JsonProperty("servers")            List<ServerConfig> servers,
         @JsonProperty("volumes")         List<VolumeConfig> volumes,
         @JsonProperty("structures")      List<VolumeStructureDef> structures,
@@ -48,7 +49,7 @@ public record OrganizerConfig(
                            List<VolumeStructureDef> structures, List<StructureSyncConfig> syncConfig,
                            BackupConfig backup, McpConfig mcp) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
-             thumbnailInterval, thumbnailColumns, coverCropPercent,
+             thumbnailInterval, thumbnailColumns, coverCropPercent, null,
              servers, volumes, structures, syncConfig, backup, mcp, null, null, null, null, null, null, null, null, null, null);
     }
 
@@ -60,7 +61,7 @@ public record OrganizerConfig(
                            List<VolumeStructureDef> structures, List<StructureSyncConfig> syncConfig,
                            BackupConfig backup) {
         this(appName, dataDir, maxBrowseTitles, maxRandomTitles, maxRandomActresses,
-             thumbnailInterval, thumbnailColumns, coverCropPercent,
+             thumbnailInterval, thumbnailColumns, coverCropPercent, null,
              servers, volumes, structures, syncConfig, backup, null, null, null, null, null, null, null, null, null, null, null);
     }
 

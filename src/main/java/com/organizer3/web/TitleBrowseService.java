@@ -290,15 +290,33 @@ public class TitleBrowseService {
      */
     public List<TitleSummary> findByVolumePagedFiltered(String volumeId, String company, List<String> tags, int offset, int limit,
                                                          NotesFilter notesFilter) {
+        return findByVolumePagedFiltered(volumeId, company, tags, offset, limit, notesFilter,
+                null, null, com.organizer3.repository.TitleRepository.CastMode.ANY);
+    }
+
+    /**
+     * Like {@link #findByVolumePagedFiltered} but also applies an age-at-release filter across cast.
+     * Pass {@code null} for both {@code ageMin} and {@code ageMax} to skip the age filter.
+     *
+     * @param ageMin   minimum age at release (inclusive); null = open lower bound
+     * @param ageMax   maximum age at release (inclusive); null = open upper bound
+     * @param castMode how the age filter applies across cast; ignored when both ageMin+ageMax are null
+     */
+    public List<TitleSummary> findByVolumePagedFiltered(String volumeId, String company, List<String> tags, int offset, int limit,
+                                                         NotesFilter notesFilter,
+                                                         Integer ageMin, Integer ageMax,
+                                                         com.organizer3.repository.TitleRepository.CastMode castMode) {
         limit = cappedLimit(limit);
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
         List<String> matchingLabels = resolveCompanyLabels(labelMap, company);
         if (company != null && !company.isBlank() && matchingLabels.isEmpty()) return List.of();
-        boolean hasTags       = tags != null && !tags.isEmpty();
-        boolean hasLabels     = !matchingLabels.isEmpty();
+        boolean hasTags        = tags != null && !tags.isEmpty();
+        boolean hasLabels      = !matchingLabels.isEmpty();
         boolean hasNotesFilter = notesFilter != null;
-        List<Title> titles = (hasTags || hasLabels || hasNotesFilter)
-                ? titleRepo.findByVolumeFiltered(volumeId, matchingLabels, hasTags ? tags : List.of(), limit, offset, notesFilter)
+        boolean hasAgeFilter   = ageMin != null || ageMax != null;
+        List<Title> titles = (hasTags || hasLabels || hasNotesFilter || hasAgeFilter)
+                ? titleRepo.findByVolumeFiltered(volumeId, matchingLabels, hasTags ? tags : List.of(), limit, offset,
+                        notesFilter, ageMin, ageMax, castMode)
                 : titleRepo.findByVolumePaged(volumeId, limit, offset);
         return toSummaries(titles);
     }

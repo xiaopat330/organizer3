@@ -552,7 +552,7 @@ class CoherentMultiVolumeSyncTaskTest {
      */
     private static OrganizerConfig configWithSmbSettings(SmbSettings smbSettings) {
         return new OrganizerConfig(
-                "test", "/tmp", null, null, null, null, null, null,
+                "test", "/tmp", null, null, null, null, null, null, null,
                 List.of(),
                 List.of(VOL_A, VOL_B, VOL_AV),
                 List.of(

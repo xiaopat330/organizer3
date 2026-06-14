@@ -339,7 +339,8 @@ public class ActressBrowseService {
      * If {@code tags} is non-empty, only titles carrying all of those tags (direct or label-derived)
      * are returned. The two filters are combined with AND.
      */
-    public List<TitleSummary> findTitlesByActress(long actressId, int offset, int limit, String company, List<String> tags, List<Long> enrichmentTagIds, String sortBy, String sortDir) {
+    public List<TitleSummary> findTitlesByActress(long actressId, int offset, int limit, String company, List<String> tags, List<Long> enrichmentTagIds, String sortBy, String sortDir,
+                                                  Integer ageMin, Integer ageMax) {
         TitleSortSpec sort = TitleSortSpec.of(sortBy, sortDir);
         Map<String, Label> labelMap = labelRepo.findAllAsMap();
 
@@ -364,12 +365,12 @@ public class ActressBrowseService {
                 titles = titleRepo.findByActressTagsFiltered(actressId, matchingLabels,
                         tags != null ? tags : List.of(),
                         enrichmentTagIds != null ? enrichmentTagIds : List.of(),
-                        limit, offset, sort);
+                        limit, offset, sort, ageMin, ageMax);
             }
         } else if (hasLabels) {
-            titles = titleRepo.findByActressAndLabelsPaged(actressId, matchingLabels, limit, offset, sort);
+            titles = titleRepo.findByActressAndLabelsPaged(actressId, matchingLabels, limit, offset, sort, ageMin, ageMax);
         } else {
-            titles = titleRepo.findByActressPaged(actressId, limit, offset, sort);
+            titles = titleRepo.findByActressPaged(actressId, limit, offset, sort, ageMin, ageMax);
         }
 
         Actress actress = actressRepo.findById(actressId).orElse(null);

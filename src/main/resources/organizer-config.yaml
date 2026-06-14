@@ -48,6 +48,9 @@ maxRandomActresses: 500
 thumbnailInterval: 8
 thumbnailColumns: 5
 coverCropPercent: 47
+# Age-at-release filter — upper bound of the UI age-range slider. Real data tops
+# out at 43; 45 gives slight headroom. The lower bound is fixed at 18.
+ageFilterMaxAge: 45
 
 # Background thumbnail sync — see spec/PROPOSAL_BACKGROUND_THUMBNAILS.md.
 # Pre-generates thumbnails for titles with attention signal (favorites, bookmarks,

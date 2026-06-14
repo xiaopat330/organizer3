@@ -481,45 +481,89 @@ public class JdbiTitleRepository implements TitleRepository {
     }
 
     public List<Title> findByActressPaged(long actressId, int limit, int offset, TitleSortSpec sort) {
+        return findByActressPaged(actressId, limit, offset, sort, null, null);
+    }
+
+    @Override
+    public List<Title> findByActressPaged(long actressId, int limit, int offset, TitleSortSpec sort,
+                                          Integer ageMin, Integer ageMax) {
         String sql = "SELECT t.* FROM titles t" +
                      " LEFT JOIN title_locations tl ON t.id = tl.title_id AND tl.stale_since IS NULL" +
                      " WHERE t.actress_id = :actressId" +
+                     ageExistsClause(ageMin, ageMax) +
                      " GROUP BY t.id" +
                      " ORDER BY t.favorite DESC, t.bookmark DESC, " + buildSortClause(sort) + ", t.id DESC" +
                      " LIMIT :limit OFFSET :offset";
-        List<Title> titles = jdbi.withHandle(h ->
-                h.createQuery(sql)
-                        .bind("actressId", actressId)
-                        .bind("limit", limit)
-                        .bind("offset", offset)
-                        .map(MAPPER)
-                        .list()
-        );
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql)
+                    .bind("actressId", actressId)
+                    .bind("limit", limit)
+                    .bind("offset", offset);
+            bindAge(q, ageMin, ageMax);
+            return q.map(MAPPER).list();
+        });
         return populateLocationsBatch(titles);
     }
 
     @Override
     public List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset, TitleSortSpec sort) {
+        return findByActressAndLabelsPaged(actressId, labels, limit, offset, sort, null, null);
+    }
+
+    @Override
+    public List<Title> findByActressAndLabelsPaged(long actressId, List<String> labels, int limit, int offset, TitleSortSpec sort,
+                                                   Integer ageMin, Integer ageMax) {
         String sql = "SELECT t.* FROM titles t" +
                      " LEFT JOIN title_locations tl ON t.id = tl.title_id AND tl.stale_since IS NULL" +
                      " WHERE t.actress_id = :actressId AND t.label IN (<labels>)" +
+                     ageExistsClause(ageMin, ageMax) +
                      " GROUP BY t.id" +
                      " ORDER BY t.favorite DESC, t.bookmark DESC, " + buildSortClause(sort) + ", t.id DESC" +
                      " LIMIT :limit OFFSET :offset";
-        List<Title> titles = jdbi.withHandle(h ->
-                h.createQuery(sql)
-                        .bind("actressId", actressId)
-                        .bindList("labels", labels.stream().map(String::toUpperCase).toList())
-                        .bind("limit", limit)
-                        .bind("offset", offset)
-                        .map(MAPPER)
-                        .list()
-        );
+        List<Title> titles = jdbi.withHandle(h -> {
+            var q = h.createQuery(sql)
+                    .bind("actressId", actressId)
+                    .bindList("labels", labels.stream().map(String::toUpperCase).toList())
+                    .bind("limit", limit)
+                    .bind("offset", offset);
+            bindAge(q, ageMin, ageMax);
+            return q.map(MAPPER).list();
+        });
         return populateLocationsBatch(titles);
+    }
+
+    /**
+     * Builds the optional EXISTS predicate restricting results to titles where THIS actress's
+     * own credit has {@code age_at_release} within the given (independently optional) bounds.
+     * Returns an empty string when both bounds are null (no predicate, behavior unchanged).
+     */
+    private static String ageExistsClause(Integer ageMin, Integer ageMax) {
+        if (ageMin == null && ageMax == null) return "";
+        StringBuilder b = new StringBuilder();
+        b.append(" AND EXISTS (SELECT 1 FROM title_actresses ta")
+         .append(" WHERE ta.title_id = t.id")
+         .append(" AND ta.actress_id = :actressId")
+         .append(" AND ta.age_at_release IS NOT NULL");
+        if (ageMin != null) b.append(" AND ta.age_at_release >= :ageMin");
+        if (ageMax != null) b.append(" AND ta.age_at_release <= :ageMax");
+        b.append(")");
+        return b.toString();
+    }
+
+    /** Binds the age bounds present in the EXISTS predicate; no-op when both are null. */
+    private static void bindAge(org.jdbi.v3.core.statement.Query q, Integer ageMin, Integer ageMax) {
+        if (ageMin != null) q.bind("ageMin", ageMin);
+        if (ageMax != null) q.bind("ageMax", ageMax);
     }
 
     @Override
     public List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, List<Long> enrichmentTagIds, int limit, int offset, TitleSortSpec sort) {
+        return findByActressTagsFiltered(actressId, labels, tags, enrichmentTagIds, limit, offset, sort, null, null);
+    }
+
+    @Override
+    public List<Title> findByActressTagsFiltered(long actressId, List<String> labels, List<String> tags, List<Long> enrichmentTagIds, int limit, int offset, TitleSortSpec sort,
+                                                 Integer ageMin, Integer ageMax) {
         List<Long> safeEnrichTags = enrichmentTagIds != null ? enrichmentTagIds : List.of();
         boolean hasTags         = !tags.isEmpty();
         boolean hasEnrichTags   = !safeEnrichTags.isEmpty();
@@ -536,6 +580,8 @@ public class JdbiTitleRepository implements TitleRepository {
         if (!labels.isEmpty()) {
             sql.append("AND t.label IN (<labels>)\n");
         }
+        sql.append(ageExistsClause(ageMin, ageMax));
+        if (ageMin != null || ageMax != null) sql.append("\n");
         sql.append("GROUP BY t.id\n");
         if (hasTags || hasEnrichTags) {
             sql.append("HAVING ");
@@ -554,6 +600,7 @@ public class JdbiTitleRepository implements TitleRepository {
             if (!labels.isEmpty())   q = q.bindList("labels", labels.stream().map(String::toUpperCase).toList());
             if (hasTags)             q = q.bindList("tags", tags).bind("tagCount", tags.size());
             if (hasEnrichTags)       q = q.bindList("enrichmentTagIds", safeEnrichTags).bind("enrichmentTagCount", safeEnrichTags.size());
+            bindAge(q, ageMin, ageMax);
             return q.map(MAPPER).list();
         });
         return populateLocationsBatch(titles);
@@ -611,6 +658,19 @@ public class JdbiTitleRepository implements TitleRepository {
     @Override
     public List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset,
                                              com.organizer3.notes.NotesFilter notesFilter) {
+        return findByVolumeFiltered(volumeId, labels, tags, limit, offset, notesFilter,
+                null, null, com.organizer3.repository.TitleRepository.CastMode.SOLO);
+    }
+
+    @Override
+    public List<Title> findByVolumeFiltered(String volumeId, List<String> labels, List<String> tags, int limit, int offset,
+                                             com.organizer3.notes.NotesFilter notesFilter,
+                                             Integer ageMin, Integer ageMax,
+                                             com.organizer3.repository.TitleRepository.CastMode castMode) {
+        boolean ageActive = (ageMin != null || ageMax != null);
+        com.organizer3.repository.TitleRepository.CastMode safeCastMode =
+                castMode != null ? castMode : com.organizer3.repository.TitleRepository.CastMode.SOLO;
+
         StringBuilder sql = new StringBuilder("SELECT t.* FROM titles t\n");
         sql.append("JOIN title_locations tl ON t.id = tl.title_id\n");
         if (!tags.isEmpty()) {
@@ -629,6 +689,9 @@ public class JdbiTitleRepository implements TitleRepository {
                 sql.append("AND NOT ").append(exists).append("\n");
             }
         }
+        if (ageActive) {
+            appendAgeFilter(sql, safeCastMode, ageMin, ageMax);
+        }
         sql.append("GROUP BY t.id\n");
         if (!tags.isEmpty()) {
             sql.append("HAVING COUNT(DISTINCT tet.tag) = :tagCount\n");
@@ -642,6 +705,10 @@ public class JdbiTitleRepository implements TitleRepository {
                     .bind("offset", offset);
             if (!labels.isEmpty()) q = q.bindList("labels", labels.stream().map(String::toUpperCase).toList());
             if (!tags.isEmpty())   q = q.bindList("tags", tags).bind("tagCount", tags.size());
+            if (ageActive) {
+                if (ageMin != null) q = q.bind("ageMin", ageMin);
+                if (ageMax != null) q = q.bind("ageMax", ageMax);
+            }
             return q.map(MAPPER).list();
         });
         return populateLocationsBatch(titles);

@@ -6,6 +6,8 @@
    cols slider.
    ───────────────────────────────────────────────────────────────────── */
 
+import { ageRangeHtml, wireAgeRange, AGE_MIN, AGE_MAX } from '../widgets/age-range.js';
+
 const LIBRARY_DEBOUNCE_MS = 350;
 const AUTOCOMPLETE_DEBOUNCE_MS = 200;
 
@@ -269,6 +271,7 @@ export async function renderLibraryPanel(panelEl, state, onColsChange) {
         <option value="">All Companies</option>
         ${companies.map(c => `<option value="${esc(c)}"${state.libraryCompany === c ? ' selected' : ''}>${esc(c)}</option>`).join('')}
       </select>
+      ${ageRangeHtml(state.libraryAgeMin, state.libraryAgeMax, { idPrefix: 'tit-lib-age' })}
       <select id="tit-lib-sort" class="tit-lib-select">
         ${sortOptions.map(o => `<option value="${o.value}"${state.librarySort === o.value ? ' selected' : ''}>${o.label}</option>`).join('')}
       </select>
@@ -318,6 +321,16 @@ export async function renderLibraryPanel(panelEl, state, onColsChange) {
   panelEl.querySelector('#tit-lib-company')?.addEventListener('change', e => {
     state.libraryCompany = e.target.value || null;
     state._scheduleQuery();
+  });
+
+  // ── Wire age-range slider ──
+  wireAgeRange(panelEl, {
+    idPrefix: 'tit-lib-age',
+    getLo: () => state.libraryAgeMin,
+    getHi: () => state.libraryAgeMax,
+    setLo: v => { state.libraryAgeMin = v; },
+    setHi: v => { state.libraryAgeMax = v; },
+    onChange: () => state._scheduleQuery(),
   });
 
   // ── Wire sort select ──

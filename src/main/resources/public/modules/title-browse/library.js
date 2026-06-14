@@ -6,6 +6,7 @@
 // hooks.titleTagsPanel        — DOM ref owned by index.js
 
 import { esc } from '../utils.js';
+import { ageRangeHtml, wireAgeRange } from '../v2/widgets/age-range.js';
 import { effectiveCols, colsSliderHtml, wireColsSlider } from '../grid-cols.js';
 
 // ── Constants ─────────────────────────────────────────────────────────────
@@ -322,6 +323,7 @@ export async function renderLibraryFilterPanel(state, titleTagsPanel, applyTitle
         <option value="">All Companies</option>
         ${companies.map(c => `<option value="${esc(c)}"${state.libraryCompany === c ? ' selected' : ''}>${esc(c)}</option>`).join('')}
       </select>
+      ${ageRangeHtml(state.libraryAgeMin, state.libraryAgeMax, { idPrefix: 'library-age' })}
       <select id="library-sort-select" class="library-sort-select">
         ${sortOptions.map(o => `<option value="${o.value}"${state.librarySort === o.value ? ' selected' : ''}>${o.label}</option>`).join('')}
       </select>
@@ -390,6 +392,13 @@ export async function renderLibraryFilterPanel(state, titleTagsPanel, applyTitle
       state._scheduleQuery();
     });
   }
+
+  wireAgeRange(document, {
+    idPrefix: 'library-age',
+    getLo: () => state.libraryAgeMin, getHi: () => state.libraryAgeMax,
+    setLo: v => { state.libraryAgeMin = v; }, setHi: v => { state.libraryAgeMax = v; },
+    onChange: () => state._scheduleQuery(),
+  });
 
   const orderBtn = document.getElementById('library-order-btn');
   if (orderBtn) {

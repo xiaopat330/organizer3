@@ -6,6 +6,7 @@
    ───────────────────────────────────────────────────────────────────── */
 
 import { notesChipHtml, wireNotesChip } from './notes.js';
+import { ageRangeHtml, wireAgeRange, AGE_MIN, AGE_MAX } from '../widgets/age-range.js';
 
 const BROWSE_FILTER_DEBOUNCE_MS = 350;
 
@@ -172,12 +173,19 @@ export async function showBrowseFilterBar(filterBarEl, tagsPanel, state, onColsC
 
   const colsNow = state._cols || COLS_DEFAULT;
 
+  const collAgeHtml = state.mode === 'collections'
+    ? ageRangeHtml(state.collectionsAgeMin, state.collectionsAgeMax, { idPrefix: 'tit-coll-age' })
+      + `<button type="button" class="btn sm tit-coll-cast-btn" id="tit-coll-cast-btn"
+           title="How the age range matches multi-cast titles">Cast: ${state.collectionsCastMode === 'all' ? 'All' : 'Any'}</button>`
+    : '';
+
   filterBarEl.innerHTML = `
     <select class="tit-lib-select" id="tit-pool-company">
       <option value="">All Companies</option>
       ${state.allCompanies.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('')}
     </select>
     <div class="tit-pool-marquee" id="tit-pool-marquee" style="display:none"><span class="tit-pool-marquee-inner"></span></div>
+    ${collAgeHtml}
     <button type="button" id="tit-pool-tags-btn" class="btn sm">
       Tags<span class="badge" id="tit-pool-tags-count" style="display:none"></span>
     </button>
@@ -199,6 +207,21 @@ export async function showBrowseFilterBar(filterBarEl, tagsPanel, state, onColsC
     if (marqueeEl) updateCompanyMarquee(marqueeEl, state.browseCompanyFilter, state);
     scheduleBrowseQuery(filterBarEl, state, resetAndLoad);
   });
+
+  if (state.mode === 'collections') {
+    wireAgeRange(filterBarEl, {
+      idPrefix: 'tit-coll-age',
+      getLo: () => state.collectionsAgeMin, getHi: () => state.collectionsAgeMax,
+      setLo: v => { state.collectionsAgeMin = v; }, setHi: v => { state.collectionsAgeMax = v; },
+      onChange: () => scheduleBrowseQuery(filterBarEl, state, resetAndLoad),
+    });
+    const castBtn = filterBarEl.querySelector('#tit-coll-cast-btn');
+    if (castBtn) castBtn.addEventListener('click', () => {
+      state.collectionsCastMode = state.collectionsCastMode === 'all' ? 'any' : 'all';
+      castBtn.textContent = `Cast: ${state.collectionsCastMode === 'all' ? 'All' : 'Any'}`;
+      scheduleBrowseQuery(filterBarEl, state, resetAndLoad);
+    });
+  }
 
   filterBarEl.querySelector('#tit-pool-tags-btn').addEventListener('click', () => {
     toggleTagsPanel(tagsPanel, filterBarEl, state, resetAndLoad);
@@ -233,5 +256,8 @@ export function resetBrowseFilters(state) {
   state.browseActiveTags    = new Set();
   state.browseCatalogTags   = null;
   state.browseTagsForMode   = null;
+  state.collectionsAgeMin   = AGE_MIN;
+  state.collectionsAgeMax   = AGE_MAX;
+  state.collectionsCastMode = 'any';
   if (state.browseFilterTimer) { clearTimeout(state.browseFilterTimer); state.browseFilterTimer = null; }
 }

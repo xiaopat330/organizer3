@@ -380,6 +380,93 @@ class JdbiTitleRepositoryTest {
         assertEquals(paged.size(), filtered.size());
     }
 
+    // --- age-at-release filter ---
+
+    /** Insert (or update) this actress's per-credit age_at_release for a title. */
+    private void setCreditAge(long titleId, long actressId, Integer age) {
+        jdbi.useHandle(h -> {
+            int updated = h.createUpdate("UPDATE title_actresses SET age_at_release = :age " +
+                            "WHERE title_id = :tid AND actress_id = :aid")
+                    .bind("age", age).bind("tid", titleId).bind("aid", actressId).execute();
+            if (updated == 0) {
+                h.createUpdate("INSERT INTO title_actresses (title_id, actress_id, age_at_release) " +
+                                "VALUES (:tid, :aid, :age)")
+                        .bind("tid", titleId).bind("aid", actressId).bind("age", age).execute();
+            }
+        });
+    }
+
+    @Test
+    void findByActressPagedFiltersByAgeAtRelease() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        Title t19 = saveWithLocation(title("ABP-019", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-019");
+        Title t23 = saveWithLocation(title("ABP-023", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-023");
+        Title t28 = saveWithLocation(title("ABP-028", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-028");
+        setCreditAge(t19.getId(), aya.getId(), 19);
+        setCreditAge(t23.getId(), aya.getId(), 23);
+        setCreditAge(t28.getId(), aya.getId(), 28);
+
+        // ageMin=22, ageMax=30 → only the 23 and 28 titles
+        List<Title> bounded = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT, 22, 30);
+        assertEquals(2, bounded.size());
+        assertEquals(Set.of("ABP-023", "ABP-028"),
+                bounded.stream().map(Title::getCode).collect(java.util.stream.Collectors.toSet()));
+
+        // both null → all 3 (delegation unchanged)
+        List<Title> all = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT, null, null);
+        assertEquals(3, all.size());
+
+        // open-ended lower bound only
+        List<Title> minOnly = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT, 24, null);
+        assertEquals(Set.of("ABP-028"),
+                minOnly.stream().map(Title::getCode).collect(java.util.stream.Collectors.toSet()));
+
+        // open-ended upper bound only
+        List<Title> maxOnly = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT, null, 20);
+        assertEquals(Set.of("ABP-019"),
+                maxOnly.stream().map(Title::getCode).collect(java.util.stream.Collectors.toSet()));
+    }
+
+    @Test
+    void findByActressPagedAgeFilterExcludesNullAgeCredits() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        Title aged = saveWithLocation(title("ABP-100", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-100");
+        Title noAge = saveWithLocation(title("ABP-101", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-101");
+        setCreditAge(aged.getId(), aya.getId(), 25);
+        setCreditAge(noAge.getId(), aya.getId(), null); // explicit NULL age credit
+
+        List<Title> bounded = titleRepo.findByActressPaged(aya.getId(), 10, 0, TitleSortSpec.DEFAULT, 20, 30);
+        assertEquals(1, bounded.size());
+        assertEquals("ABP-100", bounded.get(0).getCode());
+    }
+
+    @Test
+    void findByActressTagsFilteredComposesWithAgeFilter() {
+        Actress aya = actressRepo.save(actress("Aya Sazanami"));
+        Title inRange  = saveWithLocation(title("ABP-200", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-200");
+        Title outRange = saveWithLocation(title("ABP-201", aya.getId()), "vol-a", "stars/library", "/mnt/vol-a/stars/library/ABP-201");
+
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO enrichment_tag_definitions (id, name, title_count, surface) VALUES (10, 'big-tits', 2, 1)");
+            // both tagged with 10
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (" + inRange.getId() + ", 10)");
+            h.execute("INSERT INTO title_enrichment_tags (title_id, tag_id) VALUES (" + outRange.getId() + ", 10)");
+        });
+        setCreditAge(inRange.getId(), aya.getId(), 24);
+        setCreditAge(outRange.getId(), aya.getId(), 35);
+
+        // tag 10 + age in [20,30] → only the in-range title
+        List<Title> results = titleRepo.findByActressTagsFiltered(
+                aya.getId(), List.of(), List.of(), List.of(10L), 10, 0, TitleSortSpec.DEFAULT, 20, 30);
+        assertEquals(1, results.size());
+        assertEquals("ABP-200", results.get(0).getCode());
+
+        // without age bound → both
+        List<Title> unbounded = titleRepo.findByActressTagsFiltered(
+                aya.getId(), List.of(), List.of(), List.of(10L), 10, 0, TitleSortSpec.DEFAULT, null, null);
+        assertEquals(2, unbounded.size());
+    }
+
     // --- findByCodePrefixPaged ---
 
     @Test
@@ -2014,5 +2101,82 @@ class JdbiTitleRepositoryTest {
         assertEquals(baseline.stream().map(Title::getCode).sorted().toList(),
                 withCastModeOnly.stream().map(Title::getCode).sorted().toList(),
                 "Filter inactive (no age bounds) must produce same results regardless of castMode");
+    }
+
+    // ── Age-at-release filter tests: findByVolumeFiltered (collections path) ──
+
+    @Test
+    void findByVolumeFilteredAge_anyMultiCastOneInRange_matches() {
+        Title t = saveWithLocation(titleFull("CAN-001", "CAN", 1), "vol-pool", "pool", "/can1");
+        insertAgeCredit(t.getId(), newActressId(), 22);   // in range
+        insertAgeCredit(t.getId(), newActressId(), null); // unknown
+        insertAgeCredit(t.getId(), newActressId(), 31);   // out of range
+
+        List<Title> results = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, 20, 25, com.organizer3.repository.TitleRepository.CastMode.ANY);
+        assertEquals(1, results.size(), "ANY: one credit in range (unknown ignored) should match");
+        assertEquals("CAN-001", results.get(0).getCode());
+    }
+
+    @Test
+    void findByVolumeFilteredAge_anyNoCreditInRange_doesNotMatch() {
+        Title t = saveWithLocation(titleFull("CAN-002", "CAN", 2), "vol-pool", "pool", "/can2");
+        insertAgeCredit(t.getId(), newActressId(), 22);
+        insertAgeCredit(t.getId(), newActressId(), null);
+        insertAgeCredit(t.getId(), newActressId(), 31);
+
+        List<Title> results = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, 40, 45, com.organizer3.repository.TitleRepository.CastMode.ANY);
+        assertEquals(0, results.size(), "ANY: no credit in [40,45] should not match");
+    }
+
+    @Test
+    void findByVolumeFilteredAge_allCreditsInRange_matches() {
+        Title t = saveWithLocation(titleFull("CAN-003", "CAN", 3), "vol-pool", "pool", "/can3");
+        insertAgeCredit(t.getId(), newActressId(), 22);
+        insertAgeCredit(t.getId(), newActressId(), 24);
+
+        List<Title> results = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, 20, 25, com.organizer3.repository.TitleRepository.CastMode.ALL);
+        assertEquals(1, results.size(), "ALL: every credit in range should match");
+        assertEquals("CAN-003", results.get(0).getCode());
+    }
+
+    @Test
+    void findByVolumeFilteredAge_allWithUnknown_doesNotMatch() {
+        Title t = saveWithLocation(titleFull("CAN-004", "CAN", 4), "vol-pool", "pool", "/can4");
+        insertAgeCredit(t.getId(), newActressId(), 22);
+        insertAgeCredit(t.getId(), newActressId(), null); // unknown fails ALL (strict)
+
+        List<Title> results = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, 20, 25, com.organizer3.repository.TitleRepository.CastMode.ALL);
+        assertEquals(0, results.size(), "ALL: an unknown-age credit must fail the title (strict)");
+    }
+
+    @Test
+    void findByVolumeFilteredAge_allOneOutOfRange_doesNotMatch() {
+        Title t = saveWithLocation(titleFull("CAN-005", "CAN", 5), "vol-pool", "pool", "/can5");
+        insertAgeCredit(t.getId(), newActressId(), 22);
+        insertAgeCredit(t.getId(), newActressId(), 31); // out of [20,25]
+
+        List<Title> results = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, 20, 25, com.organizer3.repository.TitleRepository.CastMode.ALL);
+        assertEquals(0, results.size(), "ALL: one credit out of range should not match");
+    }
+
+    @Test
+    void findByVolumeFilteredAge_bothNull_returnsAll() {
+        saveWithLocation(titleFull("CAN-006", "CAN", 6), "vol-pool", "pool", "/can6");
+        Title t = saveWithLocation(titleFull("CAN-007", "CAN", 7), "vol-pool", "pool", "/can7");
+        insertAgeCredit(t.getId(), newActressId(), 22);
+
+        List<Title> withMode = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0,
+                null, null, null, com.organizer3.repository.TitleRepository.CastMode.ALL);
+        List<Title> baseline = titleRepo.findByVolumeFiltered("vol-pool", List.of(), List.of(), 100, 0, null);
+
+        assertEquals(2, withMode.size(), "both-null age args must return all titles regardless of castMode");
+        assertEquals(baseline.stream().map(Title::getCode).sorted().toList(),
+                withMode.stream().map(Title::getCode).sorted().toList(),
+                "both-null age args must equal the delegating (no-age) overload");
     }
 }
