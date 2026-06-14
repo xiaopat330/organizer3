@@ -48,16 +48,12 @@ function makeActressCard(a) {
 // ── Spotlight image resolution ────────────────────────────────────────────
 
 /**
- * Return the best image for the spotlight actress:
- *   1. Avatar (profile image)
- *   2. First cover URL (title cover)
- *   3. null  → monogram fallback
+ * Resolve the spotlight actress's profile-pic URL (or null).
  */
-function spotlightImageUrl(a) {
-  if (a.localAvatarUrl)   return { primary: a.localAvatarUrl, fallbacks: [] };
-  if (a.profileImagePath) return { primary: `/api/actress-image/${encodeURIComponent(a.slug || a.id)}`, fallbacks: [] };
-  if (a.coverUrls && a.coverUrls.length > 0) return { primary: null, fallbacks: a.coverUrls };
-  return { primary: null, fallbacks: [] };
+function profileImageUrl(a) {
+  if (a.localAvatarUrl)   return a.localAvatarUrl;
+  if (a.profileImagePath) return `/api/actress-image/${encodeURIComponent(a.slug || a.id)}`;
+  return null;
 }
 
 // ── Hero band (spotlight rotator) ─────────────────────────────────────────
@@ -77,15 +73,22 @@ function buildHeroElement(a) {
   const name  = a.displayName || a.canonicalName || a.stageName || a.name || a.slug || '';
   const tier  = (a.tier || '').toLowerCase();
   const count = a.titleCount != null ? `${a.titleCount} titles` : '';
-  const { primary, fallbacks } = spotlightImageUrl(a);
+
+  // New design: always prefer a cover as the hero image; overlay the profile
+  // pic (if any) as a small crisp thumbnail. Only when there are zero covers do
+  // we fall back to the tall profile-pic portrait (or a monogram).
+  const profile = profileImageUrl(a);
+  const covers  = a.coverUrls || [];
+  const hasCovers = covers.length > 0;
 
   const el = renderHeroBand({
     kind:          'actress',
     eyebrow:       tier,
     eyebrowClass:  tier ? `act-tier-${tier}` : '',
     name,
-    primaryImage:  primary,
-    fallbackImages: fallbacks,
+    primaryImage:  hasCovers ? null    : profile,
+    fallbackImages: hasCovers ? covers : [],
+    overlayImage:  hasCovers ? profile : null,
     count,
     openHref:      `/v2-actress-detail.html?id=${encodeURIComponent(a.id)}`,
     dataActressId: String(a.id || ''),

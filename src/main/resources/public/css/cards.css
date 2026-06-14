@@ -268,6 +268,33 @@
   z-index: 2;
 }
 
+/* Cover variant WITH a profile overlay — same cover bg, but no monogram scrim
+   (the scrim only exists to make the monogram readable; here there's none). */
+.acv2-portrait--cover {
+  background-color: #1a1320;
+}
+
+/* Profile-pic overlay — small crisp thumbnail raised in the bottom-right corner.
+   Shown at a small natural-ish size (NOT upscaled to fill the portrait). */
+.acv2-portrait-overlay {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  width: 58px;
+  height: 58px;
+  border-radius: 10px;
+  object-fit: cover;
+  object-position: center top;
+  border: 2px solid rgba(255,255,255,0.9);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.6);
+  z-index: 3;
+  background: #1a1320;
+}
+.acv2-card--compact .acv2-portrait-overlay {
+  width: 46px;
+  height: 46px;
+}
+
 /* Tier badge — top-left corner */
 .acv2-tier-badge {
   position: absolute;

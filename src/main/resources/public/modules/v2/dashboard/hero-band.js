@@ -14,6 +14,8 @@
      primaryImage  : string? — preferred image URL
      fallbackImages: string[] — used if primaryImage is absent/falsy
                      when a fallback is used, the aspect switches to 3:2
+     overlayImage  : string? — (actress only) profile pic overlaid bottom-right
+                     on the fallback cover; suppresses the monogram
      count         : string? — sub-line (e.g. "12 titles", "actress · 2019")
      countLabel    : string? — extra label after count (currently unused for auto-count)
      badgeHtml     : string? — raw HTML inserted after count (e.g. grade badge)
@@ -45,6 +47,7 @@ function monogram(name) {
  * @param {string} [opts.name]
  * @param {string} [opts.primaryImage]
  * @param {string[]} [opts.fallbackImages]
+ * @param {string} [opts.overlayImage]
  * @param {string} [opts.count]
  * @param {string} [opts.countLabel]
  * @param {string} [opts.badgeHtml]
@@ -60,6 +63,7 @@ export function renderHeroBand({
   name = '',
   primaryImage = null,
   fallbackImages = [],
+  overlayImage = null,
   count = '',
   countLabel = '',
   badgeHtml = '',
@@ -78,8 +82,13 @@ export function renderHeroBand({
   const imgStyle = resolvedImage
     ? `background-image:url('${esc(resolvedImage)}');background-size:cover;background-position:${bgPos}`
     : '';
-  const monogramHtml = !resolvedImage
+  // Overlay only applies to the actress fallback-cover case (never titles).
+  const hasOverlay = usingFallbackCover && !!overlayImage;
+  const monogramHtml = (!resolvedImage && !hasOverlay)
     ? `<div class="dash-hero-monogram">${esc(monogram(name || eyebrow))}</div>`
+    : '';
+  const overlayHtml = hasOverlay
+    ? `<img class="dash-hero-overlay" src="${esc(overlayImage)}" alt="" loading="lazy">`
     : '';
 
   let imageEl;
@@ -91,7 +100,7 @@ export function renderHeroBand({
     const coverClass = usingFallbackCover
       ? 'hero-cover dash-hero-cover-fallback'
       : 'hero-cover';
-    imageEl = `<div class="${coverClass}" ${imgStyle ? `style="${imgStyle}"` : ''}>${monogramHtml}</div>`;
+    imageEl = `<div class="${coverClass}" ${imgStyle ? `style="${imgStyle}"` : ''}>${monogramHtml}${overlayHtml}</div>`;
   }
 
   // Eyebrow
