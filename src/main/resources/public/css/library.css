@@ -2100,6 +2100,23 @@ button.ad-alias-badge.ad-alias-link:hover { color: var(--accent); border-color: 
   position: relative;
 }
 
+/* Profile-pic overlay on the actress hero cover — small crisp raised thumbnail
+   in the bottom-right corner (shown small, NOT upscaled to fill the hero). */
+.dash-hero-overlay {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 74px;
+  height: 74px;
+  border-radius: 12px;
+  object-fit: cover;
+  object-position: center top;
+  border: 2px solid rgba(255,255,255,0.92);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.65);
+  z-index: 3;
+  background: #1a1320;
+}
+
 /* KPI stat strip — single dense line below hero (shared primitive) */
 .dash-kpi-strip {
   font-size: 12.5px;
