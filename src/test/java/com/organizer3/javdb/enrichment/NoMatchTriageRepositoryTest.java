@@ -1,6 +1,7 @@
 package com.organizer3.javdb.enrichment;
 
 import com.organizer3.db.SchemaInitializer;
+import com.organizer3.javdb.JavdbCode;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -88,10 +89,10 @@ class NoMatchTriageRepositoryTest {
             h.execute("INSERT OR IGNORE INTO javdb_actress_filmography"
                     + "(actress_slug, fetched_at, page_count, source) "
                     + "VALUES (?,'2026-01-01T00:00:00Z',1,'http')", actressSlug);
-            // filmography entry
+            // filmography entry — populate product_code_norm exactly as production does
             h.execute("INSERT OR IGNORE INTO javdb_actress_filmography_entry"
-                    + "(actress_slug, product_code, title_slug, stale) VALUES (?,?,?,0)",
-                    actressSlug, productCode, titleSlug);
+                    + "(actress_slug, product_code, product_code_norm, title_slug, stale) VALUES (?,?,?,?,0)",
+                    actressSlug, productCode, JavdbCode.normalizeForMatch(productCode), titleSlug);
         });
     }
 
@@ -186,6 +187,25 @@ class NoMatchTriageRepositoryTest {
         assertEquals("Sora Aoi", c.stageName());
         assertEquals("sora-slug", c.javdbSlug());
         assertEquals("title-slug-x", c.titleSlug());
+    }
+
+    @Test
+    void findActressesByFilmographyCode_matchesAcrossZeroPadding() {
+        // javdb stores the minimal form "SEND-02"; callers pass the 5-digit-padded base_code.
+        long actressId = seedActress("Padding Lady");
+        seedFilmographyEntry(actressId, "padding-slug", "SEND-02", "send-title");
+
+        // Both the 5-digit base_code and the 3-digit code must resolve to this actress.
+        assertEquals(actressId,
+                repo.findActressesByFilmographyCode("SEND-00002").get(0).actressId(),
+                "5-digit base_code must match the minimally-padded stored code");
+        assertEquals(actressId,
+                repo.findActressesByFilmographyCode("SEND-002").get(0).actressId(),
+                "3-digit code must match the minimally-padded stored code");
+
+        // A genuinely different code must NOT match (no over-matching).
+        assertTrue(repo.findActressesByFilmographyCode("SEND-03").isEmpty(),
+                "a distinct code must not match");
     }
 
     @Test
