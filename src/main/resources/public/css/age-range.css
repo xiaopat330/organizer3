@@ -12,7 +12,11 @@
   font-family: var(--font-mono);
   color: var(--text-faint);
   white-space: nowrap;
-  min-width: 56px;
+  /* Fixed width + right-align so the label never resizes the widget as its text
+     toggles between "Age: Any 18–45" (full range) and "Age 20–44" (constrained),
+     which otherwise causes a visible flicker near the upper bound. */
+  width: 112px;
+  text-align: right;
 }
 .tit-lib-age-label.active { color: var(--accent); }
 .tit-lib-age-nums { color: var(--text-faint); }
