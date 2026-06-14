@@ -32,9 +32,40 @@ public class TitleCodeParser {
     private static final Pattern SUFFIX = Pattern.compile(
             "^(_[A-Za-z0-9]+)");
 
+    // A parenthesised group, e.g. "(IESP-409)". The canonical code lives here per the
+    // library's "<Actress> - <Description> (CODE)" folder-naming convention.
+    private static final Pattern PARENS = Pattern.compile("\\(([^()]*)\\)");
+
     public record ParsedCode(String code, String baseCode, String label, Integer seqNum) {}
 
+    /**
+     * Parses a folder name, preferring the code in a trailing parenthesised group.
+     *
+     * <p>The library's folder convention places the canonical code in trailing parentheses
+     * — {@code <Actress> - <Description> (CODE)}. When the description itself contains a
+     * code-shaped token (e.g. {@code X-File-13}, {@code R-18}, {@code U-15}), a naive
+     * whole-string first-match grabs the wrong token. To avoid this we scan parenthesised
+     * groups right-to-left and return the first one that yields a valid code; only if none
+     * do we fall back to the whole-string match (which also preserves the raw-name default
+     * for folders with no recognisable code anywhere).
+     */
     public ParsedCode parse(String folderName) {
+        Matcher paren = PARENS.matcher(folderName);
+        // Collect parenthesised inner texts, then evaluate right-to-left (rightmost first).
+        java.util.List<String> groups = new java.util.ArrayList<>();
+        while (paren.find()) {
+            groups.add(paren.group(1));
+        }
+        for (int i = groups.size() - 1; i >= 0; i--) {
+            ParsedCode candidate = parseCore(groups.get(i).trim());
+            if (candidate.label() != null) {
+                return candidate;
+            }
+        }
+        return parseCore(folderName);
+    }
+
+    private ParsedCode parseCore(String folderName) {
         Matcher m = CODE.matcher(folderName);
         if (!m.find()) {
             return new ParsedCode(folderName, folderName, null, null);

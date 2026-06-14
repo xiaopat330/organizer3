@@ -1,5 +1,6 @@
 package com.organizer3.db;
 
+import com.organizer3.javdb.JavdbCode;
 import com.organizer3.repository.StageNameNormalizer;
 import com.organizer3.sync.TitleCodeParser;
 import com.organizer3.translation.TranslationNormalization;
@@ -24,7 +25,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 69;
+    private static final int CURRENT_VERSION = 70;
 
     private final Jdbi jdbi;
 
@@ -371,6 +372,11 @@ public class SchemaUpgrader {
         if (version < 69) {
             applyV69();
             setVersion(69);
+        }
+
+        if (version < 70) {
+            applyV70();
+            setVersion(70);
         }
 
         log.info("Schema upgrade complete");
@@ -2340,6 +2346,66 @@ public class SchemaUpgrader {
                     )""");
         });
     }
+
+    /**
+     * v70: {@code product_code_norm} column + index on {@code javdb_actress_filmography_entry}.
+     *
+     * <p>javdb stores minimally-padded codes ({@code SEND-02}) but the no-match triage lookup
+     * receives the 5-digit-padded {@code base_code} ({@code SEND-00002}). SQLite cannot run the
+     * Java normalization, so we materialize a normalized column ({@link JavdbCode#normalizeForMatch})
+     * and query against it instead.
+     *
+     * <p>The backfill computes the normalized form in Java for every entry missing it and applies
+     * the UPDATEs in batched prepared statements (flushing every 1000 rows) so the ~132k-row table
+     * doesn't accumulate a single oversized batch.
+     *
+     * <p>Idempotent: {@link #addColumnIfMissing}, backfill only {@code WHERE product_code_norm IS NULL},
+     * and {@code CREATE INDEX IF NOT EXISTS}.
+     */
+    private void applyV70() {
+        log.info("Applying migration v70: product_code_norm on javdb_actress_filmography_entry");
+        jdbi.useHandle(h -> {
+            addColumnIfMissing(h, "javdb_actress_filmography_entry", "product_code_norm", "TEXT");
+
+            List<FilmographyEntryKey> toBackfill = h.createQuery("""
+                    SELECT actress_slug, product_code
+                    FROM javdb_actress_filmography_entry
+                    WHERE product_code_norm IS NULL
+                    """)
+                    .map((rs, ctx) -> new FilmographyEntryKey(
+                            rs.getString("actress_slug"), rs.getString("product_code")))
+                    .list();
+
+            var batch = h.prepareBatch("""
+                    UPDATE javdb_actress_filmography_entry
+                    SET product_code_norm = :norm
+                    WHERE actress_slug = :slug AND product_code = :code
+                    """);
+            int pending = 0;
+            for (FilmographyEntryKey key : toBackfill) {
+                batch.bind("norm", JavdbCode.normalizeForMatch(key.productCode()))
+                        .bind("slug", key.actressSlug())
+                        .bind("code", key.productCode())
+                        .add();
+                if (++pending == 1000) {
+                    batch.execute();
+                    pending = 0;
+                }
+            }
+            if (pending > 0) {
+                batch.execute();
+            }
+
+            h.execute("""
+                    CREATE INDEX IF NOT EXISTS idx_filmography_entry_code_norm
+                        ON javdb_actress_filmography_entry(product_code_norm)""");
+
+            log.info("Migration v70: backfilled product_code_norm for {} filmography entries",
+                    toBackfill.size());
+        });
+    }
+
+    private record FilmographyEntryKey(String actressSlug, String productCode) {}
 
     private static String leafOf(String path) {
         if (path == null) return null;

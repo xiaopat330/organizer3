@@ -143,6 +143,81 @@ class JavdbSlugResolverTest {
         assertInstanceOf(JavdbSlugResolver.CodeNotFound.class, result);
     }
 
+    // ── Branch A: padding-tolerant filmography match ──────────────────────────
+
+    @Test
+    void filmographyMatchesAcrossPaddingDifference() {
+        // javdb lists "SEND-02"; our DB code is the minimally-padded "SEND-002".
+        client.actressPage("J9dd", 1, html(false,
+                entry("SEND-02", "sendSlug"),
+                entry("STAR-358", "other")));
+
+        var result = resolver.resolve("SEND-002", "J9dd");
+
+        assertInstanceOf(JavdbSlugResolver.Success.class, result);
+        var success = (JavdbSlugResolver.Success) result;
+        assertEquals("sendSlug", success.slug());
+        assertEquals(JavdbSlugResolver.Source.ACTRESS_FILMOGRAPHY, success.source());
+        assertEquals(0, client.searchByCodeCalls, "normalized filmography hit must not fall back to code search");
+    }
+
+    @Test
+    void filmographyMatchesAcrossSeqPrefixPaddingDifference() {
+        // Seq-prefix letter must be preserved: MKBD-S119 (javdb) vs MKBD-S00119 (DB base form).
+        client.actressPage("J9dd", 1, html(false, entry("MKBD-S119", "mkbdSlug")));
+
+        var result = resolver.resolve("MKBD-S00119", "J9dd");
+
+        assertInstanceOf(JavdbSlugResolver.Success.class, result);
+        assertEquals("mkbdSlug", ((JavdbSlugResolver.Success) result).slug());
+        assertEquals(JavdbSlugResolver.Source.ACTRESS_FILMOGRAPHY,
+                ((JavdbSlugResolver.Success) result).source());
+    }
+
+    @Test
+    void filmographyDifferentIntegerStillNoMatch() {
+        // SEND-2 and SEND-3 are distinct titles — normalization must NOT conflate them.
+        client.actressPage("J9dd", 1, html(false, entry("SEND-02", "sendSlug")));
+
+        var result = resolver.resolve("SEND-003", "J9dd");
+
+        assertInstanceOf(JavdbSlugResolver.NoMatchInFilmography.class, result);
+        assertEquals(0, client.searchByCodeCalls, "genuine miss must not fall back to code search");
+    }
+
+    // ── Branch B: code-search fallback with result validation ─────────────────
+
+    @Test
+    void codeSearchFallbackAcceptsNormalizedMatchingResult() {
+        // Result code "SEND-02" normalizes-equal to queried "SEND-002".
+        client.searchHtml("SEND-002", "<html><body>"
+                + "<div class=\"item\"><a href=\"/v/sendSlug\" class=\"box\">"
+                + "<div class=\"video-title\"><strong>SEND-02</strong></div></a></div>"
+                + "</body></html>");
+
+        var result = resolver.resolve("SEND-002", null);
+
+        assertInstanceOf(JavdbSlugResolver.Success.class, result);
+        var success = (JavdbSlugResolver.Success) result;
+        assertEquals("sendSlug", success.slug());
+        assertEquals(JavdbSlugResolver.Source.CODE_SEARCH_FALLBACK, success.source());
+    }
+
+    @Test
+    void codeSearchFallbackRejectsNonMatchingResults() {
+        // Results exist but NONE match the queried code's integer — must reject (not bind a fuzzy hit).
+        client.searchHtml("SEND-002", "<html><body>"
+                + "<div class=\"item\"><a href=\"/v/wrong1\" class=\"box\">"
+                + "<div class=\"video-title\"><strong>SEND-999</strong></div></a></div>"
+                + "<div class=\"item\"><a href=\"/v/wrong2\" class=\"box\">"
+                + "<div class=\"video-title\"><strong>OTHER-2</strong></div></a></div>"
+                + "</body></html>");
+
+        var result = resolver.resolve("SEND-002", null);
+
+        assertInstanceOf(JavdbSlugResolver.CodeNotFound.class, result);
+    }
+
     // ── helpers ─────────────────────────────────────────────────────────────
 
     private static String html(boolean hasNextPage, String... entriesHtml) {
@@ -365,7 +440,17 @@ class JavdbSlugResolverTest {
         int failOnPage = -1; // -1 = never fail
 
         void searchResult(String code, String slugInResult) {
-            codeSearchResults.put(code, "<html><body><a href=\"/v/" + slugInResult + "\"></a></body></html>");
+            // Emit a full movie-card so JavdbSearchParser.parseResults extracts (code, slug);
+            // the code in the card normalizes-equal to the queried code so Branch B validates.
+            codeSearchResults.put(code, "<html><body>"
+                    + "<div class=\"item\"><a href=\"/v/" + slugInResult + "\" class=\"box\">"
+                    + "<div class=\"video-title\"><strong>" + code + "</strong></div></a></div>"
+                    + "</body></html>");
+        }
+
+        /** Register a raw search-results HTML body for a queried code (for validation tests). */
+        void searchHtml(String code, String html) {
+            codeSearchResults.put(code, html);
         }
 
         void actressPage(String actressSlug, int page, String html) {

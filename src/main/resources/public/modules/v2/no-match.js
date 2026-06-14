@@ -28,6 +28,16 @@ function esc(s) {
   }[c]));
 }
 
+// javdb indexes codes with minimal zero-padding (SEND-2, SCOP-515); our row.code is
+// minimally padded and row.baseCode is 5-digit zero-padded — both miss javdb's search.
+// Strip leading zeros from the numeric part so the human "Search javdb" link is far more
+// likely to hit. Mirrors JavdbCode.normalizeForMatch on the server (search links only —
+// cover resolution stays keyed on base_code).
+function javdbSearchCode(row) {
+  return (row.code || row.baseCode || '')
+    .replace(/^([A-Za-z][A-Za-z0-9]{0,9}-[A-Za-z]?)0*(\d)/, '$1$2');
+}
+
 // ── Entry point ───────────────────────────────────────────────────────────────
 
 export async function mountNoMatch(rootEl) {
@@ -40,10 +50,44 @@ export async function mountNoMatch(rootEl) {
 
   // ── State (closure — no module-level singleton) ───────────────────────────
   const S = {
-    rows:       [],
-    loading:    false,
-    orphanOnly: false,
+    rows:        [],
+    loading:     false,
+    orphanOnly:  false,
+    coverByCode: {},
   };
+
+  // Resolve local cover URLs for the loaded rows. Strictly additive: any
+  // failure leaves coverByCode empty and must never block the list render.
+  async function resolveCovers(rows) {
+    const seen = new Set();
+    const codes = [];
+    for (const r of rows) {
+      const code = r.baseCode || r.code;
+      if (!code) continue;
+      if (seen.has(code)) continue;
+      seen.add(code);
+      codes.push(code);
+    }
+    if (codes.length === 0) {
+      S.coverByCode = {};
+      return;
+    }
+    try {
+      const res = await fetch('/api/covers/resolve-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codes }),
+      });
+      if (res.ok) {
+        S.coverByCode = await res.json();
+      } else {
+        S.coverByCode = {};
+      }
+    } catch (err) {
+      console.warn('no-match: cover resolve failed (non-critical)', err);
+      S.coverByCode = {};
+    }
+  }
 
   // ── Data loading ──────────────────────────────────────────────────────────
 
@@ -57,6 +101,7 @@ export async function mountNoMatch(rootEl) {
       const res = await fetch('/api/triage/no-match?' + params.toString());
       if (!res.ok) throw new Error('HTTP ' + res.status);
       S.rows = await res.json();
+      await resolveCovers(S.rows);
       renderHeader();
       renderList();
     } catch (err) {
@@ -110,9 +155,18 @@ export async function mountNoMatch(rootEl) {
   // ── Row card ──────────────────────────────────────────────────────────────
 
   function buildRowCard(row) {
+    const coverUrl = S.coverByCode[row.baseCode || row.code] || null;
+
     const card = document.createElement('div');
-    card.className = 'nm-card' + (row.orphan ? ' nm-card-orphan' : '');
+    card.className = 'nm-card'
+      + (row.orphan ? ' nm-card-orphan' : '')
+      + (coverUrl ? ' nm-card--has-cover' : '');
     card.dataset.titleId = row.titleId;
+
+    // Content wrapper — all card body pieces append here so an optional
+    // cover poster can sit to the left without rewriting every append.
+    const body = document.createElement('div');
+    body.className = 'nm-card-body';
 
     // ── Title header ──
     const titleBar = document.createElement('div');
@@ -125,14 +179,14 @@ export async function mountNoMatch(rootEl) {
 
     // Javdb search link
     const javdbLink = document.createElement('a');
-    javdbLink.href = 'https://javdb.com/search?q=' + encodeURIComponent(row.baseCode || row.code);
+    javdbLink.href = 'https://javdb.com/search?q=' + encodeURIComponent(javdbSearchCode(row));
     javdbLink.target = '_blank';
     javdbLink.rel = 'noopener noreferrer';
     javdbLink.className = 'nm-javdb-link';
     javdbLink.textContent = 'Search javdb ↗';
     titleBar.appendChild(javdbLink);
 
-    card.appendChild(titleBar);
+    body.appendChild(titleBar);
 
     // ── Current actress link ──
     const actressEl = document.createElement('div');
@@ -142,14 +196,14 @@ export async function mountNoMatch(rootEl) {
     } else {
       actressEl.textContent = 'Filed under: ' + row.linkedActressNames.join(', ');
     }
-    card.appendChild(actressEl);
+    body.appendChild(actressEl);
 
     // ── Folder path ──
     if (row.folderPath) {
       const pathEl = document.createElement('div');
       pathEl.className = 'nm-path';
       pathEl.innerHTML = '<span class="nm-path-text">' + esc(row.folderPath) + '</span>';
-      card.appendChild(pathEl);
+      body.appendChild(pathEl);
     }
 
     // ── Candidate actress pills ──
@@ -178,12 +232,12 @@ export async function mountNoMatch(rootEl) {
       }
 
       candSection.appendChild(pills);
-      card.appendChild(candSection);
+      body.appendChild(candSection);
     } else if (row.orphan) {
       const noCand = document.createElement('div');
       noCand.className = 'nm-no-candidates';
       noCand.textContent = 'No actresses found in local filmography cache — search javdb manually.';
-      card.appendChild(noCand);
+      body.appendChild(noCand);
     }
 
     // ── Manual slug entry ──
@@ -204,7 +258,7 @@ export async function mountNoMatch(rootEl) {
     slugBtn.addEventListener('click', () => doManualSlug(row.titleId, slugInput, slugBtn, card));
     manualSection.appendChild(slugBtn);
 
-    card.appendChild(manualSection);
+    body.appendChild(manualSection);
 
     // ── Mark resolved ──
     const resolveBtn = document.createElement('button');
@@ -212,13 +266,35 @@ export async function mountNoMatch(rootEl) {
     resolveBtn.className = 'nm-action-btn nm-resolve-btn';
     resolveBtn.textContent = 'Mark resolved (no javdb data)';
     resolveBtn.addEventListener('click', () => doMarkResolved(row.titleId, resolveBtn, card));
-    card.appendChild(resolveBtn);
+    body.appendChild(resolveBtn);
 
     // ── Attempts / age ──
     const meta = document.createElement('div');
     meta.className = 'nm-meta';
     meta.textContent = `${row.attempts} attempt${row.attempts !== 1 ? 's' : ''} · last: ${formatDate(row.updatedAt)}`;
-    card.appendChild(meta);
+    body.appendChild(meta);
+
+    // ── Assemble: optional cover poster on the left, content on the right ──
+    if (coverUrl) {
+      const cover = document.createElement('a');
+      cover.className = 'nm-cover';
+      cover.href = 'https://javdb.com/search?q=' + encodeURIComponent(javdbSearchCode(row));
+      cover.target = '_blank';
+      cover.rel = 'noopener noreferrer';
+
+      const img = document.createElement('img');
+      img.className = 'nm-cover-img';
+      img.src = coverUrl;
+      img.alt = '';
+      img.loading = 'lazy';
+      // A stale/broken cover degrades gracefully — hide the whole link.
+      img.addEventListener('error', () => { cover.style.display = 'none'; });
+      cover.appendChild(img);
+
+      card.appendChild(cover);
+    }
+
+    card.appendChild(body);
 
     return card;
   }
@@ -305,7 +381,7 @@ export async function mountNoMatch(rootEl) {
     const msg = document.createElement('div');
     msg.className = 'nm-done-msg';
     msg.textContent = '✓ ' + message;
-    card.appendChild(msg);
+    (card.querySelector('.nm-card-body') || card).appendChild(msg);
     // Fade out and remove from live list after a short delay.
     setTimeout(() => {
       card.style.transition = 'opacity 0.4s';
@@ -324,7 +400,7 @@ export async function mountNoMatch(rootEl) {
     const err = document.createElement('div');
     err.className = 'nm-error';
     err.textContent = '⚠ ' + message;
-    card.appendChild(err);
+    (card.querySelector('.nm-card-body') || card).appendChild(err);
   }
 
   // ── Orphan filter wiring ──────────────────────────────────────────────────

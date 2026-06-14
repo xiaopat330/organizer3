@@ -1,6 +1,7 @@
 package com.organizer3.javdb.enrichment;
 
 import com.organizer3.javdb.JavdbClient;
+import com.organizer3.javdb.JavdbCode;
 import com.organizer3.javdb.JavdbConfig;
 import com.organizer3.javdb.JavdbNotFoundException;
 import com.organizer3.javdb.JavdbSearchParser;
@@ -12,7 +13,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -166,11 +166,25 @@ public class JavdbSlugResolver {
     public Resolution resolve(String productCode, String actressJavdbSlug) {
         if (actressJavdbSlug != null && !actressJavdbSlug.isBlank()) {
             Map<String, String> filmography = filmographyOf(actressJavdbSlug);
+            // Fast path: exact match (preserves behavior when the DB code and javdb key
+            // already align in representation).
             String slug = filmography.get(productCode);
             if (slug != null) {
                 log.info("javdb: resolved {} via filmography of actress {} → {}",
                         productCode, actressJavdbSlug, slug);
                 return new Success(slug, Source.ACTRESS_FILMOGRAPHY);
+            }
+            // Miss path: javdb lists minimally-padded codes (SEND-02) while our DB code is
+            // SEND-002 — a normalized comparison collapses every padding variant of the same
+            // integer to one key, so the title is still found. Only runs on the exact miss,
+            // and the per-actress map is small.
+            String target = JavdbCode.normalizeForMatch(productCode);
+            for (Map.Entry<String, String> e : filmography.entrySet()) {
+                if (JavdbCode.normalizeForMatch(e.getKey()).equals(target)) {
+                    log.info("javdb: resolved {} (normalized {}) via filmography of actress {} → {} (key {})",
+                            productCode, target, actressJavdbSlug, e.getValue(), e.getKey());
+                    return new Success(e.getValue(), Source.ACTRESS_FILMOGRAPHY);
+                }
             }
             log.info("javdb: {} not in filmography of actress {} — marking no_match",
                     productCode, actressJavdbSlug);
@@ -180,16 +194,23 @@ public class JavdbSlugResolver {
     }
 
     /**
-     * Code-search fallback. Used when no actress anchor is available. Preserves the original
-     * pre-fix behavior so enrichment coverage of unsorted/sentinel titles doesn't regress.
+     * Code-search fallback. Used when no actress anchor is available. Validates the search
+     * results against the queried code: only a result whose code normalizes equal to the
+     * queried code is accepted. This prevents binding to a fuzzy/unrelated first result —
+     * a wrong slug binding is far costlier (manual cleanup) than a safe miss.
      */
     private Resolution resolveByCodeSearch(String productCode) {
-        Optional<String> maybe = searchParser.parseFirstSlug(client.searchByCode(productCode));
-        if (maybe.isEmpty()) {
-            return new CodeNotFound();
+        String target = JavdbCode.normalizeForMatch(productCode);
+        for (JavdbSearchParser.Result result : searchParser.parseResults(client.searchByCode(productCode))) {
+            if (JavdbCode.normalizeForMatch(result.code()).equals(target)) {
+                log.info("javdb: resolved {} via code-search fallback → {} (matched code {})",
+                        productCode, result.slug(), result.code());
+                return new Success(result.slug(), Source.CODE_SEARCH_FALLBACK);
+            }
         }
-        log.info("javdb: resolved {} via code-search fallback → {}", productCode, maybe.get());
-        return new Success(maybe.get(), Source.CODE_SEARCH_FALLBACK);
+        log.info("javdb: code-search for {} returned no result matching normalized {} — code_not_found",
+                productCode, target);
+        return new CodeNotFound();
     }
 
     /**

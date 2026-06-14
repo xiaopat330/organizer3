@@ -72,6 +72,21 @@ class JavdbActressFilmographyRepositoryTest {
     }
 
     @Test
+    void upsertFilmography_populatesProductCodeNorm() {
+        repo.upsertFilmography("J9dd", sampleResult("2026-01-01T00:00:00Z", 1,
+                "SCOP-515", "slug1"));
+
+        String storedNorm = jdbi.withHandle(h ->
+                h.createQuery("""
+                        SELECT product_code_norm FROM javdb_actress_filmography_entry
+                        WHERE actress_slug = 'J9dd' AND product_code = 'SCOP-515'
+                        """)
+                        .mapTo(String.class).one());
+
+        assertEquals(com.organizer3.javdb.JavdbCode.normalizeForMatch("SCOP-515"), storedNorm);
+    }
+
+    @Test
     void getCodeToSlug_returnsAllEntries() {
         repo.upsertFilmography("J9dd", sampleResult("2026-01-01T00:00:00Z", 1,
                 "STAR-334", "slug1", "STAR-358", "slug2", "STAR-999", "slug3"));

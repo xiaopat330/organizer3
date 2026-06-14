@@ -268,7 +268,7 @@ class AgeAtReleaseRecomputerTest {
     // -------------------------------------------------------------------------
 
     @Test
-    void freshDb_columnExistsAndVersionIs69() {
+    void freshDb_columnExistsAndVersionIsCurrent() {
         boolean hasCol = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('title_actresses') WHERE name='age_at_release'")
                         .mapTo(Integer.class).one() > 0);
@@ -276,7 +276,7 @@ class AgeAtReleaseRecomputerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(69, version);
+        assertEquals(70, version);
     }
 
     // -------------------------------------------------------------------------
@@ -354,10 +354,10 @@ class AgeAtReleaseRecomputerTest {
                             .mapTo(Integer.class).findOne().orElse(null));
             assertNull(ageNoDob, "row with no DOB should remain NULL after seed");
 
-            // Re-run upgrade is a no-op (version already 69)
+            // Re-run upgrade is a no-op (version already at current)
             int versionAfter = jdbi2.withHandle(h ->
                     h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-            assertEquals(69, versionAfter);
+            assertEquals(70, versionAfter);
 
             new SchemaUpgrader(jdbi2).upgrade();  // should not throw
         }

@@ -1,5 +1,6 @@
 package com.organizer3.javdb.enrichment;
 
+import com.organizer3.javdb.JavdbCode;
 import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
 
@@ -81,6 +82,10 @@ public class NoMatchTriageRepository {
      * Searches {@code javdb_actress_filmography_entry} for all actresses whose cached
      * filmography contains {@code productCode}. Excludes sentinel actresses.
      *
+     * <p>The incoming code is normalized via {@link JavdbCode#normalizeForMatch} and compared
+     * against the materialized {@code product_code_norm} column, so any zero-padding variant
+     * ({@code SEND-00002} / {@code SEND-002} / {@code SEND-02}) matches the stored javdb form.
+     *
      * <p>This is the "try other actress" candidate pool: cheap indexed local lookup.
      */
     public List<FilmographyCandidate> findActressesByFilmographyCode(String productCode) {
@@ -99,11 +104,11 @@ public class NoMatchTriageRepository {
                   ON jas.javdb_slug = e.actress_slug
                 JOIN actresses a
                   ON a.id = jas.actress_id
-                WHERE e.product_code = :code
+                WHERE e.product_code_norm = :code
                   AND COALESCE(a.is_sentinel, 0) = 0
                 ORDER BY a.stage_name ASC
                 """)
-                .bind("code", productCode)
+                .bind("code", JavdbCode.normalizeForMatch(productCode))
                 .map((rs, ctx) -> new FilmographyCandidate(
                         rs.getLong("actress_id"),
                         rs.getString("stage_name"),

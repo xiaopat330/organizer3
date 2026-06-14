@@ -2839,6 +2839,39 @@
 .nm-card-busy { opacity: 0.6; pointer-events: none; }
 .nm-card-done { border-color: var(--success, #1a8a44); }
 
+/* ── Optional cover poster (additive — only when a cover resolves) ───── */
+.nm-card--has-cover {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 12px;
+}
+.nm-card--has-cover .nm-card-body {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.nm-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.nm-cover {
+  flex: 0 0 auto;
+  display: block;
+  line-height: 0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.nm-cover-img {
+  display: block;
+  width: 150px;
+  height: auto;
+  border-radius: 4px;
+  border: 1px solid var(--border, #1e293b);
+}
+
 /* ── Title bar ──────────────────────────────────────────────────────── */
 .nm-title-bar {
   display: flex; align-items: center; gap: 10px;

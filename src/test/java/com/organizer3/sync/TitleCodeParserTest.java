@@ -205,4 +205,140 @@ class TitleCodeParserTest {
         assertEquals("FC2PPV", result.label());
         assertEquals(123456789, result.seqNum());
     }
+
+    // --- Prefer the code in trailing parentheses over a code-shaped token in the description. ---
+
+    @Test
+    void parensCode_preferredOver_xFileToken() {
+        var result = parser.parse(
+                "Kaho Kasumi - Drug Investigator - Yakuzuke Vaginal Convulsions, X-File-13  (IESP-409)");
+        assertEquals("IESP-409", result.code());
+        assertEquals("IESP-00409", result.baseCode());
+        assertEquals("IESP", result.label());
+        assertEquals(409, result.seqNum());
+    }
+
+    @Test
+    void parensCode_preferredOver_xFileToken_noComma() {
+        var result = parser.parse(
+                "Anje Hoshi - Drug Investigator Yakuzuke Vaginal Convulsions X-File-20 (IESP-457)");
+        assertEquals("IESP-457", result.code());
+        assertEquals("IESP-00457", result.baseCode());
+        assertEquals("IESP", result.label());
+        assertEquals(457, result.seqNum());
+    }
+
+    @Test
+    void parensCode_preferredOver_r18Token() {
+        var result = parser.parse("Nao Ayukawa - R-18 (RJK-107)");
+        assertEquals("RJK-107", result.code());
+        assertEquals("RJK-00107", result.baseCode());
+        assertEquals("RJK", result.label());
+        assertEquals(107, result.seqNum());
+    }
+
+    @Test
+    void parensCode_preferredOver_r21Token_padsToFiveDigits() {
+        var result = parser.parse("Rika Goto - R-21 (BKDV-00099)");
+        assertEquals("BKDV-00099", result.code());
+        assertEquals("BKDV-00099", result.baseCode());
+        assertEquals("BKDV", result.label());
+        assertEquals(99, result.seqNum());
+    }
+
+    @Test
+    void parensCode_preferredOver_u15Token() {
+        var result = parser.parse("Ai Shinozaki - U-15 Super Idol Big Tits Final (LCDV-40443)");
+        assertEquals("LCDV-40443", result.code());
+        assertEquals("LCDV-40443", result.baseCode());
+        assertEquals("LCDV", result.label());
+        assertEquals(40443, result.seqNum());
+    }
+
+    // --- Suffix no-ops inside parens: parseCore already collapses the codec/disc suffix. ---
+
+    @Test
+    void parensCode_h265Suffix_collapsesToBaseCode_mase() {
+        var result = parser.parse("Foo (MASE-076.H265)");
+        assertEquals("MASE-076", result.code());
+        assertEquals("MASE-00076", result.baseCode());
+        assertEquals("MASE", result.label());
+        assertEquals(76, result.seqNum());
+    }
+
+    @Test
+    void parensCode_h265Suffix_collapsesToBaseCode_pasn() {
+        var result = parser.parse("Foo (PASN-008.H265)");
+        assertEquals("PASN-008", result.code());
+        assertEquals("PASN-00008", result.baseCode());
+        assertEquals("PASN", result.label());
+        assertEquals(8, result.seqNum());
+    }
+
+    @Test
+    void parensCode_discSuffix_collapsesToBaseCode_md() {
+        var result = parser.parse("Foo (MD-0170-4)");
+        assertEquals("MD-0170", result.code());
+        assertEquals("MD-00170", result.baseCode());
+        assertEquals("MD", result.label());
+        assertEquals(170, result.seqNum());
+    }
+
+    @Test
+    void parensCode_dotSuffix_collapsesToBaseCode_x1x() {
+        var result = parser.parse("Foo (X1X-111686.111689)");
+        assertEquals("X1X-111686", result.code());
+        assertEquals("X1X-111686", result.baseCode());
+        assertEquals("X1X", result.label());
+        assertEquals(111686, result.seqNum());
+    }
+
+    // --- Fallback and ordering behaviour. ---
+
+    @Test
+    void noParens_startsWithCode_usesWholeStringFallback() {
+        var result = parser.parse("IESP-409 something");
+        assertEquals("IESP-409", result.code());
+        assertEquals("IESP-00409", result.baseCode());
+        assertEquals("IESP", result.label());
+        assertEquals(409, result.seqNum());
+    }
+
+    @Test
+    void multiActressCommaList_parensCodeStillParses() {
+        var result = parser.parse(
+                "Aki Nagase, Riko Sakura, Hina Otsuka - Lolita Destruction (IESP-299)");
+        assertEquals("IESP-299", result.code());
+        assertEquals("IESP-00299", result.baseCode());
+        assertEquals("IESP", result.label());
+        assertEquals(299, result.seqNum());
+    }
+
+    @Test
+    void seqPrefix_insideParens_boxSet() {
+        var result = parser.parse("Box Set (MKBD-S119)");
+        assertEquals("MKBD-S119", result.code());
+        assertEquals("MKBD-S00119", result.baseCode());
+        assertEquals("MKBD", result.label());
+        assertEquals(119, result.seqNum());
+    }
+
+    @Test
+    void trailingResolutionGroup_skipped_realCodePicked() {
+        // Right-to-left + first-valid: "(1080p)" yields no valid code, so we keep scanning left.
+        var result = parser.parse("Some Title (ABC-123) (1080p)");
+        assertEquals("ABC-123", result.code());
+        assertEquals("ABC-00123", result.baseCode());
+        assertEquals("ABC", result.label());
+        assertEquals(123, result.seqNum());
+    }
+
+    @Test
+    void noRecognizableCodeAnywhere_defaultsToRawName() {
+        var result = parser.parse("Just A Folder Name (no code here)");
+        assertEquals("Just A Folder Name (no code here)", result.code());
+        assertEquals("Just A Folder Name (no code here)", result.baseCode());
+        assertNull(result.label());
+        assertNull(result.seqNum());
+    }
 }

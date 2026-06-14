@@ -1,5 +1,6 @@
 package com.organizer3.javdb.enrichment;
 
+import com.organizer3.javdb.JavdbCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
@@ -119,11 +120,12 @@ public class JdbiJavdbActressFilmographyRepository implements JavdbActressFilmog
                     // New entry — never seen before
                     h.createUpdate("""
                             INSERT OR IGNORE INTO javdb_actress_filmography_entry
-                                (actress_slug, product_code, title_slug, stale)
-                            VALUES (:slug, :code, :titleSlug, 0)
+                                (actress_slug, product_code, product_code_norm, title_slug, stale)
+                            VALUES (:slug, :code, :codeNorm, :titleSlug, 0)
                             """)
                             .bind("slug",     actressSlug)
                             .bind("code",     code)
+                            .bind("codeNorm", JavdbCode.normalizeForMatch(code))
                             .bind("titleSlug", newSlug)
                             .execute();
                 } else {

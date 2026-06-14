@@ -44,4 +44,37 @@ public class JavdbSearchParser {
         }
         return java.util.List.copyOf(slugs);
     }
+
+    /** One search-result movie card: its product code and title slug. */
+    public record Result(String code, String slug) {}
+
+    /**
+     * Returns the ordered list of {@code (code, slug)} pairs from a search results page.
+     *
+     * <p>Search results use the same movie-card markup as the actress filmography page:
+     * each {@code div.item} contains an {@code a[href^='/v/']} (slug after {@code /v/}) and
+     * a {@code .video-title strong} (the product code). Items missing either are skipped.
+     *
+     * <p>Unlike {@link #parseFirstSlug}, the code is captured so callers can validate that a
+     * result actually matches the queried code rather than blindly taking the first hit.
+     */
+    public java.util.List<Result> parseResults(String html) {
+        if (html == null || html.isBlank()) return java.util.List.of();
+
+        java.util.List<Result> results = new java.util.ArrayList<>();
+        for (Element item : Jsoup.parse(html).select("div.item")) {
+            Element link = item.selectFirst("a[href^='/v/']");
+            if (link == null) continue;
+            String slug = link.attr("href").substring("/v/".length());
+            if (slug.isBlank()) continue;
+
+            Element codeEl = item.selectFirst(".video-title strong");
+            if (codeEl == null) continue;
+            String code = codeEl.text().trim();
+            if (code.isBlank()) continue;
+
+            results.add(new Result(code, slug));
+        }
+        return java.util.List.copyOf(results);
+    }
 }

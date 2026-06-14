@@ -76,7 +76,11 @@ public class HttpJavdbClient implements JavdbClient {
 
     @Override
     public String searchByCode(String code) {
-        String encoded = URLEncoder.encode(code, StandardCharsets.UTF_8);
+        // Query with the normalized (zero-stripped) form — javdb indexes minimal padding
+        // (SEND-2, SCOP-515), so the padded DB form would miss. Correctness for callers that
+        // act on results is still guaranteed by their own result validation.
+        String q = JavdbCode.normalizeForMatch(code);
+        String encoded = URLEncoder.encode(q, StandardCharsets.UTF_8);
         return fetch(BASE_URL + "/search?q=" + encoded + "&f=all");
     }
 
