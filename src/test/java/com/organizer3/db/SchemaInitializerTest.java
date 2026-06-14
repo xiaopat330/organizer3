@@ -95,7 +95,7 @@ class SchemaInitializerTest {
                         "idx_draft_titles_title_id",
                         "idx_erq_open", "idx_erq_open_unique", "idx_erq_title",
                         "idx_etd_title_count",
-                        "idx_filmography_entry_code",
+                        "idx_filmography_entry_code", "idx_filmography_entry_code_norm",
                         "idx_javdb_actress_slug",
                         "idx_jeq_actress", "idx_jeq_claim", "idx_jeq_claim_priority", "idx_jeq_source",
                         "idx_label_tags_tag",
@@ -195,7 +195,7 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(69, version);
+        assertEquals(70, version);
     }
 
     @Test
