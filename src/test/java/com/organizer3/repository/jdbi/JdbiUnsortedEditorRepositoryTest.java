@@ -7,6 +7,7 @@ import com.organizer3.model.TitleLocation;
 import com.organizer3.model.Video;
 import com.organizer3.repository.UnsortedEditorRepository.AssignedActress;
 import com.organizer3.repository.UnsortedEditorRepository.EligibleTitle;
+import com.organizer3.repository.UnsortedEditorRepository.StagingLocation;
 import com.organizer3.repository.UnsortedEditorRepository.TitleDetail;
 
 import java.time.Instant;
@@ -20,7 +21,10 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -286,7 +290,125 @@ class JdbiUnsortedEditorRepositoryTest {
         assertNull(detail.get().curatedAt(), "curatedAt should be null before markCurated");
     }
 
+    // ── multi-volume (serviceable staging) tests ─────────────────────────
+
+    private static final String CLASSIC = "classic_fresh";
+
+    @Test
+    void listEligible_multiVolume_returnsBothWithCorrectVolumeId() {
+        registerVolume(CLASSIC);
+        long unsortedId = seedEligibleTitle("ONED-800", "Eighty (ONED-800)", "video/a.mp4", LocalDate.now());
+        long classicId = seedTitleOnVolume("CLD-800", "Classic (CLD-800)", "video/b.mp4", CLASSIC, LocalDate.now());
+
+        List<EligibleTitle> result = repo.listEligible(List.of("unsorted", CLASSIC));
+
+        assertEquals(2, result.size());
+        Map<String, String> codeToVol = result.stream()
+                .collect(Collectors.toMap(EligibleTitle::code, EligibleTitle::volumeId));
+        assertEquals("unsorted", codeToVol.get("ONED-800"));
+        assertEquals(CLASSIC, codeToVol.get("CLD-800"));
+        // sanity: the ids came back on the right volumes
+        Map<Long, String> idToVol = result.stream()
+                .collect(Collectors.toMap(EligibleTitle::titleId, EligibleTitle::volumeId));
+        assertEquals("unsorted", idToVol.get(unsortedId));
+        assertEquals(CLASSIC, idToVol.get(classicId));
+    }
+
+    @Test
+    void listEligible_singleVolumeSubset_filtersOthers() {
+        registerVolume(CLASSIC);
+        seedEligibleTitle("ONED-801", "EightyOne (ONED-801)", "video/a.mp4", LocalDate.now());
+        long classicId = seedTitleOnVolume("CLD-801", "ClassicA (CLD-801)", "video/b.mp4", CLASSIC, LocalDate.now());
+
+        List<EligibleTitle> result = repo.listEligible(List.of(CLASSIC));
+
+        assertEquals(1, result.size());
+        assertEquals(classicId, result.get(0).titleId());
+        assertEquals("CLD-801", result.get(0).code());
+        assertEquals(CLASSIC, result.get(0).volumeId());
+    }
+
+    @Test
+    void findServiceableStagingLocation_resolvesEachTitleToItsOwnVolume() {
+        registerVolume(CLASSIC);
+        long unsortedId = seedEligibleTitle("ONED-802", "EightyTwo (ONED-802)", "video/a.mp4", LocalDate.now());
+        long classicId = seedTitleOnVolume("CLD-802", "ClassicB (CLD-802)", "video/b.mp4", CLASSIC, LocalDate.now());
+
+        Optional<StagingLocation> uLoc =
+                repo.findServiceableStagingLocation(unsortedId, Set.of("unsorted", CLASSIC));
+        Optional<StagingLocation> cLoc =
+                repo.findServiceableStagingLocation(classicId, Set.of("unsorted", CLASSIC));
+
+        assertTrue(uLoc.isPresent());
+        assertEquals("unsorted", uLoc.get().volumeId());
+        assertEquals("/root/EightyTwo (ONED-802)", uLoc.get().path());
+
+        assertTrue(cLoc.isPresent());
+        assertEquals(CLASSIC, cLoc.get().volumeId());
+        assertEquals("/root/ClassicB (CLD-802)", cLoc.get().path());
+    }
+
+    @Test
+    void findServiceableStagingLocation_notEligibleButLiveLocation_stillResolves() {
+        registerVolume(CLASSIC);
+        // A live classic_fresh location with NO qualifying video (no video/|h265/|4K subdir),
+        // so it FAILS listEligible — but the plain resolver must still return it.
+        Title title = titleRepo.save(Title.builder().code("CLD-803").baseCode("CLD-803").label("CLD").build());
+        String folderPath = "/root/NoVideo (CLD-803)";
+        locationRepo.save(TitleLocation.builder()
+                .titleId(title.getId())
+                .volumeId(CLASSIC)
+                .partitionId("queue")
+                .path(Path.of(folderPath))
+                .lastSeenAt(LocalDate.now())
+                .addedDate(LocalDate.now())
+                .build());
+
+        // Precondition: not eligible (no qualifying video).
+        assertTrue(repo.listEligible(List.of(CLASSIC)).stream()
+                        .noneMatch(e -> e.titleId() == title.getId()),
+                "title with no qualifying video must not be eligible");
+
+        // But the resolver still finds the live location.
+        Optional<StagingLocation> loc =
+                repo.findServiceableStagingLocation(title.getId(), Set.of("unsorted", CLASSIC));
+        assertTrue(loc.isPresent(), "plain resolver must return a live location even when not eligible");
+        assertEquals(CLASSIC, loc.get().volumeId());
+        assertEquals(folderPath, loc.get().path());
+    }
+
+    @Test
+    void markCurated_multiVolume_stampsOnlyTargetVolume() {
+        registerVolume(CLASSIC);
+        // Same title code lives on BOTH volumes: two live title_locations rows, same title_id.
+        long titleId = seedEligibleTitle("ONED-804", "EightyFour (ONED-804)", "video/a.mp4", LocalDate.now());
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO title_locations(title_id, volume_id, partition_id, path, last_seen_at) "
+                + "VALUES (" + titleId + ",'" + CLASSIC + "','queue','/root/EightyFour (ONED-804)','2024-01-01')"));
+
+        String now = Instant.now().toString();
+        repo.markCurated(titleId, CLASSIC, now);
+
+        String classicCuratedAt = jdbi.withHandle(h ->
+                h.createQuery("SELECT curated_at FROM title_locations WHERE title_id = :id AND volume_id = :vol AND stale_since IS NULL")
+                        .bind("id", titleId).bind("vol", CLASSIC)
+                        .mapTo(String.class).findFirst().orElse(null));
+        String unsortedCuratedAt = jdbi.withHandle(h ->
+                h.createQuery("SELECT curated_at FROM title_locations WHERE title_id = :id AND volume_id = :vol AND stale_since IS NULL")
+                        .bind("id", titleId).bind("vol", VOL)
+                        .mapTo(String.class).findFirst().orElse(null));
+
+        assertEquals(now, classicCuratedAt, "target-volume row should be stamped");
+        assertNull(unsortedCuratedAt, "non-target volume row must remain NULL");
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────
+
+    private void registerVolume(String volumeId) {
+        jdbi.useHandle(h -> h.execute(
+                "INSERT INTO volumes (id, structure_type) VALUES ('" + volumeId + "', 'queue')"));
+    }
+
 
     private long seedEligibleTitle(String code, String folderName, String videoRelPath, LocalDate addedDate) {
         return seedTitle(code, folderName, videoRelPath, addedDate);

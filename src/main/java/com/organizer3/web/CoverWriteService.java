@@ -31,49 +31,54 @@ public class CoverWriteService {
 
     private final SmbConnectionFactory smbFactory;
     private final CoverPath coverPath;
-    private final String unsortedVolumeId;
 
-    public CoverWriteService(SmbConnectionFactory smbFactory, CoverPath coverPath,
-                             String unsortedVolumeId) {
+    public CoverWriteService(SmbConnectionFactory smbFactory, CoverPath coverPath) {
         this.smbFactory = smbFactory;
         this.coverPath = coverPath;
-        this.unsortedVolumeId = unsortedVolumeId;
     }
 
     /**
      * Save {@code bytes} as the cover for {@code title}. {@code folderPath} is the SMB
-     * share-relative path to the title folder (as stored in {@code title_locations.path}).
+     * share-relative path to the title folder (as stored in {@code title_locations.path}) and
+     * {@code volumeId} is the staging volume that path lives on — both must come from the same
+     * resolution act (see {@code spec/PROPOSAL_UNPROCESSED_MULTI_VOLUME.md}).
      *
      * @throws IOException when the NAS write fails; in that case, the local cache is not touched.
      */
-    public void save(Title title, String folderPath, byte[] bytes, String extension) throws IOException {
-        writeToNas(title, folderPath, bytes, extension);
+    public void save(Title title, String folderPath, byte[] bytes, String extension, String volumeId)
+            throws IOException {
+        writeToNas(title, folderPath, bytes, extension, volumeId);
         writeLocalCacheBestEffort(title, bytes, extension);
     }
 
     /**
      * Best-effort: write {@code bytes} as the cover at {@code <folderPath>/<baseCode>.jpg}
-     * on the unsorted volume. Unlike {@link #save}, never throws and does NOT touch the
+     * on {@code volumeId}. Unlike {@link #save}, never throws and does NOT touch the
      * local cache (the caller already populated it). Logs + swallows on failure.
+     *
+     * <p>{@code folderPath} and {@code volumeId} must originate from the same resolution act;
+     * never resolve the volume independently of the path.
      */
-    public void saveToNasBestEffort(String folderPath, String baseCode, byte[] bytes) {
+    public void saveToNasBestEffort(String folderPath, String baseCode, byte[] bytes, String volumeId) {
         try {
             // Route through withRetry so a broken-pipe/transport drop mid-write is retried
             // once against a fresh connection. Still best-effort: final failure is swallowed.
-            smbFactory.withRetry(unsortedVolumeId, handle -> {
+            smbFactory.withRetry(volumeId, handle -> {
                 VolumeFileSystem fs = handle.fileSystem();
                 Path target = Path.of(folderPath, baseCode + ".jpg");
                 fs.writeFile(target, bytes);
-                log.info("Saved cover to NAS (best-effort): {} ({} bytes)", target, bytes.length);
+                log.info("Saved cover to NAS (best-effort): {} on {} ({} bytes)", target, volumeId, bytes.length);
                 return null;
             });
         } catch (Exception e) {
-            log.warn("Best-effort NAS cover write failed for {}/{}.jpg: {}", folderPath, baseCode, e.getMessage());
+            log.warn("Best-effort NAS cover write failed for {}/{}.jpg on {}: {}",
+                    folderPath, baseCode, volumeId, e.getMessage());
         }
     }
 
-    private void writeToNas(Title title, String folderPath, byte[] bytes, String extension) throws IOException {
-        try (SmbShareHandle handle = smbFactory.open(unsortedVolumeId)) {
+    private void writeToNas(Title title, String folderPath, byte[] bytes, String extension, String volumeId)
+            throws IOException {
+        try (SmbShareHandle handle = smbFactory.open(volumeId)) {
             VolumeFileSystem fs = handle.fileSystem();
             // Filename is the normalized product number (baseCode), matching how the
             // local cover cache and library-side covers are named.

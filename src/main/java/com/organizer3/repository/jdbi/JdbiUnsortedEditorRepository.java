@@ -6,6 +6,7 @@ import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Function;
@@ -16,14 +17,18 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
     private final Jdbi jdbi;
 
     @Override
-    public List<EligibleTitle> listEligible(String volumeId) {
+    public List<EligibleTitle> listEligible(Collection<String> volumeIds) {
+        if (volumeIds == null || volumeIds.isEmpty()) return List.of();
+        // Eligibility across every serviceable staging volume. The video-subdir EXISTS check
+        // correlates on tl.volume_id (same volume as the location), so a title is only eligible
+        // when its live location AND a video sit on the same serviceable volume.
         String sql = """
                 SELECT t.id AS title_id, t.code AS code, t.label AS label, t.base_code AS base_code,
-                       tl.path AS folder_path, tl.curated_at AS curated_at,
+                       tl.path AS folder_path, tl.curated_at AS curated_at, tl.volume_id AS volume_id,
                        (SELECT COUNT(*) FROM title_actresses ta WHERE ta.title_id = t.id) AS actress_count
                 FROM titles t
                 JOIN title_locations tl ON tl.title_id = t.id
-                WHERE tl.volume_id = :volumeId
+                WHERE tl.volume_id IN (<volumeIds>)
                   AND tl.stale_since IS NULL
                   AND t.code IS NOT NULL
                   AND t.base_code IS NOT NULL
@@ -31,7 +36,7 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                   AND EXISTS (
                       SELECT 1 FROM videos v
                       WHERE v.title_id = t.id
-                        AND v.volume_id = :volumeId
+                        AND v.volume_id = tl.volume_id
                         AND (
                             substr(v.path, length(tl.path) + 2) LIKE 'video/%'
                          OR substr(v.path, length(tl.path) + 2) LIKE 'h265/%'
@@ -41,7 +46,7 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                 ORDER BY tl.added_date ASC, t.id ASC
                 """;
         return jdbi.withHandle(h -> h.createQuery(sql)
-                .bind("volumeId", volumeId)
+                .bindList("volumeIds", List.copyOf(volumeIds))
                 .map((rs, ctx) -> {
                     String path = rs.getString("folder_path");
                     String folderName = basename(path);
@@ -53,10 +58,31 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                             rs.getString("base_code"),
                             rs.getInt("actress_count"),
                             path,
-                            rs.getString("curated_at")
+                            rs.getString("curated_at"),
+                            rs.getString("volume_id")
                     );
                 })
                 .list());
+    }
+
+    @Override
+    public Optional<StagingLocation> findServiceableStagingLocation(long titleId, Collection<String> volumeIds) {
+        if (volumeIds == null || volumeIds.isEmpty()) return Optional.empty();
+        // Plain live-location lookup (NOT eligibility-gated): the single resolution source used by
+        // every write path so they can never disagree on the target share. Deterministic tiebreak.
+        return jdbi.withHandle(h -> h.createQuery("""
+                        SELECT tl.volume_id AS volume_id, tl.path AS path
+                        FROM title_locations tl
+                        WHERE tl.title_id = :titleId
+                          AND tl.volume_id IN (<volumeIds>)
+                          AND tl.stale_since IS NULL
+                        ORDER BY tl.added_date ASC, tl.volume_id ASC
+                        LIMIT 1
+                        """)
+                .bind("titleId", titleId)
+                .bindList("volumeIds", List.copyOf(volumeIds))
+                .map((rs, ctx) -> new StagingLocation(rs.getString("volume_id"), rs.getString("path")))
+                .findFirst());
     }
 
     @Override
@@ -65,7 +91,7 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
             var detailOpt = h.createQuery("""
                     SELECT t.id AS title_id, t.code AS code, t.label AS label, t.base_code AS base_code,
                            t.actress_id AS primary_actress_id, tl.path AS folder_path,
-                           tl.curated_at AS curated_at
+                           tl.curated_at AS curated_at, tl.volume_id AS volume_id
                     FROM titles t
                     JOIN title_locations tl ON tl.title_id = t.id
                     WHERE t.id = :titleId AND tl.volume_id = :volumeId
@@ -81,7 +107,8 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                             rs.getString("base_code"),
                             (Long) (rs.getObject("primary_actress_id") == null ? null : rs.getLong("primary_actress_id")),
                             rs.getString("folder_path"),
-                            rs.getString("curated_at")
+                            rs.getString("curated_at"),
+                            rs.getString("volume_id")
                     })
                     .findFirst();
             if (detailOpt.isEmpty()) return Optional.<TitleDetail>empty();
@@ -112,7 +139,8 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                     (String) row[3],
                     (String) row[5],
                     actresses,
-                    (String) row[6]
+                    (String) row[6],
+                    (String) row[7]
             ));
         });
     }

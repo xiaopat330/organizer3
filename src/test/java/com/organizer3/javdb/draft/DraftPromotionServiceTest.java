@@ -126,7 +126,7 @@ class DraftPromotionServiceTest {
                 draftEnrichRepo, coverStore, coverPath, castValidator,
                 titleRepo, historyRepo, effectiveTags, JSON, suggestionRepo,
                 javdbStagingRepo, actressRepo,   // FIX 1
-                "unsorted", renamer,             // Phase 2
+                java.util.Set.of("unsorted"), renamer,             // Phase 2
                 coverWriteService,               // best-effort NAS cover write
                 null, null,                      // Item B: guard disabled in base tests
                 null);                           // Task 2b: ageRecomputer not under test here
@@ -654,7 +654,7 @@ class DraftPromotionServiceTest {
         service.promote(draftId, "2024-06-01T00:00:00Z");
 
         verify(coverWriteService).saveToNasBestEffort(
-                eq("/unsorted/TST-1"), eq("TST-00001"), any(byte[].class));
+                eq("/unsorted/TST-1"), eq("TST-00001"), any(byte[].class), eq("unsorted"));
     }
 
     /**
@@ -668,7 +668,7 @@ class DraftPromotionServiceTest {
 
         service.promote(draftId, "2024-06-01T00:00:00Z");
 
-        verify(coverWriteService, never()).saveToNasBestEffort(any(), any(), any());
+        verify(coverWriteService, never()).saveToNasBestEffort(any(), any(), any(), any());
     }
 
     // ── Enrichment title_original / title_original_en (translation-sweeper feed) ──
@@ -1495,7 +1495,7 @@ class DraftPromotionServiceTest {
                 draftEnrichRepo, coverStore, coverPath, new CastValidator(),
                 titleRepo, historyRepo, effectiveTags, JSON, suggestionRepo,
                 stagingSpy, actressRepo,
-                "unsorted", renamer,
+                java.util.Set.of("unsorted"), renamer,
                 coverWriteService,
                 null, null,  // Item B: guard disabled in this test
                 null);       // Task 2b: ageRecomputer not under test here

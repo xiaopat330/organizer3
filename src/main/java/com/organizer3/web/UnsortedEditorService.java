@@ -18,6 +18,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -39,18 +40,37 @@ public class UnsortedEditorService {
     private final ActressRepository actressRepo;
     private final CoverPath coverPath;
     private final SmbConnectionFactory smbFactory;
-    private final String unsortedVolumeId;
-    private final String unsortedSmbBasePath;
+    private final Set<String> serviceableVolumeIds;
     private final Map<String, String> volumeSmbPaths;
     private final TitleFolderRenamer renamer;
     private final Jdbi jdbi;
+
+    /** Primary (multi-volume) constructor. */
+    public UnsortedEditorService(UnsortedEditorRepository repo, ActressRepository actressRepo,
+                                 CoverPath coverPath, SmbConnectionFactory smbFactory,
+                                 Set<String> serviceableVolumeIds,
+                                 Map<String, String> volumeSmbPaths,
+                                 TitleFolderRenamer renamer, Jdbi jdbi) {
+        this.repo = repo;
+        this.actressRepo = actressRepo;
+        this.coverPath = coverPath;
+        this.smbFactory = smbFactory;
+        this.serviceableVolumeIds = serviceableVolumeIds;
+        this.volumeSmbPaths = volumeSmbPaths;
+        this.renamer = renamer;
+        this.jdbi = jdbi;
+    }
+
+    // ── Back-compat single-volume constructors ───────────────────────────────
+    // The {@code unsortedSmbBasePath} arg is ignored — per-title NAS base paths are resolved
+    // from {@code volumeSmbPaths} keyed on the title's actual volume.
 
     public UnsortedEditorService(UnsortedEditorRepository repo, ActressRepository actressRepo,
                                  CoverPath coverPath, SmbConnectionFactory smbFactory,
                                  String unsortedVolumeId, String unsortedSmbBasePath,
                                  Map<String, String> volumeSmbPaths,
                                  TitleFolderRenamer renamer) {
-        this(repo, actressRepo, coverPath, smbFactory, unsortedVolumeId, unsortedSmbBasePath,
+        this(repo, actressRepo, coverPath, smbFactory, Set.of(unsortedVolumeId),
                 volumeSmbPaths, renamer, null);
     }
 
@@ -59,19 +79,14 @@ public class UnsortedEditorService {
                                  String unsortedVolumeId, String unsortedSmbBasePath,
                                  Map<String, String> volumeSmbPaths,
                                  TitleFolderRenamer renamer, Jdbi jdbi) {
-        this.repo = repo;
-        this.actressRepo = actressRepo;
-        this.coverPath = coverPath;
-        this.smbFactory = smbFactory;
-        this.unsortedVolumeId = unsortedVolumeId;
-        this.unsortedSmbBasePath = unsortedSmbBasePath;
-        this.volumeSmbPaths = volumeSmbPaths;
-        this.renamer = renamer;
-        this.jdbi = jdbi;
+        this(repo, actressRepo, coverPath, smbFactory, Set.of(unsortedVolumeId),
+                volumeSmbPaths, renamer, jdbi);
     }
 
-    public String volumeId() {
-        return unsortedVolumeId;
+    /** Resolve the serviceable staging volume a title currently lives on (single resolution source). */
+    private Optional<String> resolveVolume(long titleId) {
+        return repo.findServiceableStagingLocation(titleId, serviceableVolumeIds)
+                .map(UnsortedEditorRepository.StagingLocation::volumeId);
     }
 
     // ── List / detail ────────────────────────────────────────────────────
@@ -83,11 +98,13 @@ public class UnsortedEditorService {
             int actressCount,
             boolean hasCover,
             boolean complete,
-            boolean processed
+            boolean processed,
+            /** The staging volume this row lives on (e.g. {@code unsorted}, {@code classic_fresh}). */
+            String volumeId
     ) {}
 
     public List<EligibleListRow> listEligible() {
-        List<EligibleTitle> base = repo.listEligible(unsortedVolumeId);
+        List<EligibleTitle> base = repo.listEligible(serviceableVolumeIds);
         List<EligibleListRow> out = new ArrayList<>(base.size());
         for (EligibleTitle e : base) {
             boolean hasCover = coverExists(e.label(), e.baseCode());
@@ -95,18 +112,21 @@ public class UnsortedEditorService {
             boolean processed = e.curatedAt() != null;
             out.add(new EligibleListRow(
                     e.titleId(), e.code(), e.folderName(),
-                    e.actressCount(), hasCover, complete, processed));
+                    e.actressCount(), hasCover, complete, processed, e.volumeId()));
         }
         return out;
     }
 
     public Optional<TitleDetailView> findEligibleById(long titleId) {
-        return repo.findEligibleById(titleId, unsortedVolumeId)
+        Optional<String> volOpt = resolveVolume(titleId);
+        if (volOpt.isEmpty()) return Optional.empty();
+        String vol = volOpt.get();
+        return repo.findEligibleById(titleId, vol)
                 .map(detail -> {
                     String coverFile = coverFilename(detail.label(), detail.baseCode());
                     String descriptor = extractDescriptor(detail.folderName(), detail.code());
                     List<UnsortedEditorRepository.OtherLocation> others =
-                            repo.findOtherLocations(titleId, unsortedVolumeId, detail.folderPath());
+                            repo.findOtherLocations(titleId, vol, detail.folderPath());
                     List<OtherLocationView> otherViews = others.stream()
                             .map(loc -> {
                                 String base = volumeSmbPaths == null ? null : volumeSmbPaths.get(loc.volumeId());
@@ -117,9 +137,8 @@ public class UnsortedEditorService {
                     List<String> directTags       = repo.findDirectTags(titleId);
                     List<String> labelImpliedTags = repo.findLabelTags(detail.label());
                     boolean processed = detail.curatedAt() != null;
-                    String folderNasPath = unsortedSmbBasePath != null
-                            ? unsortedSmbBasePath + detail.folderPath()
-                            : null;
+                    String base = volumeSmbPaths == null ? null : volumeSmbPaths.get(detail.volumeId());
+                    String folderNasPath = base != null ? base + detail.folderPath() : null;
                     return new TitleDetailView(detail, coverFile != null, coverFile, descriptor,
                             !others.isEmpty(), otherViews, directTags, labelImpliedTags, processed,
                             folderNasPath);
@@ -250,8 +269,8 @@ public class UnsortedEditorService {
         final String validatedDescriptor = validateDescriptor(descriptor);
         log.info("TitleEditor: duplicate-rename start — titleId={} descriptor=\"{}\"",
                 titleId, validatedDescriptor);
-        if (!repo.hasLocationInVolume(titleId, unsortedVolumeId)) {
-            throw new IllegalStateException("Title is no longer in the unsorted volume");
+        if (resolveVolume(titleId).isEmpty()) {
+            throw new IllegalStateException("Title is no longer in a serviceable staging volume");
         }
         Long existingPrimary = repo.inTransaction(h ->
                 h.createQuery("SELECT actress_id FROM titles WHERE id = :id")
@@ -279,7 +298,9 @@ public class UnsortedEditorService {
      */
     private void placeCoverFromCache(long titleId, String folderPath) {
         if (folderPath == null) return;
-        var detail = repo.findEligibleById(titleId, unsortedVolumeId).orElse(null);
+        String vol = resolveVolume(titleId).orElse(null);
+        if (vol == null) return;
+        var detail = repo.findEligibleById(titleId, vol).orElse(null);
         if (detail == null) return;
         Title synth = Title.builder().label(detail.label()).baseCode(detail.baseCode()).build();
         Optional<java.nio.file.Path> cached = coverPath.find(synth);
@@ -292,12 +313,12 @@ public class UnsortedEditorService {
         String filename = cachedPath.getFileName().toString();
         try {
             byte[] bytes = java.nio.file.Files.readAllBytes(cachedPath);
-            try (SmbConnectionFactory.SmbShareHandle handle = smbFactory.open(unsortedVolumeId)) {
+            try (SmbConnectionFactory.SmbShareHandle handle = smbFactory.open(vol)) {
                 VolumeFileSystem fs = handle.fileSystem();
                 java.nio.file.Path target = java.nio.file.Path.of(folderPath, filename);
                 fs.writeFile(target, bytes);
                 log.info("FS mutation [TitleEditor.placeCover]: volume={} titleId={} target={} bytes={}",
-                        unsortedVolumeId, titleId, target, bytes.length);
+                        vol, titleId, target, bytes.length);
             }
         } catch (IOException e) {
             log.warn("TitleEditor: failed to place cover for titleId={}: {}", titleId, e.getMessage());
@@ -340,9 +361,8 @@ public class UnsortedEditorService {
         if (primary == null || (primary.id == null && (primary.newName == null || primary.newName.isBlank()))) {
             throw new IllegalArgumentException("Primary actress is required");
         }
-        if (!repo.hasLocationInVolume(titleId, unsortedVolumeId)) {
-            throw new IllegalStateException("Title is no longer in the unsorted volume");
-        }
+        final String vol = resolveVolume(titleId).orElseThrow(() ->
+                new IllegalStateException("Title is no longer in a serviceable staging volume"));
 
         // Validate each entry
         for (ActressEntry e : entries) {
@@ -393,7 +413,7 @@ public class UnsortedEditorService {
 
         // Mark the staging-volume location as curated. Runs in its own transaction immediately
         // after the actress save commits so curated_at is durable even if the rename later fails.
-        repo.markCurated(titleId, unsortedVolumeId, Instant.now().toString());
+        repo.markCurated(titleId, vol, Instant.now().toString());
 
         // Replace tags (own transaction + effective-tag rebuild). Safe to run after the
         // actress save since it's scoped to the title row and doesn't depend on SMB.
@@ -416,7 +436,9 @@ public class UnsortedEditorService {
      * dual {@code title_locations.path} + {@code videos.path} rewrite.
      */
     private SaveResult renameFolderIfNeeded(long titleId, SaveResult committed, String descriptor) {
-        var detail = repo.findEligibleById(titleId, unsortedVolumeId).orElse(null);
+        String vol = resolveVolume(titleId).orElse(null);
+        if (vol == null) return committed;  // race — can't rename
+        var detail = repo.findEligibleById(titleId, vol).orElse(null);
         if (detail == null) return committed;  // race — can't rename
 
         TitleFolderRenamer.RenameOutcome outcome;

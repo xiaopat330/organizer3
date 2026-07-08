@@ -1124,19 +1124,25 @@ public class Application {
                         browseService, actressBrowseService, titleRepo,
                         titleFolderService, smbConnectionFactory, config, videoRepo));
 
-        // Title Editor — metadata preparation for fully-structured titles in the unsorted volume.
-        // See spec/PROPOSAL_TITLE_EDITOR.md.
-        final String UNSORTED_VOLUME_ID = "unsorted";
+        // Title Editor — metadata preparation for fully-structured titles in the serviceable
+        // staging (queue) volumes. See spec/PROPOSAL_TITLE_EDITOR.md and
+        // spec/PROPOSAL_UNPROCESSED_MULTI_VOLUME.md. Serviceable = every volume whose
+        // structureType is "queue" (currently: unsorted, classic_fresh) — self-extending.
+        final java.util.Set<String> serviceableStagingVolumeIds = config.volumes().stream()
+                .filter(v -> "queue".equals(v.structureType()))
+                .map(VolumeConfig::id)
+                .collect(Collectors.toSet());
+        log.info("Unprocessed tool serviceable staging volumes: {}", serviceableStagingVolumeIds);
         com.organizer3.repository.UnsortedEditorRepository unsortedRepo =
                 new com.organizer3.repository.jdbi.JdbiUnsortedEditorRepository(jdbi);
         com.organizer3.web.TitleFolderRenamer titleFolderRenamer =
-                new com.organizer3.web.TitleFolderRenamer(smbConnectionFactory, jdbi, UNSORTED_VOLUME_ID);
+                new com.organizer3.web.TitleFolderRenamer(smbConnectionFactory, jdbi, serviceableStagingVolumeIds);
         com.organizer3.web.UnsortedEditorService unsortedEditorService =
                 new com.organizer3.web.UnsortedEditorService(unsortedRepo, actressRepo, coverPath,
-                        smbConnectionFactory, UNSORTED_VOLUME_ID, volumeSmbPaths.get(UNSORTED_VOLUME_ID),
-                        volumeSmbPaths, titleFolderRenamer);
+                        smbConnectionFactory, serviceableStagingVolumeIds,
+                        volumeSmbPaths, titleFolderRenamer, null);
         com.organizer3.web.CoverWriteService coverWriteService =
-                new com.organizer3.web.CoverWriteService(smbConnectionFactory, coverPath, UNSORTED_VOLUME_ID);
+                new com.organizer3.web.CoverWriteService(smbConnectionFactory, coverPath);
         webServer.registerUnsortedEditor(new com.organizer3.web.routes.UnsortedEditorRoutes(
                 unsortedEditorService, coverWriteService, imageFetcher, coverPath));
 
@@ -1158,7 +1164,7 @@ public class Application {
         // Self-healing reconciler for promotion folder renames that hard-failed post-commit.
         com.organizer3.javdb.draft.PromotionFolderRenameReconciler promotionRenameReconciler =
                 new com.organizer3.javdb.draft.PromotionFolderRenameReconciler(
-                        jdbi, titleFolderRenamer, UNSORTED_VOLUME_ID);
+                        jdbi, titleFolderRenamer, serviceableStagingVolumeIds);
         com.organizer3.javdb.draft.PromotionRenameReconcileScheduler promotionRenameReconcileScheduler =
                 new com.organizer3.javdb.draft.PromotionRenameReconcileScheduler(
                         promotionRenameReconciler,
@@ -1176,7 +1182,7 @@ public class Application {
                         stageNameSuggestionRepo,
                         javdbStagingRepo,         // FIX 1: learn slug→actress at promotion
                         actressRepo,              // FIX 1: backfill actress.stage_name at promotion
-                        UNSORTED_VOLUME_ID,       // Phase 2: staging volume id for post-commit rename
+                        serviceableStagingVolumeIds, // Phase 2 / multi-volume: serviceable staging volumes
                         titleFolderRenamer,       // Phase 2: shared rename helper
                         coverWriteService,        // best-effort NAS cover write at promotion
                         castPresenceCheck,        // Item B: kanji-presence guard at promotion

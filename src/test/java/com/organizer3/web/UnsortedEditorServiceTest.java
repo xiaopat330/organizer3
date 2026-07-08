@@ -327,6 +327,8 @@ class UnsortedEditorServiceTest {
         // Construct a service with null SMB base (simulates volume not in config)
         TitleFolderRenamer renamer2 = new TitleFolderRenamer(
                 org.mockito.Mockito.mock(SmbConnectionFactory.class), jdbi, VOL);
+        // volumeSmbPaths deliberately OMITS VOL, so the per-title base lookup
+        // (volumeSmbPaths.get(volumeId)) returns null — the volume-not-in-config case.
         UnsortedEditorService nullBaseService = new UnsortedEditorService(
                 new JdbiUnsortedEditorRepository(jdbi),
                 actressRepo,
@@ -334,7 +336,7 @@ class UnsortedEditorServiceTest {
                 org.mockito.Mockito.mock(SmbConnectionFactory.class),
                 VOL,
                 null,
-                java.util.Map.of(VOL, "//host.local/unsorted", "tz", "//pandora.local/jav_TZ"),
+                java.util.Map.of("tz", "//pandora.local/jav_TZ"),
                 renamer2);
         long titleId = seedTitle("ONED-031", "Bar (ONED-031)");
         UnsortedEditorService.TitleDetailView view = nullBaseService.findEligibleById(titleId).orElseThrow();

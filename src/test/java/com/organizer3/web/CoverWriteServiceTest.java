@@ -38,7 +38,7 @@ class CoverWriteServiceTest {
         when(smbFactory.open(VOL)).thenReturn(handle);
         when(handle.fileSystem()).thenReturn(fs);
         coverPath = new CoverPath(dataDir);
-        service = new CoverWriteService(smbFactory, coverPath, VOL);
+        service = new CoverWriteService(smbFactory, coverPath);
     }
 
     @Test
@@ -46,7 +46,7 @@ class CoverWriteServiceTest {
         Title title = Title.builder().code("ONED-123").baseCode("ONED-123").label("ONED").build();
         byte[] bytes = new byte[]{1, 2, 3};
 
-        service.save(title, "/root/Some Title (ONED-123)", bytes, "jpg");
+        service.save(title, "/root/Some Title (ONED-123)", bytes, "jpg", VOL);
 
         ArgumentCaptor<Path> pathCap = ArgumentCaptor.forClass(Path.class);
         ArgumentCaptor<byte[]> bytesCap = ArgumentCaptor.forClass(byte[].class);
@@ -66,7 +66,7 @@ class CoverWriteServiceTest {
         Title title = Title.builder().code("ONED-123").baseCode("ONED-123").label("ONED").build();
         doThrow(new IOException("smb down")).when(fs).writeFile(any(), any());
 
-        assertThrows(IOException.class, () -> service.save(title, "/root/x (ONED-123)", new byte[]{1}, "jpg"));
+        assertThrows(IOException.class, () -> service.save(title, "/root/x (ONED-123)", new byte[]{1}, "jpg", VOL));
 
         Path cached = dataDir.resolve("covers/ONED/ONED-123.jpg");
         assertFalse(Files.exists(cached), "local cache must not be written when NAS write fails");
@@ -79,7 +79,7 @@ class CoverWriteServiceTest {
         Files.createFile(coversRoot);  // file instead of directory → any createDirectories attempt fails
         Title title = Title.builder().code("ONED-123").baseCode("ONED-123").label("ONED").build();
 
-        assertDoesNotThrow(() -> service.save(title, "/root/x (ONED-123)", new byte[]{1}, "jpg"));
+        assertDoesNotThrow(() -> service.save(title, "/root/x (ONED-123)", new byte[]{1}, "jpg", VOL));
 
         verify(fs).writeFile(any(), any());
     }
@@ -88,7 +88,7 @@ class CoverWriteServiceTest {
     void extensionIsPreservedInBothWrites() throws Exception {
         Title title = Title.builder().code("ONED-123").baseCode("ONED-123").label("ONED").build();
 
-        service.save(title, "/root/x (ONED-123)", new byte[]{9}, "png");
+        service.save(title, "/root/x (ONED-123)", new byte[]{9}, "png", VOL);
 
         ArgumentCaptor<Path> pathCap = ArgumentCaptor.forClass(Path.class);
         verify(fs).writeFile(pathCap.capture(), any());
