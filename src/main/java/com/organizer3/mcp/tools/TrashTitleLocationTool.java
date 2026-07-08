@@ -430,7 +430,7 @@ public class TrashTitleLocationTool implements Tool {
 
     /**
      * Deletes the given orphan actresses and their dependent rows
-     * (title_actresses, actress_aliases, actress_companies, actresses).
+     * (title_actresses, actress_aliases, actress_companies, javdb_enrichment_queue, actresses).
      * Returns the number of actresses fully deleted.
      */
     private int cascadeDeleteActresses(List<OrphanActress> orphans) {
@@ -440,6 +440,7 @@ public class TrashTitleLocationTool implements Tool {
                 h.createUpdate("DELETE FROM title_actresses  WHERE actress_id = :id").bind("id", oa.id()).execute();
                 h.createUpdate("DELETE FROM actress_aliases  WHERE actress_id = :id").bind("id", oa.id()).execute();
                 h.createUpdate("DELETE FROM actress_companies WHERE actress_id = :id").bind("id", oa.id()).execute();
+                h.createUpdate("DELETE FROM javdb_enrichment_queue WHERE actress_id = :id").bind("id", oa.id()).execute();
                 h.createUpdate("DELETE FROM actresses        WHERE id = :id").bind("id", oa.id()).execute();
             });
             log.info("trash_title_location: cascaded orphan actress id={} canonical_name={}",

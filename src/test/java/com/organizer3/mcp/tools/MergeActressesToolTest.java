@@ -284,6 +284,40 @@ class MergeActressesToolTest {
         assertEquals(2, fromCount, "from's companies must not be touched in dry-run");
     }
 
+    // ── enrichment-queue cleanup ────────────────────────────────────────────
+
+    @Test
+    void executeDeletesFromEnrichmentQueueJobs() throws Exception {
+        long into = actressRepo.save(mk("Nami Aino")).getId();
+        long from = actressRepo.save(mk("Aino Nami")).getId();
+
+        // from has a queued enrichment job; into has one too (must be untouched)
+        seedQueueJob(from);
+        seedQueueJob(into);
+        assertEquals(1, countQueueJobs(from), "precondition: from queue job seeded");
+
+        tool.call(args(into, from, false));
+
+        assertEquals(0, countQueueJobs(from),
+                "from's enrichment-queue jobs must be deleted so they don't orphan a deleted actress");
+        assertEquals(1, countQueueJobs(into), "into's queue jobs must survive the merge");
+    }
+
+    private void seedQueueJob(long actressId) {
+        jdbi.useHandle(h -> h.createUpdate("""
+                INSERT INTO javdb_enrichment_queue
+                    (job_type, target_id, actress_id, status, next_attempt_at, created_at, updated_at)
+                VALUES ('actress_profile', ?, ?, 'pending', '2026-01-01', '2026-01-01', '2026-01-01')
+                """)
+                .bind(0, actressId).bind(1, actressId).execute());
+    }
+
+    private long countQueueJobs(long actressId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM javdb_enrichment_queue WHERE actress_id = ?")
+                        .bind(0, actressId).mapTo(Long.class).one());
+    }
+
     // ── false-positive guard ────────────────────────────────────────────────
 
     @Test
