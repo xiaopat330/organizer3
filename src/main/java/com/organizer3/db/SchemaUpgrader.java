@@ -25,7 +25,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 70;
+    private static final int CURRENT_VERSION = 71;
 
     private final Jdbi jdbi;
 
@@ -377,6 +377,11 @@ public class SchemaUpgrader {
         if (version < 70) {
             applyV70();
             setVersion(70);
+        }
+
+        if (version < 71) {
+            applyV71();
+            setVersion(71);
         }
 
         log.info("Schema upgrade complete");
@@ -2403,6 +2408,27 @@ public class SchemaUpgrader {
             log.info("Migration v70: backfilled product_code_norm for {} filmography entries",
                     toBackfill.size());
         });
+    }
+
+    /**
+     * v71: {@code resolved_via} column on {@code draft_title_actresses} — repair for the
+     * dropped v67 migration.
+     *
+     * <p>The column exists in fresh installs ({@link SchemaInitializer}'s CREATE TABLE) but was
+     * never added to existing DBs: the original v67 migration body that added it was accidentally
+     * stubbed to a no-op during a later rebase, so DBs already at version ≥67 permanently lacked
+     * the column (causing {@code SQLITE_ERROR: ... has no column named resolved_via} at runtime).
+     * This migration re-adds it for those DBs.
+     *
+     * <p>Valid values: {@code canonical} / {@code alias} / {@code stage_name} / {@code slug} /
+     * {@code fuzzy} / {@code manual} / {@code prefill}. {@code NULL} means a legacy row written
+     * before the column existed; there is no backfill.
+     *
+     * <p>Idempotent via {@link #addColumnIfMissing}.
+     */
+    private void applyV71() {
+        log.info("Applying migration v71: resolved_via on draft_title_actresses (repair for dropped v67)");
+        jdbi.useHandle(h -> addColumnIfMissing(h, "draft_title_actresses", "resolved_via", "TEXT"));
     }
 
     private record FilmographyEntryKey(String actressSlug, String productCode) {}
