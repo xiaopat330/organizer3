@@ -4729,6 +4729,70 @@
   border-radius: 4px;
 }
 
+/* ── Volume pill (archival volume chip on queue rows) ─────────────────── */
+.un-volume-pill {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #c9a27a;
+  background: rgba(201,162,122,0.10);
+  border: 1px solid rgba(201,162,122,0.26);
+  border-radius: 3px;
+  padding: 1px 4px;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+/* ── Scope segmented control (All · per-volume) ──────────────────────── */
+.un-scope-seg {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 1px;
+  padding: 2px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.un-scope-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-radius: 3px;
+  padding: 3px 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+}
+.un-scope-btn:hover:not(.is-active) {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+.un-scope-btn.is-active {
+  color: var(--accent-fg);
+  background: var(--accent-bg);
+}
+.un-scope-count {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 700;
+  color: var(--text-faint);
+  background: rgba(255,255,255,0.05);
+  border-radius: 999px;
+  padding: 0 5px;
+  line-height: 1.5;
+}
+.un-scope-btn.is-active .un-scope-count {
+  color: var(--accent-fg);
+  background: rgba(147,197,253,0.18);
+}
+
 /* ── Loading / error states ───────────────────────────────────────────── */
 .un-queue-loading,
 .un-queue-error {

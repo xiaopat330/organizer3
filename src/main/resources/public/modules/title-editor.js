@@ -212,9 +212,11 @@ function renderSidebar() {
         ? `<span class="queue-draft-pill" title="Has active draft">DRAFT</span>` : '';
     const processedPill = r.processed
         ? `<span class="queue-processed-pill" title="Already curated/processed">✓ processed</span>` : '';
+    const volumePill = (r.volumeId && r.volumeId !== 'unsorted')
+        ? `<span class="queue-volume-pill" title="Volume: ${esc(r.volumeId)}">${esc(volumeLabel(r.volumeId))}</span>` : '';
     li.innerHTML = `
       <span class="queue-status-marker ${marker.cls}" title="${marker.title}">${marker.glyph}</span>
-      <span class="queue-code">${esc(r.code)}</span>${draftPill}${processedPill}
+      <span class="queue-code">${esc(r.code)}</span>${volumePill}${draftPill}${processedPill}
       <span class="queue-folder-excerpt">${esc(r.folderName)}</span>
     `;
     li.addEventListener('click', () => navigateTo(r.titleId));
@@ -229,6 +231,11 @@ function statusMarker(r) {
   if (r.complete)                        return { cls: 'queue-status-complete', glyph: '●', title: 'Complete' };
   if (r.actressCount > 0 || r.hasCover)  return { cls: 'queue-status-partial',  glyph: '◐', title: 'Partial' };
   return                                         { cls: 'queue-status-empty',    glyph: '○', title: 'Empty' };
+}
+
+function volumeLabel(volumeId) {
+  const map = { classic_fresh: 'Classic', unsorted: 'Unsorted' };
+  return map[volumeId] || volumeId;
 }
 
 showCompleteCb.addEventListener('change', renderSidebar);
