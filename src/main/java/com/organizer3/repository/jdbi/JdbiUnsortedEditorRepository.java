@@ -32,7 +32,9 @@ public class JdbiUnsortedEditorRepository implements UnsortedEditorRepository {
                   AND tl.stale_since IS NULL
                   AND t.code IS NOT NULL
                   AND t.base_code IS NOT NULL
-                  AND tl.path LIKE '%(' || t.code || ')%'
+                  -- Tolerate a numeric distributor prefix the parser strips off t.code:
+                  -- folder "(259LUXU-605)" vs stored code "LUXU-605". Self-join → no FP risk.
+                  AND tl.path LIKE '%' || t.code || ')%'
                   AND EXISTS (
                       SELECT 1 FROM videos v
                       WHERE v.title_id = t.id

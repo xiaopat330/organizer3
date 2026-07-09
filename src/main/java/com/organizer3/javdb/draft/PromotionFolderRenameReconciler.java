@@ -125,8 +125,12 @@ public class PromotionFolderRenameReconciler {
                         List<String> names = StagingCastHelper.orderedNamesForTitle(h, titleId);
                         if (names.isEmpty()) return null; // NULL actress_id — skip
                         String currentName = TitleFolderRenamer.basename(path);
-                        String descriptor = TitleFolderRenamer.extractDescriptor(currentName, code);
-                        String targetName = TitleFolderRenamer.targetFolderName(names, descriptor, code);
+                        // Use the code exactly as it appears on disk (prefix-preserving) so amateur
+                        // codes like "259LUXU-605" don't register as perpetually needing a rename.
+                        String fc = TitleFolderRenamer.folderCode(currentName);
+                        String effectiveCode = (fc != null && !fc.isBlank()) ? fc : code;
+                        String descriptor = TitleFolderRenamer.extractDescriptor(currentName, effectiveCode);
+                        String targetName = TitleFolderRenamer.targetFolderName(names, descriptor, effectiveCode);
                         boolean needsRename = !targetName.equals(currentName);
                         return new Candidate(titleId, code, names, path, targetName, needsRename);
                     })

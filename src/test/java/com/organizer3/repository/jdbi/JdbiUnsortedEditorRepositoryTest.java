@@ -90,6 +90,29 @@ class JdbiUnsortedEditorRepositoryTest {
     }
 
     @Test
+    void listEligible_amateurPrefixFolder_isEligible() {
+        // Amateur numeric-prefix folder: on-disk name "(259LUXU-605)" but the parser stripped
+        // the distributor prefix so titles.code = "LUXU-605" (and base_code = "LUXU-00605").
+        // The relaxed self-check (tl.path LIKE '%' || t.code || ')%') must keep it eligible.
+        long amateurId = seedAmateurTitle("LUXU-605", "LUXU-00605", "(259LUXU-605)", "video/a.mp4");
+        // Control: a normal folder whose name contains the stored code verbatim.
+        long controlId = seedEligibleTitle("ONED-900", "Normal (ONED-900)", "video/b.mp4", LocalDate.now());
+
+        List<EligibleTitle> result = repo.listEligible(java.util.List.of(VOL));
+
+        Set<Long> ids = result.stream().map(EligibleTitle::titleId).collect(Collectors.toSet());
+        assertTrue(ids.contains(amateurId),
+                "amateur numeric-prefix folder must be eligible despite the stripped code");
+        assertTrue(ids.contains(controlId),
+                "control row with a matching code must remain eligible (no regression)");
+
+        EligibleTitle amateur = result.stream()
+                .filter(e -> e.titleId() == amateurId).findFirst().orElseThrow();
+        assertEquals("LUXU-605", amateur.code());
+        assertEquals("(259LUXU-605)", amateur.folderName());
+    }
+
+    @Test
     void listEligibleExcludesTitlesWhoseFolderDoesNotContainCodeInParens() {
         seedTitle("ONED-222", "Some Title ONED-222 no parens", "video/a.mp4", LocalDate.now());
 
@@ -412,6 +435,33 @@ class JdbiUnsortedEditorRepositoryTest {
 
     private long seedEligibleTitle(String code, String folderName, String videoRelPath, LocalDate addedDate) {
         return seedTitle(code, folderName, videoRelPath, addedDate);
+    }
+
+    /**
+     * Seeds an eligible title whose stored {@code code}/{@code base_code} deliberately differ from
+     * the on-disk folder name — mirroring the amateur numeric-prefix case ("(259LUXU-605)" folder
+     * with stripped {@code code="LUXU-605"}). The folder name is used verbatim (no code appended).
+     */
+    private long seedAmateurTitle(String code, String baseCode, String folderName, String videoRelPath) {
+        Title title = titleRepo.save(
+                Title.builder().code(code).baseCode(baseCode).label(code.split("-")[0]).build());
+        String folderPath = "/root/" + folderName;
+        locationRepo.save(TitleLocation.builder()
+                .titleId(title.getId())
+                .volumeId(VOL)
+                .partitionId("queue")
+                .path(Path.of(folderPath))
+                .lastSeenAt(LocalDate.now())
+                .addedDate(LocalDate.now())
+                .build());
+        videoRepo.save(Video.builder()
+                .titleId(title.getId())
+                .volumeId(VOL)
+                .filename(videoRelPath.substring(videoRelPath.lastIndexOf('/') + 1))
+                .path(Path.of(folderPath + "/" + videoRelPath))
+                .lastSeenAt(LocalDate.now())
+                .build());
+        return title.getId();
     }
 
     private long seedTitle(String code, String folderName, String videoRelPath, LocalDate addedDate) {

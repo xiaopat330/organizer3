@@ -124,7 +124,12 @@ public class UnsortedEditorService {
         return repo.findEligibleById(titleId, vol)
                 .map(detail -> {
                     String coverFile = coverFilename(detail.label(), detail.baseCode());
-                    String descriptor = extractDescriptor(detail.folderName(), detail.code());
+                    // Use the on-disk code (prefix-preserving) so amateur codes like
+                    // "259LUXU-605" don't defeat the " (code)" descriptor match, mirroring
+                    // TitleFolderRenamer's rename path.
+                    String fc = TitleFolderRenamer.folderCode(detail.folderName());
+                    String descriptor = extractDescriptor(detail.folderName(),
+                            (fc != null && !fc.isBlank()) ? fc : detail.code());
                     List<UnsortedEditorRepository.OtherLocation> others =
                             repo.findOtherLocations(titleId, vol, detail.folderPath());
                     List<OtherLocationView> otherViews = others.stream()

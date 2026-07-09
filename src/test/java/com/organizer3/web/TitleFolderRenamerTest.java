@@ -327,6 +327,49 @@ class TitleFolderRenamerTest {
         assertEquals("queue/New Actress (TST-011)", outcome.newPath());
     }
 
+    // ── Amateur numeric-prefix codes (259LUXU-605) ───────────────────────
+
+    @Test
+    void renamePreservingDescriptor_amateurPrefix_preservesFullCode() throws IOException {
+        // Stored code is the stripped "LUXU-605", but the on-disk folder keeps the
+        // numeric distributor prefix: "(259LUXU-605)".
+        String oldFolder = "queue/(259LUXU-605)";
+        long titleId = seedTitle("LUXU-605", oldFolder, oldFolder + "/video/a.mp4");
+
+        TitleFolderRenamer.RenameOutcome outcome =
+                renamer.renamePreservingDescriptor(titleId, List.of("Emiri Okazaki"), "LUXU-605");
+
+        assertTrue(outcome.renamed());
+        // The "259" prefix must survive — NOT be dropped to "(LUXU-605)".
+        assertEquals("Emiri Okazaki (259LUXU-605)", TitleFolderRenamer.basename(outcome.newPath()));
+        assertEquals("queue/Emiri Okazaki (259LUXU-605)", outcome.newPath());
+    }
+
+    @Test
+    void renamePreservingDescriptor_amateurPrefixWithDescriptor_preservesBoth() throws IOException {
+        // On-disk folder carries BOTH the numeric prefix and a "Demosaiced" descriptor.
+        String oldFolder = "queue/Foo - Demosaiced (300MIUM-963)";
+        long titleId = seedTitle("MIUM-963", oldFolder, oldFolder + "/video/a.mp4");
+
+        TitleFolderRenamer.RenameOutcome outcome =
+                renamer.renamePreservingDescriptor(titleId, List.of("Ayana Ushino"), "MIUM-963");
+
+        assertTrue(outcome.renamed());
+        // Both the "300" prefix AND the "Demosaiced" descriptor must be preserved.
+        assertEquals("Ayana Ushino - Demosaiced (300MIUM-963)",
+                TitleFolderRenamer.basename(outcome.newPath()));
+        assertEquals("queue/Ayana Ushino - Demosaiced (300MIUM-963)", outcome.newPath());
+    }
+
+    @Test
+    void folderCode_extractsTrailingParensCode() {
+        assertEquals("259LUXU-605", TitleFolderRenamer.folderCode("Name - Demosaiced (259LUXU-605)"));
+        assertEquals("300MIUM-963", TitleFolderRenamer.folderCode("(300MIUM-963)"));
+        assertNull(TitleFolderRenamer.folderCode("No Parens Here"));
+        // Last parenthesised group wins.
+        assertEquals("ABP-123", TitleFolderRenamer.folderCode("Name (nickname) (ABP-123)"));
+    }
+
     // ── Static helper parity tests ────────────────────────────────────
 
     @Test

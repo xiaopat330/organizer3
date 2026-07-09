@@ -13,6 +13,8 @@ import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Shared helper that renames a title's staging folder to match the canonical pattern:
@@ -148,8 +150,12 @@ public class TitleFolderRenamer {
         StagingLocation loc = locOpt.get();
         String currentPath = loc.path();
 
-        // Parse the descriptor from the current folder name.
-        String descriptor = extractDescriptor(basename(currentPath), code);
+        // Parse the descriptor from the current folder name, using the code exactly as it appears
+        // on disk (prefix-preserving) so amateur codes like "259LUXU-605" don't defeat the
+        // " (code)" suffix match that isolates the descriptor.
+        String currentName = basename(currentPath);
+        String fc = folderCode(currentName);
+        String descriptor = extractDescriptor(currentName, (fc != null && !fc.isBlank()) ? fc : code);
 
         // Delegate to the core rename logic (volume + path already resolved — avoid a second DB
         // call by reusing the currentPath we already have).
@@ -181,11 +187,18 @@ public class TitleFolderRenamer {
             return new RenameOutcome(currentPath, false);
         }
 
+        // Preserve the code EXACTLY as it appears on disk (including any numeric distributor
+        // prefix, e.g. "259LUXU-605") instead of rebuilding from the passed t.code, which the
+        // parser may have stripped to "LUXU-605". Falls back to the passed code when the folder
+        // has no parenthesised code token.
+        String currentName   = basename(currentPath);
+        String fc            = folderCode(currentName);
+        String effectiveCode = (fc != null && !fc.isBlank()) ? fc : code;
+
         // Build target name (shared construction — see targetFolderName).
-        String targetName = targetFolderName(names, descriptor, code);
+        String targetName = targetFolderName(names, descriptor, effectiveCode);
 
         // No-op if already correct.
-        String currentName = basename(currentPath);
         if (targetName.equals(currentName)) {
             return new RenameOutcome(currentPath, false);
         }
@@ -334,6 +347,26 @@ public class TitleFolderRenamer {
     public static String basename(String path) {
         int i = path.lastIndexOf('/');
         return i < 0 ? path : path.substring(i + 1);
+    }
+
+    private static final Pattern TRAILING_PARENS = Pattern.compile("\\(([^()]*)\\)");
+
+    /**
+     * The code token inside the LAST parenthesised group of a folder basename — e.g.
+     * {@code "Name - Demosaiced (259LUXU-605)"} → {@code "259LUXU-605"}. Preserves the code
+     * exactly as it appears on disk, INCLUDING any numeric distributor prefix that
+     * {@link com.organizer3.sync.TitleCodeParser} strips off {@code titles.code}. Returns
+     * {@code null} when the basename has no parenthesised group.
+     *
+     * <p>Callers use this so a folder rename rebuilds {@code (code)} from the on-disk code rather
+     * than the possibly-stripped {@code t.code}, keeping amateur codes (259LUXU-605) intact.
+     */
+    public static String folderCode(String basename) {
+        if (basename == null) return null;
+        Matcher m = TRAILING_PARENS.matcher(basename);
+        String last = null;
+        while (m.find()) last = m.group(1);
+        return last == null ? null : last.trim();
     }
 
     static String parentPath(String path) {
