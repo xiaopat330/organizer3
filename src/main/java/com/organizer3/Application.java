@@ -370,6 +370,7 @@ public class Application {
         ScannerRegistry scannerRegistry = new ScannerRegistry(Map.of(
                 "conventional", new ConventionalScanner(),
                 "queue",        new QueueScanner(),
+                "queue_flat",   new QueueScanner(),   // same scanner; structure def roots the partition at "/"
                 "exhibition",   new ExhibitionScanner(),
                 "sort_pool",    new SortPoolScanner(),
                 "collections",  new CollectionsScanner()
@@ -1129,7 +1130,7 @@ public class Application {
         // spec/PROPOSAL_UNPROCESSED_MULTI_VOLUME.md. Serviceable = every volume whose
         // structureType is "queue" (currently: unsorted, classic_fresh) — self-extending.
         final java.util.Set<String> serviceableStagingVolumeIds = config.volumes().stream()
-                .filter(v -> "queue".equals(v.structureType()))
+                .filter(v -> com.organizer3.web.TitleFolderRenamer.QUEUE_STRUCTURE_TYPES.contains(v.structureType()))
                 .map(VolumeConfig::id)
                 .collect(Collectors.toSet());
         log.info("Unprocessed tool serviceable staging volumes: {}", serviceableStagingVolumeIds);

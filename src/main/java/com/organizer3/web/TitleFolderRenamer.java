@@ -297,11 +297,20 @@ public class TitleFolderRenamer {
      *
      * @param structureType the {@code volumes.structure_type} value (e.g. {@code "queue"},
      *                      {@code "conventional"}, {@code "collections"}).
-     * @return {@code true} for {@code "queue"} structure types; {@code false} for all others.
+     * @return {@code true} for queue-family structure types; {@code false} for all others.
      */
     public static boolean usesMultiNameFolders(String structureType) {
-        return "queue".equals(structureType);
+        return structureType != null && QUEUE_STRUCTURE_TYPES.contains(structureType);
     }
+
+    /**
+     * Structure types treated as unprocessed intake queues — serviced by the Unprocessed tool and
+     * using multi-name staging folders. {@code "queue"} has titles under a {@code fresh/} subfolder
+     * (e.g. {@code unsorted}); {@code "queue_flat"} has titles directly at the share root (e.g.
+     * {@code classic_fresh}). This is the single source of truth for "is this a serviceable staging
+     * volume" — {@code Application} derives {@code serviceableStagingVolumeIds} from it.
+     */
+    public static final Set<String> QUEUE_STRUCTURE_TYPES = Set.of("queue", "queue_flat");
 
     // ── Static helpers (single source of truth; UnsortedEditorService delegates to these) ──
 
