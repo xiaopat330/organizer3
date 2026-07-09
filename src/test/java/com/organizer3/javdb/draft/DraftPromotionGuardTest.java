@@ -129,7 +129,7 @@ class DraftPromotionGuardTest {
                 draftEnrichRepo, coverStore, coverPath, new CastValidator(),
                 titleRepo, historyRepo, effectiveTags, JSON, suggestionRepo,
                 javdbStagingRepo, actressRepo,
-                "unsorted", renamer,
+                java.util.Set.of("unsorted"), renamer,
                 coverWriteService,
                 guard, queue,
                 null);       // Task 2b: ageRecomputer not under test here

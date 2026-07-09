@@ -184,6 +184,15 @@ volumes:
     structureType: sort_pool
     server: qnap2
 
+  # Archival intake queue — structural twin of `unsorted`, for fresh disorganized
+  # classic rips awaiting curation via the Unprocessed tool. No `group` (like
+  # `unsorted`): it is a pre-curation intake, not an archive-browse volume. The
+  # archive association belongs with the deferred filing work.
+  - id: classic_fresh
+    smbPath: //qnap2.local/JAV/classic/fresh
+    structureType: queue_flat
+    server: qnap2
+
   - id: collections
     smbPath: //pandora.local/jav_collections
     structureType: collections
@@ -224,6 +233,13 @@ structures:
   - id: queue
     unstructuredPartitions:
       - { id: queue, path: fresh }
+
+  # Queue-family structure whose intake partition IS the share root (path "") rather than
+  # a `fresh/` subfolder. Used by classic_fresh, whose share is dedicated entirely to fresh
+  # intake. Scanned by the same QueueScanner; serviced by the Unprocessed tool.
+  - id: queue_flat
+    unstructuredPartitions:
+      - { id: queue, path: "" }
 
   - id: exhibition
     unstructuredPartitions: []
@@ -291,6 +307,13 @@ syncConfig:
         operation: full
 
   - structureType: queue
+    commands:
+      - term: sync
+        operation: full
+      - term: sync all
+        operation: full
+
+  - structureType: queue_flat
     commands:
       - term: sync
         operation: full

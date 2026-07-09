@@ -86,8 +86,10 @@ public class DraftPromotionService {
     private final JavdbStagingRepository        javdbStagingRepo;
     // FIX 1: actress repo — used to read/backfill stage_name on promoted actresses.
     private final ActressRepository             actressRepo;
-    // Phase 2: staging volume id + folder renamer for post-commit best-effort rename.
-    private final String                        unsortedVolumeId;
+    // Phase 2: serviceable staging volumes + folder renamer for post-commit best-effort rename.
+    // Multi-volume (spec/PROPOSAL_UNPROCESSED_MULTI_VOLUME.md): curated_at and the cover write
+    // target whichever serviceable volume the title actually lives on.
+    private final java.util.Set<String>         serviceableVolumeIds;
     private final TitleFolderRenamer            renamer;
     // Best-effort NAS cover write at promotion so the cover rides the folder rename and
     // survives cross-volume redistribution. Nullable — short ctor leaves it null (skips the write).
@@ -145,7 +147,7 @@ public class DraftPromotionService {
             StageNameSuggestionRepository suggestionRepo,
             JavdbStagingRepository        javdbStagingRepo,
             ActressRepository             actressRepo,
-            String                        unsortedVolumeId,
+            java.util.Set<String>         serviceableVolumeIds,
             TitleFolderRenamer            renamer,
             CoverWriteService             coverWriteService,
             com.organizer3.javdb.enrichment.CastPresenceCheck        castPresenceCheck,
@@ -166,7 +168,7 @@ public class DraftPromotionService {
         this.suggestionRepo    = suggestionRepo;
         this.javdbStagingRepo  = javdbStagingRepo;
         this.actressRepo       = actressRepo;
-        this.unsortedVolumeId  = unsortedVolumeId;
+        this.serviceableVolumeIds = serviceableVolumeIds;
         this.renamer           = renamer;
         this.coverWriteService = coverWriteService;
         this.castPresenceCheck = castPresenceCheck;
@@ -356,17 +358,24 @@ public class DraftPromotionService {
         // on destCoverHolder so NAS + local cache stay in lockstep (Step 8 wrote the cache
         // iff destCoverHolder is non-null). Pre-rename path is intentional — the folder
         // rename moves the cover along.
-        if (destCoverHolder[0] != null && coverWriteService != null) {
+        if (destCoverHolder[0] != null && coverWriteService != null
+                && serviceableVolumeIds != null && !serviceableVolumeIds.isEmpty()) {
             try {
                 java.util.Optional<byte[]> coverBytes = coverStore.read(draftTitleId);
-                String stagingPath = jdbi.withHandle(h -> h.createQuery(
-                        "SELECT path FROM title_locations WHERE title_id = :tid " +
-                        "AND volume_id = :vol AND stale_since IS NULL")
-                        .bind("tid", titleId).bind("vol", unsortedVolumeId)
-                        .mapTo(String.class).findFirst().orElse(null));
+                // Resolve the staging volume AND path in one query so both originate from the same
+                // resolution act — the cover must be written to whichever serviceable volume the
+                // title actually lives on, never a differently-sourced volume.
+                String[] loc = jdbi.withHandle(h -> h.createQuery(
+                        "SELECT volume_id AS v, path AS p FROM title_locations " +
+                        "WHERE title_id = :tid AND volume_id IN (<vols>) AND stale_since IS NULL " +
+                        "ORDER BY added_date ASC, volume_id ASC LIMIT 1")
+                        .bind("tid", titleId)
+                        .bindList("vols", java.util.List.copyOf(serviceableVolumeIds))
+                        .map((rs, ctx) -> new String[]{ rs.getString("v"), rs.getString("p") })
+                        .findFirst().orElse(null));
                 Title t = titleRepo.findById(titleId).orElse(null);
-                if (coverBytes.isPresent() && stagingPath != null && t != null) {
-                    coverWriteService.saveToNasBestEffort(stagingPath, t.getBaseCode(), coverBytes.get());
+                if (coverBytes.isPresent() && loc != null && loc[1] != null && t != null) {
+                    coverWriteService.saveToNasBestEffort(loc[1], t.getBaseCode(), coverBytes.get(), loc[0]);
                 }
             } catch (Exception e) {
                 log.warn("promote: NAS cover write failed post-commit (titleId={}): {}", titleId, e.getMessage());
@@ -596,14 +605,14 @@ public class DraftPromotionService {
         // title has no live staging-volume location (e.g. a library title — both paths no-op).
         // Inlined here rather than injecting UnsortedEditorRepository into DraftPromotionService
         // to avoid constructor churn; the repo defines markCurated as the canonical SQL.
-        if (unsortedVolumeId != null) {
+        if (serviceableVolumeIds != null && !serviceableVolumeIds.isEmpty()) {
             h.createUpdate("""
                     UPDATE title_locations SET curated_at = :now
-                    WHERE title_id = :titleId AND volume_id = :volumeId AND stale_since IS NULL
+                    WHERE title_id = :titleId AND volume_id IN (<volumeIds>) AND stale_since IS NULL
                     """)
                     .bind("now",      nowIso)
                     .bind("titleId",  canonicalTitleId)
-                    .bind("volumeId", unsortedVolumeId)
+                    .bindList("volumeIds", java.util.List.copyOf(serviceableVolumeIds))
                     .execute();
         }
 

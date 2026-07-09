@@ -972,6 +972,23 @@
   vertical-align: middle;
 }
 
+/* Volume/source badge on sidebar queue rows (e.g. classic_fresh archival) */
+.queue-volume-pill {
+  display: inline-flex;
+  align-items: center;
+  background: #2a2545;
+  color: #c4b5fd;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid #6d5bd0;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
 /* Processed/curated badge on sidebar queue rows */
 .queue-processed-pill {
   display: inline-flex;

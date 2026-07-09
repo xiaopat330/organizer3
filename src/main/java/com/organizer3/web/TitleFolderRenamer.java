@@ -6,10 +6,13 @@ import com.organizer3.smb.SmbConnectionFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.jdbi.v3.core.Jdbi;
 
+import com.organizer3.repository.UnsortedEditorRepository.StagingLocation;
+
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Shared helper that renames a title's staging folder to match the canonical pattern:
@@ -34,12 +37,17 @@ public class TitleFolderRenamer {
 
     private final SmbConnectionFactory smbFactory;
     private final JdbiUnsortedEditorRepository repo;
-    private final String volumeId;
+    private final Set<String> serviceableVolumeIds;
 
-    public TitleFolderRenamer(SmbConnectionFactory smbFactory, Jdbi jdbi, String volumeId) {
+    public TitleFolderRenamer(SmbConnectionFactory smbFactory, Jdbi jdbi, Set<String> serviceableVolumeIds) {
         this.smbFactory = smbFactory;
         this.repo       = new JdbiUnsortedEditorRepository(jdbi);
-        this.volumeId   = volumeId;
+        this.serviceableVolumeIds = serviceableVolumeIds;
+    }
+
+    /** Back-compat single-volume ctor — wraps the one volume in a serviceable set. */
+    public TitleFolderRenamer(SmbConnectionFactory smbFactory, Jdbi jdbi, String volumeId) {
+        this(smbFactory, jdbi, Set.of(volumeId));
     }
 
     /**
@@ -63,15 +71,15 @@ public class TitleFolderRenamer {
      */
     public RenameOutcome renameIfNeeded(long titleId, String primaryActressName,
                                         String descriptor, String code) {
-        // Step 1 — resolve the live staging path.
-        Optional<String> currentPathOpt = repo.findStagingPath(titleId, volumeId);
-        if (currentPathOpt.isEmpty()) {
+        // Step 1 — resolve the live staging location (volume + path) among serviceable volumes.
+        Optional<StagingLocation> locOpt = repo.findServiceableStagingLocation(titleId, serviceableVolumeIds);
+        if (locOpt.isEmpty()) {
             return new RenameOutcome(null, false);
         }
-        String currentPath = currentPathOpt.get();
+        StagingLocation loc = locOpt.get();
 
-        // Steps 2-6 — delegate to core (path already resolved).
-        return renameWithKnownPath(titleId, primaryActressName, descriptor, code, currentPath);
+        // Steps 2-6 — delegate to core (volume + path already resolved).
+        return renameWithKnownPath(titleId, loc.volumeId(), primaryActressName, descriptor, code, loc.path());
     }
 
     /**
@@ -86,11 +94,12 @@ public class TitleFolderRenamer {
      */
     public RenameOutcome renameIfNeeded(long titleId, List<String> names,
                                         String descriptor, String code) {
-        Optional<String> currentPathOpt = repo.findStagingPath(titleId, volumeId);
-        if (currentPathOpt.isEmpty()) {
+        Optional<StagingLocation> locOpt = repo.findServiceableStagingLocation(titleId, serviceableVolumeIds);
+        if (locOpt.isEmpty()) {
             return new RenameOutcome(null, false);
         }
-        return renameWithKnownPath(titleId, names, descriptor, code, currentPathOpt.get());
+        StagingLocation loc = locOpt.get();
+        return renameWithKnownPath(titleId, loc.volumeId(), names, descriptor, code, loc.path());
     }
 
     /**
@@ -131,31 +140,32 @@ public class TitleFolderRenamer {
      * @return the outcome, including the effective path and whether an actual rename occurred.
      */
     public RenameOutcome renamePreservingDescriptor(long titleId, List<String> names, String code) {
-        // Resolve the live staging path.
-        Optional<String> currentPathOpt = repo.findStagingPath(titleId, volumeId);
-        if (currentPathOpt.isEmpty()) {
+        // Resolve the live staging location (volume + path) among serviceable volumes.
+        Optional<StagingLocation> locOpt = repo.findServiceableStagingLocation(titleId, serviceableVolumeIds);
+        if (locOpt.isEmpty()) {
             return new RenameOutcome(null, false);
         }
-        String currentPath = currentPathOpt.get();
+        StagingLocation loc = locOpt.get();
+        String currentPath = loc.path();
 
         // Parse the descriptor from the current folder name.
         String descriptor = extractDescriptor(basename(currentPath), code);
 
-        // Delegate to the core rename logic (path already resolved — avoid a second DB call
-        // by inlining the logic so we can reuse the currentPath we already have).
-        return renameWithKnownPath(titleId, names, descriptor, code, currentPath);
+        // Delegate to the core rename logic (volume + path already resolved — avoid a second DB
+        // call by reusing the currentPath we already have).
+        return renameWithKnownPath(titleId, loc.volumeId(), names, descriptor, code, currentPath);
     }
 
     /**
      * Core rename logic that accepts an already-resolved {@code currentPath}.
      * Extracted so {@link #renamePreservingDescriptor} can reuse it without a second DB round-trip.
      */
-    private RenameOutcome renameWithKnownPath(long titleId, String primaryActressName,
+    private RenameOutcome renameWithKnownPath(long titleId, String volumeId, String primaryActressName,
                                               String descriptor, String code,
                                               String currentPath) {
         List<String> names = (primaryActressName == null || primaryActressName.isBlank())
                 ? List.of() : List.of(primaryActressName);
-        return renameWithKnownPath(titleId, names, descriptor, code, currentPath);
+        return renameWithKnownPath(titleId, volumeId, names, descriptor, code, currentPath);
     }
 
     /**
@@ -163,7 +173,7 @@ public class TitleFolderRenamer {
      * Called by callers that supply the full ordered cast list (for multi-name staging folders).
      * An empty list is a no-op ({@code renamed=false, newPath=currentPath}).
      */
-    private RenameOutcome renameWithKnownPath(long titleId, List<String> names,
+    private RenameOutcome renameWithKnownPath(long titleId, String volumeId, List<String> names,
                                               String descriptor, String code,
                                               String currentPath) {
         // Require at least one name.
@@ -287,11 +297,20 @@ public class TitleFolderRenamer {
      *
      * @param structureType the {@code volumes.structure_type} value (e.g. {@code "queue"},
      *                      {@code "conventional"}, {@code "collections"}).
-     * @return {@code true} for {@code "queue"} structure types; {@code false} for all others.
+     * @return {@code true} for queue-family structure types; {@code false} for all others.
      */
     public static boolean usesMultiNameFolders(String structureType) {
-        return "queue".equals(structureType);
+        return structureType != null && QUEUE_STRUCTURE_TYPES.contains(structureType);
     }
+
+    /**
+     * Structure types treated as unprocessed intake queues — serviced by the Unprocessed tool and
+     * using multi-name staging folders. {@code "queue"} has titles under a {@code fresh/} subfolder
+     * (e.g. {@code unsorted}); {@code "queue_flat"} has titles directly at the share root (e.g.
+     * {@code classic_fresh}). This is the single source of truth for "is this a serviceable staging
+     * volume" — {@code Application} derives {@code serviceableStagingVolumeIds} from it.
+     */
+    public static final Set<String> QUEUE_STRUCTURE_TYPES = Set.of("queue", "queue_flat");
 
     // ── Static helpers (single source of truth; UnsortedEditorService delegates to these) ──
 

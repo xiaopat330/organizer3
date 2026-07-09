@@ -35,6 +35,14 @@ function statusMarker(row) {
 }
 
 /**
+ * Human-friendly label for a volumeId (falls back to the raw id).
+ */
+function volumeLabel(volumeId) {
+  const map = { classic_fresh: 'Classic', unsorted: 'Unsorted' };
+  return map[volumeId] || volumeId;
+}
+
+/**
  * Mount the queue into rootEl.
  *
  * @param {HTMLElement} rootEl       — container to render into
@@ -46,14 +54,16 @@ function statusMarker(row) {
  */
 export function mountQueue(rootEl, { onSelect, onCountsChange }) {
   // ── State ────────────────────────────────────────────────────────────
-  let queueRows      = [];          // [{titleId, code, folderName, actressCount, hasCover, complete}]
+  let queueRows      = [];          // [{titleId, code, folderName, actressCount, hasCover, complete, volumeId}]
   let draftedIds     = new Set();   // Set<titleId> from /api/drafts
   let showComplete   = false;
   let selectedId     = null;
+  let scope          = 'all';       // 'all' | volumeId — client-side scope filter
 
   // ── Inner DOM ────────────────────────────────────────────────────────
   rootEl.innerHTML = `
     <div class="un-queue-header">
+      <div id="un-scope-root"></div>
       <div class="un-queue-toggle">
         <label class="un-toggle-label">
           <input type="checkbox" id="un-show-complete" class="un-toggle-cb">
@@ -68,19 +78,65 @@ export function mountQueue(rootEl, { onSelect, onCountsChange }) {
   const toggleCb  = rootEl.querySelector('#un-show-complete');
   const listEl    = rootEl.querySelector('#un-queue-list');
   const metaEl    = rootEl.querySelector('#un-queue-meta');
+  const scopeRoot = rootEl.querySelector('#un-scope-root');
 
   toggleCb.addEventListener('change', () => {
     showComplete = toggleCb.checked;
     render();
   });
 
+  // Event delegation for scope segments (buttons are rebuilt each render).
+  scopeRoot.addEventListener('click', (e) => {
+    const btn = e.target.closest('.un-scope-btn');
+    if (!btn) return;
+    scope = btn.dataset.scope;
+    render();
+  });
+
   // ── Derived ──────────────────────────────────────────────────────────
+  // Distinct volumeIds in first-seen order.
+  function distinctVolumeIds() {
+    const seen = [];
+    for (const r of queueRows) if (r.volumeId && !seen.includes(r.volumeId)) seen.push(r.volumeId);
+    return seen;
+  }
+
   function visibleRows() {
-    return showComplete ? queueRows : queueRows.filter(r => !r.complete);
+    let rows = showComplete ? queueRows : queueRows.filter(r => !r.complete);
+    if (scope !== 'all') rows = rows.filter(r => r.volumeId === scope);
+    return rows;
+  }
+
+  // Build/refresh the segmented scope control. Only shown when >1 volume.
+  function renderScope() {
+    const vols = distinctVolumeIds();
+    if (vols.length <= 1) {
+      scopeRoot.innerHTML = '';
+      return;
+    }
+    // Count = rows visible in each scope given the current showComplete state.
+    const base = showComplete ? queueRows : queueRows.filter(r => !r.complete);
+    const countFor = (s) => s === 'all'
+      ? base.length
+      : base.filter(r => r.volumeId === s).length;
+    const segments = ['all', ...vols];
+    const btns = segments.map(s => {
+      const label  = s === 'all' ? 'All' : volumeLabel(s);
+      const active = s === scope ? ' is-active' : '';
+      return `<button class="un-scope-btn${active}" data-scope="${esc(s)}">`
+        + `${esc(label)} <span class="un-scope-count">${countFor(s)}</span></button>`;
+    }).join('');
+    scopeRoot.innerHTML = `<div class="un-scope-seg">${btns}</div>`;
   }
 
   // ── Render ───────────────────────────────────────────────────────────
   function render() {
+    // If the active scope's volume is no longer present, fall back to All.
+    if (scope !== 'all' && !distinctVolumeIds().includes(scope)) scope = 'all';
+
+    // Refresh the segmented scope control (counts depend on showComplete).
+    renderScope();
+
     const visible  = visibleRows();
     const pending  = queueRows.filter(r => !r.complete).length;
     const complete = queueRows.filter(r => r.complete).length;
@@ -127,6 +183,9 @@ export function mountQueue(rootEl, { onSelect, onCountsChange }) {
       const processedPill = row.processed
         ? `<span class="un-processed-pill" title="Already curated/processed">✓ processed</span>`
         : '';
+      const volumePill = (row.volumeId && row.volumeId !== 'unsorted')
+        ? `<span class="un-volume-pill" title="Volume: ${esc(row.volumeId)}">${esc(volumeLabel(row.volumeId))}</span>`
+        : '';
       const actressSummary = row.actressCount > 0
         ? `<span class="un-actress-count">${row.actressCount} actress${row.actressCount !== 1 ? 'es' : ''}</span>`
         : '';
@@ -140,7 +199,7 @@ export function mountQueue(rootEl, { onSelect, onCountsChange }) {
         <span class="un-status-marker ${esc(marker.cls)}" title="${esc(marker.title)}">${marker.glyph}</span>
         <span class="un-row-body">
           <span class="un-row-top">
-            <span class="un-code">${esc(row.code)}</span>${draftPill}${processedPill}${actressSummary}
+            <span class="un-code">${esc(row.code)}</span>${volumePill}${draftPill}${processedPill}${actressSummary}
           </span>
           <span class="un-folder-name" title="${esc(row.folderName)}">${esc(row.folderName)}</span>
         </span>

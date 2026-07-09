@@ -160,7 +160,8 @@ public class UnsortedEditorRoutes {
                     .label(detail.detail().label())
                     .build();
             try {
-                coverWrite.save(title, detail.detail().folderPath(), bytes, extension);
+                coverWrite.save(title, detail.detail().folderPath(), bytes, extension,
+                        detail.detail().volumeId());
             } catch (IOException e) {
                 log.warn("Cover save failed for title {}: {}", id, e.getMessage());
                 ctx.status(500).result("Save failed: " + e.getMessage());

@@ -7,6 +7,7 @@ import org.jdbi.v3.core.Jdbi;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Self-healing reconciler for promotion folder renames.
@@ -48,11 +49,11 @@ public class PromotionFolderRenameReconciler {
     /** Tally of a reconcile pass. */
     public record ReconcileResult(int candidates, int renamed, int alreadyOk, int failed) {}
 
-    // Scope: enrichment-promoted titles on the staging volume with a non-NULL filing actress.
+    // Scope: enrichment-promoted titles on any serviceable staging volume with a non-NULL filing actress.
     private static final String FIND_PROMOTED_SQL = """
             SELECT t.id, t.code, tl.path AS path
             FROM titles t
-            JOIN title_locations tl ON tl.title_id = t.id AND tl.volume_id = :vol AND tl.stale_since IS NULL
+            JOIN title_locations tl ON tl.title_id = t.id AND tl.volume_id IN (<vols>) AND tl.stale_since IS NULL
             JOIN actresses a ON a.id = t.actress_id
             WHERE t.grade_source = 'enrichment'
               AND a.canonical_name IS NOT NULL AND a.canonical_name <> ''
@@ -61,11 +62,11 @@ public class PromotionFolderRenameReconciler {
             LIMIT :limit
             """;
 
-    // Scope: all staging titles on the staging volume with a non-NULL filing actress.
+    // Scope: all staging titles on any serviceable staging volume with a non-NULL filing actress.
     private static final String FIND_ALL_SQL = """
             SELECT t.id, t.code, tl.path AS path
             FROM titles t
-            JOIN title_locations tl ON tl.title_id = t.id AND tl.volume_id = :vol AND tl.stale_since IS NULL
+            JOIN title_locations tl ON tl.title_id = t.id AND tl.volume_id IN (<vols>) AND tl.stale_since IS NULL
             WHERE t.actress_id IS NOT NULL
             GROUP BY t.id
             ORDER BY t.id
@@ -74,12 +75,18 @@ public class PromotionFolderRenameReconciler {
 
     private final Jdbi jdbi;
     private final TitleFolderRenamer renamer;
-    private final String unsortedVolumeId;
+    private final Set<String> serviceableVolumeIds;
 
-    public PromotionFolderRenameReconciler(Jdbi jdbi, TitleFolderRenamer renamer, String unsortedVolumeId) {
+    public PromotionFolderRenameReconciler(Jdbi jdbi, TitleFolderRenamer renamer,
+                                           Set<String> serviceableVolumeIds) {
         this.jdbi = jdbi;
         this.renamer = renamer;
-        this.unsortedVolumeId = unsortedVolumeId;
+        this.serviceableVolumeIds = serviceableVolumeIds;
+    }
+
+    /** Back-compat single-volume ctor. */
+    public PromotionFolderRenameReconciler(Jdbi jdbi, TitleFolderRenamer renamer, String unsortedVolumeId) {
+        this(jdbi, renamer, Set.of(unsortedVolumeId));
     }
 
     /**
@@ -108,7 +115,7 @@ public class PromotionFolderRenameReconciler {
         return jdbi.withHandle(h -> {
             List<Candidate> out = new ArrayList<>();
             h.createQuery(sql)
-                    .bind("vol", unsortedVolumeId)
+                    .bindList("vols", List.copyOf(serviceableVolumeIds))
                     .bind("limit", limit)
                     .map((rs, ctx) -> {
                         long titleId = rs.getLong("id");

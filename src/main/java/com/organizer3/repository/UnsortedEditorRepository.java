@@ -1,11 +1,13 @@
 package com.organizer3.repository;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * Queries and mutations used by the Title Editor to enrich fully-structured titles
- * in the unsorted (queue) volume. See {@code spec/PROPOSAL_TITLE_EDITOR.md}.
+ * in the serviceable staging (queue) volumes. See {@code spec/PROPOSAL_TITLE_EDITOR.md}
+ * and {@code spec/PROPOSAL_UNPROCESSED_MULTI_VOLUME.md}.
  */
 public interface UnsortedEditorRepository {
 
@@ -20,7 +22,9 @@ public interface UnsortedEditorRepository {
             /** Full path on the NAS to the title folder (SMB share-relative). */
             String folderPath,
             /** ISO-8601 timestamp when the staging copy was curated, or {@code null} if not yet curated. */
-            String curatedAt
+            String curatedAt,
+            /** The staging volume this eligible location lives on (e.g. {@code unsorted}, {@code classic_fresh}). */
+            String volumeId
     ) {}
 
     /** Actress row for the editor's actress panel. */
@@ -41,7 +45,9 @@ public interface UnsortedEditorRepository {
             String folderPath,
             List<AssignedActress> actresses,
             /** ISO-8601 timestamp when the staging copy was curated, or {@code null} if not yet curated. */
-            String curatedAt
+            String curatedAt,
+            /** The staging volume this location lives on (e.g. {@code unsorted}, {@code classic_fresh}). */
+            String volumeId
     ) {}
 
     /**
@@ -54,13 +60,35 @@ public interface UnsortedEditorRepository {
      *       {@code video}, {@code h265}, or {@code 4K} under the title folder.</li>
      * </ol>
      */
-    List<EligibleTitle> listEligible(String volumeId);
+    List<EligibleTitle> listEligible(Collection<String> volumeIds);
+
+    /** Single-volume convenience overload — delegates to {@link #listEligible(Collection)}. */
+    default List<EligibleTitle> listEligible(String volumeId) {
+        return listEligible(List.of(volumeId));
+    }
 
     /** Load full detail for a single title. Returns empty if the title is not eligible. */
     Optional<TitleDetail> findEligibleById(long titleId, String volumeId);
 
     /** Returns true when the title still has a location on {@code volumeId}. */
     boolean hasLocationInVolume(long titleId, String volumeId);
+
+    /** A title's live staging location on one of the serviceable volumes. */
+    record StagingLocation(String volumeId, String path) {}
+
+    /**
+     * Resolve the single serviceable staging volume a title currently lives on, together with its
+     * folder path. This is a <em>plain</em> live-location lookup ({@code stale_since IS NULL} and
+     * {@code volume_id IN (:volumeIds)}) — it is deliberately NOT eligibility-gated (no video-subdir
+     * or code-in-parens filter), because writes (rename / cover / curated_at) must resolve the volume
+     * even for titles that would not pass the queue's eligibility predicate.
+     *
+     * <p>A title has exactly one live staging location across the serviceable set; if more than one
+     * ever exists, a deterministic {@code ORDER BY added_date ASC, volume_id ASC LIMIT 1} picks one.
+     * This is the single resolution source used by every write path (renamer, cover, promotion) so
+     * they can never disagree on the target share.
+     */
+    Optional<StagingLocation> findServiceableStagingLocation(long titleId, Collection<String> volumeIds);
 
     /**
      * Create a draft actress inline from the Title Editor flow. Canonical name is the only
