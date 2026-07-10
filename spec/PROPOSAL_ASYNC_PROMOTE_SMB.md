@@ -70,10 +70,20 @@ minute-based idle/write timeouts.
 
 ### Acceptance
 - A request issued on a dead socket fails within ~45s (not ~5 min), the factory evicts the
-  connection, and the next call re-dials cleanly. (Manual/behavioral — verify eviction path
-  in `SmbConnectionFactory` proceeds once the outstanding request fails fast; the
-  `InterruptedException`-on-re-dial seen tonight should not recur once the request is
-  bounded.)
+  connection, and the next call re-dials cleanly.
+- **Eviction-on-readTimeout VERIFIED (static trace, 2026-07-10):** the self-heal depends on a
+  readTimeout actually evicting the pooled connection, not merely failing the caller. Confirmed
+  end-to-end: smbj raises `com.hierynomus.protocol.transport.TransportException` when its
+  `future.get(readTimeout)` times out → `SmbConnectionFactory.isBrokenPipe` (line ~474) returns
+  true for any `TransportException`/`SMBRuntimeException` in the cause chain →
+  `SmbConnectionFactory.withRetry` (line ~145) evicts and retries on a fresh dial → the folder
+  rename routes through `withRetry` (`TitleFolderRenamer` line ~214). Therefore the FIRST caller
+  to hit a wedged connection self-heals (evict + fresh re-dial) — no restart, no per-caller 45s
+  cascade. The 5-min hang observed 2026-07-10 was solely the 5-min readTimeout; the eviction path
+  itself already fired ("SMB broken pipe … evicting and retrying" log). Real-world proof is
+  watching the next live wedge self-heal — treat as verified-by-trace, confirm-on-next-wedge.
+- Per-call breadth: 45s is safe for `CoherentMultiVolumeSyncTask` — its aggregate is bounded by
+  `perVolumeTimeoutMinutes` (120), and no single SMB call there legitimately exceeds 45s.
 
 ## Part 2 — Async post-commit folder ops (UX)
 
