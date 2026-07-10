@@ -143,14 +143,43 @@ class BackfillFolderCoversToolTest {
                 () -> tool.call(args("other-volume", true, 0, 0)));
     }
 
+    @Test
+    void curatedOnlyExcludesUncuratedTitles() throws Exception {
+        long curatedId = seedTitle("CUR-001", "CUR-00001", "CUR", "/archive/CUR-001");
+        writeLocalCover("CUR", "CUR-00001", "curated-bytes".getBytes());
+        fs.putFile("/archive/CUR-001/CUR-00001.jpg", new byte[0]); // zero-byte NAS cover
+        markCurated(curatedId);
+
+        seedTitle("UNC-001", "UNC-00001", "UNC", "/archive/UNC-001");
+        writeLocalCover("UNC", "UNC-00001", "uncurated-bytes".getBytes());
+        // No NAS file registered at all -> would be "missing" if scanned.
+
+        var result = (BackfillFolderCoversTool.Result) tool.call(args(VOLUME_ID, true, 0, 0, true));
+        assertTrue(result.curatedOnly());
+        assertEquals(1, result.scanned(), "only the curated title should be enumerated");
+        assertEquals(1, result.candidates().size());
+        assertEquals("CUR-001", result.candidates().get(0).code());
+        assertEquals("zeroByte", result.candidates().get(0).state());
+    }
+
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private void seedTitle(String code, String baseCode, String label, String path) {
+    private long seedTitle(String code, String baseCode, String label, String path) {
         Title t = titleRepo.save(Title.builder()
                 .code(code).baseCode(baseCode).label(label).seqNum(1).build());
         locationRepo.save(TitleLocation.builder()
                 .titleId(t.getId()).volumeId(VOLUME_ID).partitionId("p")
                 .path(Path.of(path)).lastSeenAt(LocalDate.now()).build());
+        return t.getId();
+    }
+
+    private void markCurated(long titleId) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE title_locations SET curated_at = :now WHERE title_id = :titleId AND volume_id = :volumeId")
+                .bind("now", Instant.now().toString())
+                .bind("titleId", titleId)
+                .bind("volumeId", VOLUME_ID)
+                .execute());
     }
 
     private void writeLocalCover(String label, String baseCode, byte[] bytes) throws IOException {
@@ -165,6 +194,12 @@ class BackfillFolderCoversToolTest {
         n.put("dryRun", dryRun);
         n.put("limit", limit);
         n.put("offset", offset);
+        return n;
+    }
+
+    private static ObjectNode args(String volumeId, boolean dryRun, int limit, int offset, boolean curatedOnly) {
+        ObjectNode n = args(volumeId, dryRun, limit, offset);
+        n.put("curatedOnly", curatedOnly);
         return n;
     }
 

@@ -90,6 +90,8 @@ public class BackfillFolderCoversTool implements Tool {
                 .prop("dryRun",   "boolean", "If true (default), detect and report only; do not write.", true)
                 .prop("limit",    "integer", "Max titles to inspect, ordered by code. Default 0 (all).", DEFAULT_LIMIT)
                 .prop("offset",   "integer", "Skip this many titles before scanning. Default 0.", DEFAULT_OFFSET)
+                .prop("curatedOnly", "boolean", "If true, only process titles that have been promoted "
+                        + "(title_locations.curated_at IS NOT NULL). Default false = all live titles.", false)
                 .require("volumeId")
                 .build();
     }
@@ -100,6 +102,7 @@ public class BackfillFolderCoversTool implements Tool {
         boolean dryRun  = Schemas.optBoolean(args, "dryRun", true);
         int limit       = Math.max(0, Schemas.optInt(args, "limit",  DEFAULT_LIMIT));
         int offset      = Math.max(0, Schemas.optInt(args, "offset", DEFAULT_OFFSET));
+        boolean curatedOnly = Schemas.optBoolean(args, "curatedOnly", false);
 
         // ── Volume guard — mirrors ScanTitleFolderAnomaliesTool ─────────────────
         String mountedVolumeId = session.getMountedVolumeId();
@@ -117,7 +120,7 @@ public class BackfillFolderCoversTool implements Tool {
         }
         VolumeFileSystem fs = conn.fileSystem();
 
-        List<Row> rows = fetchRows(volumeId, limit, offset);
+        List<Row> rows = fetchRows(volumeId, limit, offset, curatedOnly);
 
         int ok = 0, missing = 0, zeroByte = 0, pushed = 0, failed = 0, noLocalCover = 0, localCoverEmpty = 0;
         List<Candidate> candidates = new ArrayList<>();
@@ -182,21 +185,24 @@ public class BackfillFolderCoversTool implements Tool {
         if (failuresOmitted > 0) failures = failures.subList(0, MAX_LISTED);
 
         Counts counts = new Counts(ok, missing, zeroByte, pushed, failed, noLocalCover, localCoverEmpty);
-        return new Result(volumeId, dryRun, rows.size(), counts,
+        return new Result(volumeId, dryRun, curatedOnly, rows.size(), counts,
                 candidates, candidatesOmitted, failures, failuresOmitted);
     }
 
-    private List<Row> fetchRows(String volumeId, int limit, int offset) {
+    private List<Row> fetchRows(String volumeId, int limit, int offset, boolean curatedOnly) {
         long effectiveLimit = limit > 0 ? limit : Long.MAX_VALUE;
-        return jdbi.withHandle(h -> h.createQuery("""
+        String curatedPredicate = curatedOnly ? "AND tl.curated_at IS NOT NULL" : "";
+        String sql = """
                 SELECT t.code AS code, t.base_code AS base_code, t.label AS label, tl.path AS path
                 FROM title_locations tl
                 JOIN titles t ON t.id = tl.title_id
                 WHERE tl.volume_id = :volumeId
                   AND tl.stale_since IS NULL
+                  %s
                 ORDER BY t.code, tl.id
                 LIMIT :limit OFFSET :offset
-                """)
+                """.formatted(curatedPredicate);
+        return jdbi.withHandle(h -> h.createQuery(sql)
                 .bind("volumeId", volumeId)
                 .bind("limit", effectiveLimit)
                 .bind("offset", offset)
@@ -211,7 +217,7 @@ public class BackfillFolderCoversTool implements Tool {
     public record Failure(String code, String error) {}
     public record Counts(int ok, int missing, int zeroByte, int pushed, int failed,
                           int noLocalCover, int localCoverEmpty) {}
-    public record Result(String volumeId, boolean dryRun, int scanned, Counts counts,
+    public record Result(String volumeId, boolean dryRun, boolean curatedOnly, int scanned, Counts counts,
                           List<Candidate> candidates, int candidatesOmitted,
                           List<Failure> failures, int failuresOmitted) {}
 }
