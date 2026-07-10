@@ -311,6 +311,62 @@ class UnsortedEditorServiceTest {
         assertFalse(processedRow.complete(), "titleIdProcessed should not be complete (no cover)");
     }
 
+    // ── clearCoverPending (spec/PROPOSAL_COVER_CONFIRMATION.md Part 6) ────────
+
+    /** A jdbi-wired service — the default {@code service} uses the null-jdbi ctor. */
+    private UnsortedEditorService jdbiWiredService() {
+        return new UnsortedEditorService(
+                new JdbiUnsortedEditorRepository(jdbi), actressRepo, coverPath,
+                null, VOL, "//host.local/unsorted", java.util.Map.of(), null, jdbi);
+    }
+
+    private void setPending(long titleId, String path, String since) {
+        jdbi.useHandle(h -> h.createUpdate(
+                "UPDATE title_locations SET cover_pending_since = :s"
+                + " WHERE title_id = :t AND volume_id = :v AND path = :p")
+                .bind("s", since).bind("t", titleId).bind("v", VOL).bind("p", path)
+                .execute());
+    }
+
+    private String pendingOf(long titleId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT cover_pending_since FROM title_locations WHERE title_id = :t")
+                        .bind("t", titleId).mapTo(String.class).findOne().orElse(null));
+    }
+
+    @Test
+    void clearCoverPending_matchingTriple_clearsFlag() {
+        long titleId = seedTitle("ONED-030", "Pending (ONED-030)");
+        setPending(titleId, "/root/Pending (ONED-030)", "2026-07-10T00:00:00Z");
+        assertNotNull(pendingOf(titleId), "precondition: flag is set");
+
+        jdbiWiredService().clearCoverPending(titleId, VOL, "/root/Pending (ONED-030)");
+
+        assertNull(pendingOf(titleId), "matching (titleId, volumeId, path) must clear the flag");
+    }
+
+    @Test
+    void clearCoverPending_nonMatchingPath_leavesFlagSet() {
+        long titleId = seedTitle("ONED-031", "Pending (ONED-031)");
+        setPending(titleId, "/root/Pending (ONED-031)", "2026-07-10T00:00:00Z");
+
+        // Wrong path → scoped no-op.
+        jdbiWiredService().clearCoverPending(titleId, VOL, "/root/wrong-path");
+
+        assertNotNull(pendingOf(titleId), "non-matching path must leave the flag untouched");
+    }
+
+    @Test
+    void clearCoverPending_nullJdbi_isNoOp() {
+        long titleId = seedTitle("ONED-032", "Pending (ONED-032)");
+        setPending(titleId, "/root/Pending (ONED-032)", "2026-07-10T00:00:00Z");
+
+        // The default `service` was built with the null-jdbi ctor → clearCoverPending is a no-op.
+        assertDoesNotThrow(() ->
+                service.clearCoverPending(titleId, VOL, "/root/Pending (ONED-032)"));
+        assertNotNull(pendingOf(titleId), "null-jdbi service must not touch the flag");
+    }
+
     // ── folderNasPath tests ──────────────────────────────────────────────
 
     @Test

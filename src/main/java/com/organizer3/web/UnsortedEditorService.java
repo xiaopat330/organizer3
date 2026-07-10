@@ -467,6 +467,29 @@ public class UnsortedEditorService {
      * dispatched task is self-contained. When {@link #postCommitExecutor} is null, the Runnable
      * runs inline and the real outcome is returned — current behavior, unchanged.
      */
+    /**
+     * Clears any {@code cover_pending_since} flag on the given location after a successful manual
+     * cover override (spec/PROPOSAL_COVER_CONFIRMATION.md Part 6). {@link CoverWriteService#save}
+     * already writes both NAS and local cache, so even without this the reconciler would only ever
+     * re-push the same override bytes — this just avoids needless churn. Best-effort, and a no-op
+     * when jdbi is not wired (short ctors) or the (titleId, volumeId, path) triple does not match
+     * a pending row.
+     */
+    public void clearCoverPending(long titleId, String volumeId, String path) {
+        if (jdbi == null || volumeId == null || path == null) return;
+        try {
+            jdbi.useHandle(h -> h.createUpdate(
+                    "UPDATE title_locations SET cover_pending_since = NULL " +
+                    "WHERE title_id = :tid AND volume_id = :vol AND path = :path")
+                    .bind("tid", titleId)
+                    .bind("vol", volumeId)
+                    .bind("path", path)
+                    .execute());
+        } catch (Exception e) {
+            log.warn("clearCoverPending failed (titleId={}, vol={}): {}", titleId, volumeId, e.getMessage());
+        }
+    }
+
     private SaveResult renameFolderIfNeeded(long titleId, SaveResult committed, String descriptor) {
         String vol = resolveVolume(titleId).orElse(null);
         if (vol == null) return committed;  // race — can't rename

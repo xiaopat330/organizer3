@@ -276,7 +276,7 @@ class AgeAtReleaseRecomputerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(71, version);
+        assertEquals(72, version);
     }
 
     // -------------------------------------------------------------------------
@@ -357,7 +357,7 @@ class AgeAtReleaseRecomputerTest {
             // Re-run upgrade is a no-op (version already at current)
             int versionAfter = jdbi2.withHandle(h ->
                     h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-            assertEquals(71, versionAfter);
+            assertEquals(72, versionAfter);
 
             new SchemaUpgrader(jdbi2).upgrade();  // should not throw
         }

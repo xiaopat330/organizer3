@@ -25,7 +25,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 71;
+    private static final int CURRENT_VERSION = 72;
 
     private final Jdbi jdbi;
 
@@ -382,6 +382,11 @@ public class SchemaUpgrader {
         if (version < 71) {
             applyV71();
             setVersion(71);
+        }
+
+        if (version < 72) {
+            applyV72();
+            setVersion(72);
         }
 
         log.info("Schema upgrade complete");
@@ -2429,6 +2434,23 @@ public class SchemaUpgrader {
     private void applyV71() {
         log.info("Applying migration v71: resolved_via on draft_title_actresses (repair for dropped v67)");
         jdbi.useHandle(h -> addColumnIfMissing(h, "draft_title_actresses", "resolved_via", "TEXT"));
+    }
+
+    /**
+     * v72: {@code cover_pending_since} on {@code title_locations} (cover-write confirmation).
+     *
+     * <p>Nullable {@code TEXT} (ISO-8601 µs Z). {@code NULL} = confirmed / not-applicable, which
+     * is correct for every existing row (including already-healed history — the first reconciler
+     * pass must not re-stat them). Only the promote path ever sets it non-NULL: it is stamped
+     * pessimistically before the async NAS cover write and cleared when that write completes
+     * without throwing; a dropped/crashed/failed write leaves the row pending for
+     * {@link com.organizer3.javdb.draft.PromotionCoverReconciler} to heal.
+     *
+     * <p>Idempotent via {@link #addColumnIfMissing}.
+     */
+    private void applyV72() {
+        log.info("Applying migration v72: cover_pending_since on title_locations (cover-write confirmation)");
+        jdbi.useHandle(h -> addColumnIfMissing(h, "title_locations", "cover_pending_since", "TEXT"));
     }
 
     private record FilmographyEntryKey(String actressSlug, String productCode) {}

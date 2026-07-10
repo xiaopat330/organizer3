@@ -84,6 +84,36 @@ class CoverWriteServiceTest {
         verify(fs).writeFile(any(), any());
     }
 
+    // ── saveToNasBestEffort: success/failure reporting ───────────────────────
+
+    @Test
+    void saveToNasBestEffort_returnsTrueOnSuccess() throws Exception {
+        // Drive the operation against the mocked fs so the real write path runs.
+        when(smbFactory.withRetry(eq(VOL), any())).thenAnswer(inv -> {
+            SmbConnectionFactory.SmbOperation<?> op = inv.getArgument(1);
+            return op.execute(handle);
+        });
+
+        boolean ok = service.saveToNasBestEffort("/root/x (ONED-123)", "ONED-123", new byte[]{1}, VOL);
+
+        assertTrue(ok, "success must report true");
+        verify(fs).writeFile(Path.of("/root/x (ONED-123)/ONED-123.jpg"), new byte[]{1});
+    }
+
+    @Test
+    void saveToNasBestEffort_returnsFalseWhenWriteThrows_neverThrows() throws Exception {
+        when(smbFactory.withRetry(eq(VOL), any())).thenAnswer(inv -> {
+            SmbConnectionFactory.SmbOperation<?> op = inv.getArgument(1);
+            return op.execute(handle);
+        });
+        doThrow(new IOException("smb down")).when(fs).writeFile(any(), any());
+
+        boolean[] ok = {true};
+        assertDoesNotThrow(() ->
+                ok[0] = service.saveToNasBestEffort("/root/x (ONED-123)", "ONED-123", new byte[]{1}, VOL));
+        assertFalse(ok[0], "final failure must report false (and never throw)");
+    }
+
     @Test
     void extensionIsPreservedInBothWrites() throws Exception {
         Title title = Title.builder().code("ONED-123").baseCode("ONED-123").label("ONED").build();
