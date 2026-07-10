@@ -126,6 +126,48 @@ class TitleFolderRenamerTest {
         assertEquals("queue/Nao Wakana (TST-003)", outcome.newPath());
     }
 
+    // ── Root-anchored (queue_flat) paths — leading-slash preservation fix ──
+
+    @Test
+    void renameIfNeeded_rootAnchoredPath_preservesLeadingSlash() throws IOException {
+        // queue_flat volumes (e.g. classic_fresh) store title folders directly at the share
+        // root: "/(CODE)". parentPath("/(CODE)") returns "" (only the leading slash exists),
+        // so the renamed path must special-case this and keep the leading slash rather than
+        // producing a bare "Some Actress (ABP-196)" — otherwise a later sync sees a *different*
+        // location string, duplicating the row and orphaning curated_at.
+        String oldFolder = "/(ABP-196)";
+        long titleId = seedTitle("ABP-196", oldFolder, oldFolder + "/video/a.mp4");
+
+        TitleFolderRenamer.RenameOutcome outcome =
+                renamer.renameIfNeeded(titleId, "Some Actress", null, "ABP-196");
+
+        assertTrue(outcome.renamed());
+        assertTrue(outcome.newPath().startsWith("/"),
+                "root-anchored rename must keep the leading slash");
+        assertEquals("/Some Actress (ABP-196)", outcome.newPath());
+
+        // title_locations.path rewritten with the leading slash preserved (the actual bug:
+        // a stale/duplicated row would appear here if the slash were dropped).
+        String locPath = jdbi.withHandle(h -> h.createQuery(
+                        "SELECT path FROM title_locations WHERE title_id = :id AND stale_since IS NULL")
+                .bind("id", titleId).mapTo(String.class).one());
+        assertEquals("/Some Actress (ABP-196)", locPath);
+    }
+
+    @Test
+    void renameIfNeeded_nestedPath_stillPreservesLeadingSlash_unchangedBehavior() throws IOException {
+        // Nested (non-root) paths already worked correctly before the fix — parent is
+        // non-empty, so this branch is untouched. Regression guard for the surrounding logic.
+        String oldFolder = "/fresh/(ABP-197)";
+        long titleId = seedTitle("ABP-197", oldFolder, oldFolder + "/video/a.mp4");
+
+        TitleFolderRenamer.RenameOutcome outcome =
+                renamer.renameIfNeeded(titleId, "Other Actress", null, "ABP-197");
+
+        assertTrue(outcome.renamed());
+        assertEquals("/fresh/Other Actress (ABP-197)", outcome.newPath());
+    }
+
     // ── No-op cases ─────────────────────────────────────────────────────
 
     @Test

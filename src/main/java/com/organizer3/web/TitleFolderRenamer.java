@@ -205,7 +205,17 @@ public class TitleFolderRenamer {
 
         // SMB rename with collision check.
         String parent  = parentPath(currentPath);
-        String newPath = parent.isEmpty() ? targetName : parent + "/" + targetName;
+        String newPath;
+        if (parent.isEmpty()) {
+            // Root-anchored path (queue_flat volumes store the title folder at the share root, e.g.
+            // "/(CODE)"): keep the leading slash so the rewritten path matches the app-wide
+            // leading-slash convention the sync scanner emits. Dropping it made queue_flat renames
+            // produce "(CODE)"-style paths that a later sync treats as a *different* location,
+            // duplicating the row and orphaning curated_at (classic_fresh path-format fix).
+            newPath = currentPath.startsWith("/") ? "/" + targetName : targetName;
+        } else {
+            newPath = parent + "/" + targetName;
+        }
 
         try {
             // Route through withRetry: on a broken-pipe/transport error mid-rename the
