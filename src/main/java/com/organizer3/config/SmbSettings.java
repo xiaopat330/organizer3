@@ -25,7 +25,9 @@ public record SmbSettings(
         @JsonProperty("transactTimeoutMinutes")  Integer transactTimeoutMinutes,
         @JsonProperty("perVolumeTimeoutMinutes") Integer perVolumeTimeoutMinutes,
         @JsonProperty("unmountTimeoutSeconds")   Integer unmountTimeoutSeconds,
-        @JsonProperty("dialTimeoutSeconds")      Integer dialTimeoutSeconds
+        @JsonProperty("dialTimeoutSeconds")      Integer dialTimeoutSeconds,
+        @JsonProperty("readTimeoutSeconds")      Integer readTimeoutSeconds,
+        @JsonProperty("transactTimeoutSeconds")  Integer transactTimeoutSeconds
 ) {
     public static final int DEFAULT_READ_TIMEOUT_MINUTES      = 5;
     public static final int DEFAULT_WRITE_TIMEOUT_MINUTES     = 5;
@@ -33,9 +35,11 @@ public record SmbSettings(
     public static final int DEFAULT_PER_VOLUME_TIMEOUT_MINUTES = 120;
     public static final int DEFAULT_UNMOUNT_TIMEOUT_SECONDS   = 30;
     public static final int DEFAULT_DIAL_TIMEOUT_SECONDS      = 10;
+    public static final int DEFAULT_READ_TIMEOUT_SECONDS      = 45;
+    public static final int DEFAULT_TRANSACT_TIMEOUT_SECONDS  = 45;
 
     /** Singleton default instance — all fields use their defaults. */
-    public static final SmbSettings DEFAULTS = new SmbSettings(null, null, null, null, null, null);
+    public static final SmbSettings DEFAULTS = new SmbSettings(null, null, null, null, null, null, null, null);
 
     public int readTimeoutMinutesOrDefault() {
         return readTimeoutMinutes != null ? readTimeoutMinutes : DEFAULT_READ_TIMEOUT_MINUTES;
@@ -59,5 +63,13 @@ public record SmbSettings(
 
     public int dialTimeoutSecondsOrDefault() {
         return dialTimeoutSeconds != null ? dialTimeoutSeconds : DEFAULT_DIAL_TIMEOUT_SECONDS;
+    }
+
+    public int readTimeoutSecondsOrDefault() {
+        return readTimeoutSeconds != null ? readTimeoutSeconds : DEFAULT_READ_TIMEOUT_SECONDS;
+    }
+
+    public int transactTimeoutSecondsOrDefault() {
+        return transactTimeoutSeconds != null ? transactTimeoutSeconds : DEFAULT_TRANSACT_TIMEOUT_SECONDS;
     }
 }

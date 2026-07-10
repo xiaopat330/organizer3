@@ -31,6 +31,8 @@ class SmbSettingsTest {
         assertEquals(SmbSettings.DEFAULT_PER_VOLUME_TIMEOUT_MINUTES, settings.perVolumeTimeoutMinutesOrDefault());
         assertEquals(SmbSettings.DEFAULT_UNMOUNT_TIMEOUT_SECONDS,    settings.unmountTimeoutSecondsOrDefault());
         assertEquals(SmbSettings.DEFAULT_DIAL_TIMEOUT_SECONDS,       settings.dialTimeoutSecondsOrDefault());
+        assertEquals(SmbSettings.DEFAULT_READ_TIMEOUT_SECONDS,       settings.readTimeoutSecondsOrDefault());
+        assertEquals(SmbSettings.DEFAULT_TRANSACT_TIMEOUT_SECONDS,   settings.transactTimeoutSecondsOrDefault());
     }
 
     @Test
@@ -42,6 +44,30 @@ class SmbSettingsTest {
         assertEquals(120, SmbSettings.DEFAULT_PER_VOLUME_TIMEOUT_MINUTES);
         assertEquals(30,  SmbSettings.DEFAULT_UNMOUNT_TIMEOUT_SECONDS);
         assertEquals(10,  SmbSettings.DEFAULT_DIAL_TIMEOUT_SECONDS);
+        assertEquals(45,  SmbSettings.DEFAULT_READ_TIMEOUT_SECONDS);
+        assertEquals(45,  SmbSettings.DEFAULT_TRANSACT_TIMEOUT_SECONDS);
+    }
+
+    @Test
+    void readTimeoutSeconds_defaultIs45() {
+        assertEquals(45, SmbSettings.DEFAULTS.readTimeoutSecondsOrDefault());
+    }
+
+    @Test
+    void readTimeoutSeconds_explicitValueOverridesDefault() {
+        SmbSettings settings = new SmbSettings(null, null, null, null, null, null, 90, null);
+        assertEquals(90, settings.readTimeoutSecondsOrDefault());
+    }
+
+    @Test
+    void transactTimeoutSeconds_defaultIs45() {
+        assertEquals(45, SmbSettings.DEFAULTS.transactTimeoutSecondsOrDefault());
+    }
+
+    @Test
+    void transactTimeoutSeconds_explicitValueOverridesDefault() {
+        SmbSettings settings = new SmbSettings(null, null, null, null, null, null, null, 60);
+        assertEquals(60, settings.transactTimeoutSecondsOrDefault());
     }
 
     @Test
@@ -51,7 +77,7 @@ class SmbSettingsTest {
 
     @Test
     void dialTimeoutSeconds_explicitValueOverridesDefault() {
-        SmbSettings settings = new SmbSettings(null, null, null, null, null, 30);
+        SmbSettings settings = new SmbSettings(null, null, null, null, null, 30, null, null);
         assertEquals(30, settings.dialTimeoutSecondsOrDefault());
     }
 
@@ -59,7 +85,7 @@ class SmbSettingsTest {
 
     @Test
     void explicitValues_overrideDefaults() {
-        SmbSettings settings = new SmbSettings(10, 15, 20, 60, 45, null);
+        SmbSettings settings = new SmbSettings(10, 15, 20, 60, 45, null, null, null);
 
         assertEquals(10, settings.readTimeoutMinutesOrDefault());
         assertEquals(15, settings.writeTimeoutMinutesOrDefault());
@@ -71,7 +97,7 @@ class SmbSettingsTest {
     @Test
     void partialOverride_unsetFieldsUseDefaults() {
         // Only readTimeoutMinutes is set; all others should fall back to defaults.
-        SmbSettings settings = new SmbSettings(3, null, null, null, null, null);
+        SmbSettings settings = new SmbSettings(3, null, null, null, null, null, null, null);
 
         assertEquals(3,   settings.readTimeoutMinutesOrDefault());
         assertEquals(SmbSettings.DEFAULT_WRITE_TIMEOUT_MINUTES,      settings.writeTimeoutMinutesOrDefault());
@@ -97,7 +123,7 @@ class SmbSettingsTest {
 
     @Test
     void smbOrDefaults_returnsConfiguredValues_whenSmbFieldPresent() {
-        SmbSettings custom = new SmbSettings(7, 8, 9, 45, 10, null);
+        SmbSettings custom = new SmbSettings(7, 8, 9, 45, 10, null, null, null);
         // Use the full canonical ctor with smb= custom
         OrganizerConfig config = new OrganizerConfig(
                 "test", "/tmp", null, null, null, null, null, null, null,

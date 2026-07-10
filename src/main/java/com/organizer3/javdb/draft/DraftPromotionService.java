@@ -13,6 +13,7 @@ import com.organizer3.repository.TitleRepository;
 import com.organizer3.translation.NameComposer;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import com.organizer3.web.CoverWriteService;
+import com.organizer3.web.PostCommitSmbExecutor;
 import com.organizer3.web.StagingCastHelper;
 import com.organizer3.web.TitleFolderRenamer;
 import lombok.extern.slf4j.Slf4j;
@@ -101,6 +102,10 @@ public class DraftPromotionService {
     private final com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository reviewQueueRepo;
     // Age-at-release recomputer — called once per successful promotion. Nullable — short ctor leaves it null.
     private final com.organizer3.db.AgeAtReleaseRecomputer ageRecomputer;
+    // Post-commit SMB executor — when present, the NAS cover-write + folder rename are
+    // dispatched off the request thread. Nullable — short/legacy-full ctors leave it null,
+    // which preserves the original inline behavior (and every existing test unchanged).
+    private final PostCommitSmbExecutor postCommitExecutor;
 
     /** Seam for cover-copy — injectable in tests to simulate COMMIT-failure. */
     private CoverCopier coverCopier;
@@ -129,7 +134,11 @@ public class DraftPromotionService {
 
     /** Full constructor including FIX 1 dependencies (javdbStagingRepo, actressRepo),
      *  Phase 2 dependencies (unsortedVolumeId, renamer), Item B guard dependencies,
-     *  and ageRecomputer for Task 2b. */
+     *  and ageRecomputer for Task 2b.
+     *
+     *  <p>Delegates to the async-capable constructor with a null {@link PostCommitSmbExecutor}
+     *  so existing call sites (incl. {@code Application.java}) keep compiling and get the
+     *  inline post-commit SMB path unchanged. */
     @SuppressWarnings("checkstyle:ParameterNumber")
     public DraftPromotionService(
             Jdbi                          jdbi,
@@ -153,6 +162,41 @@ public class DraftPromotionService {
             com.organizer3.javdb.enrichment.CastPresenceCheck        castPresenceCheck,
             com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository reviewQueueRepo,
             com.organizer3.db.AgeAtReleaseRecomputer ageRecomputer) {
+        this(jdbi, draftTitleRepo, draftActressRepo, draftCastRepo, draftEnrichRepo,
+                coverStore, coverPath, castValidator, titleRepo, historyRepo, effectiveTags,
+                json, suggestionRepo, javdbStagingRepo, actressRepo, serviceableVolumeIds,
+                renamer, coverWriteService, castPresenceCheck, reviewQueueRepo, ageRecomputer,
+                null);
+    }
+
+    /** Async-capable full constructor — identical to the full constructor above, plus a
+     *  trailing {@link PostCommitSmbExecutor}. When non-null, {@link #promote} dispatches the
+     *  post-commit NAS cover-write + folder rename to the executor instead of running them
+     *  inline on the request thread. */
+    @SuppressWarnings("checkstyle:ParameterNumber")
+    public DraftPromotionService(
+            Jdbi                          jdbi,
+            DraftTitleRepository          draftTitleRepo,
+            DraftActressRepository        draftActressRepo,
+            DraftTitleActressesRepository draftCastRepo,
+            DraftTitleEnrichmentRepository draftEnrichRepo,
+            DraftCoverScratchStore        coverStore,
+            CoverPath                     coverPath,
+            CastValidator                 castValidator,
+            TitleRepository               titleRepo,
+            EnrichmentHistoryRepository   historyRepo,
+            TitleEffectiveTagsService     effectiveTags,
+            ObjectMapper                  json,
+            StageNameSuggestionRepository suggestionRepo,
+            JavdbStagingRepository        javdbStagingRepo,
+            ActressRepository             actressRepo,
+            java.util.Set<String>         serviceableVolumeIds,
+            TitleFolderRenamer            renamer,
+            CoverWriteService             coverWriteService,
+            com.organizer3.javdb.enrichment.CastPresenceCheck        castPresenceCheck,
+            com.organizer3.javdb.enrichment.EnrichmentReviewQueueRepository reviewQueueRepo,
+            com.organizer3.db.AgeAtReleaseRecomputer ageRecomputer,
+            PostCommitSmbExecutor        postCommitExecutor) {
         this.jdbi              = jdbi;
         this.draftTitleRepo    = draftTitleRepo;
         this.draftActressRepo  = draftActressRepo;
@@ -174,6 +218,7 @@ public class DraftPromotionService {
         this.castPresenceCheck = castPresenceCheck;
         this.reviewQueueRepo   = reviewQueueRepo;
         this.ageRecomputer     = ageRecomputer;
+        this.postCommitExecutor = postCommitExecutor;
         this.coverCopier       = this::defaultCoverCopy;
     }
 
@@ -353,63 +398,92 @@ public class DraftPromotionService {
             log.warn("promote: effective-tags recompute failed for title {} (non-fatal)", titleId, e);
         }
 
-        // Post-commit: write the cover into the NAS staging folder (best-effort) so it
-        // rides the folder rename below and survives cross-volume redistribution. Gated
-        // on destCoverHolder so NAS + local cache stay in lockstep (Step 8 wrote the cache
-        // iff destCoverHolder is non-null). Pre-rename path is intentional — the folder
-        // rename moves the cover along.
-        if (destCoverHolder[0] != null && coverWriteService != null
-                && serviceableVolumeIds != null && !serviceableVolumeIds.isEmpty()) {
+        // Post-commit: capture the scratch cover bytes NOW (in the request thread), before the
+        // scratch delete below, so the NAS cover-write step — whether it runs inline or is
+        // dispatched to postCommitExecutor — always has bytes to write and can never race the
+        // scratch delete. Gated on destCoverHolder so NAS + local cache stay in lockstep
+        // (Step 8 wrote the cache iff destCoverHolder is non-null).
+        byte[] coverBytesTmp = null;
+        if (destCoverHolder[0] != null) {
             try {
-                java.util.Optional<byte[]> coverBytes = coverStore.read(draftTitleId);
-                // Resolve the staging volume AND path in one query so both originate from the same
-                // resolution act — the cover must be written to whichever serviceable volume the
-                // title actually lives on, never a differently-sourced volume.
-                String[] loc = jdbi.withHandle(h -> h.createQuery(
-                        "SELECT volume_id AS v, path AS p FROM title_locations " +
-                        "WHERE title_id = :tid AND volume_id IN (<vols>) AND stale_since IS NULL " +
-                        "ORDER BY added_date ASC, volume_id ASC LIMIT 1")
-                        .bind("tid", titleId)
-                        .bindList("vols", java.util.List.copyOf(serviceableVolumeIds))
-                        .map((rs, ctx) -> new String[]{ rs.getString("v"), rs.getString("p") })
-                        .findFirst().orElse(null));
-                Title t = titleRepo.findById(titleId).orElse(null);
-                if (coverBytes.isPresent() && loc != null && loc[1] != null && t != null) {
-                    coverWriteService.saveToNasBestEffort(loc[1], t.getBaseCode(), coverBytes.get(), loc[0]);
-                }
-            } catch (Exception e) {
-                log.warn("promote: NAS cover write failed post-commit (titleId={}): {}", titleId, e.getMessage());
+                coverBytesTmp = coverStore.read(draftTitleId).orElse(null);
+            } catch (IOException e) {
+                log.warn("promote: failed to read scratch cover for NAS write (draft {}): {}",
+                        draftTitleId, e.getMessage());
             }
         }
+        final byte[] coverBytesForNas = coverBytesTmp;
 
-        // Post-commit Step 10: best-effort folder rename (Phase 2).
-        // Build the ordered multi-name list from canonical DB state (post-commit) so the
-        // folder name includes ALL credited cast, with the filing actress first.
-        boolean folderRenamed = false;
-        if (primaryHolder[0] != null && renamer != null) {
-            try {
-                java.util.List<String> castNames =
-                        StagingCastHelper.orderedNamesForTitle(jdbi, titleId);
-                if (!castNames.isEmpty()) {
-                    TitleFolderRenamer.RenameOutcome outcome =
-                            renamer.renamePreservingDescriptor(titleId, castNames, draftCheck.getCode());
-                    folderRenamed = outcome.renamed();
-                } else {
-                    log.warn("promote: no cast names found for rename (titleId={}, code={}); skipping rename",
-                            titleId, draftCheck.getCode());
+        // Post-commit Step 10 (Phase 2) + NAS cover write: a single Runnable performing, in
+        // order, (a) the best-effort NAS cover write — so the cover rides the folder rename and
+        // survives cross-volume redistribution — then (b) the best-effort folder rename. The
+        // rename builds the ordered multi-name list from canonical DB state (post-commit) so the
+        // folder name includes ALL credited cast, with the filing actress first. Dispatched to
+        // postCommitExecutor when present (async — returns immediately after COMMIT); run inline
+        // otherwise (current/test behavior). renamedHolder lets the inline path recover the real
+        // outcome; the async path cannot know it synchronously.
+        final boolean[] renamedHolder = {false};
+        Runnable folderOps = () -> {
+            // (a) NAS cover write. Pre-rename path is intentional — the folder rename below
+            // moves the cover along.
+            if (coverBytesForNas != null && coverWriteService != null
+                    && serviceableVolumeIds != null && !serviceableVolumeIds.isEmpty()) {
+                try {
+                    // Resolve the staging volume AND path in one query so both originate from the
+                    // same resolution act — the cover must be written to whichever serviceable
+                    // volume the title actually lives on, never a differently-sourced volume.
+                    String[] loc = jdbi.withHandle(h -> h.createQuery(
+                            "SELECT volume_id AS v, path AS p FROM title_locations " +
+                            "WHERE title_id = :tid AND volume_id IN (<vols>) AND stale_since IS NULL " +
+                            "ORDER BY added_date ASC, volume_id ASC LIMIT 1")
+                            .bind("tid", titleId)
+                            .bindList("vols", java.util.List.copyOf(serviceableVolumeIds))
+                            .map((rs, ctx) -> new String[]{ rs.getString("v"), rs.getString("p") })
+                            .findFirst().orElse(null));
+                    Title t = titleRepo.findById(titleId).orElse(null);
+                    if (loc != null && loc[1] != null && t != null) {
+                        coverWriteService.saveToNasBestEffort(loc[1], t.getBaseCode(), coverBytesForNas, loc[0]);
+                    }
+                } catch (Exception e) {
+                    log.warn("promote: NAS cover write failed post-commit (titleId={}): {}", titleId, e.getMessage());
                 }
-            } catch (IllegalStateException e) {
-                log.warn("promote: folder rename skipped — collision (titleId={}, code={}): {}",
-                        titleId, draftCheck.getCode(), e.getMessage());
-            } catch (Exception e) {
-                log.warn("promote: folder rename failed post-commit (titleId={}, code={}): {}",
-                        titleId, draftCheck.getCode(), e.getMessage(), e);
             }
+
+            // (b) Folder rename.
+            if (primaryHolder[0] != null && renamer != null) {
+                try {
+                    java.util.List<String> castNames =
+                            StagingCastHelper.orderedNamesForTitle(jdbi, titleId);
+                    if (!castNames.isEmpty()) {
+                        TitleFolderRenamer.RenameOutcome outcome =
+                                renamer.renamePreservingDescriptor(titleId, castNames, draftCheck.getCode());
+                        renamedHolder[0] = outcome.renamed();
+                    } else {
+                        log.warn("promote: no cast names found for rename (titleId={}, code={}); skipping rename",
+                                titleId, draftCheck.getCode());
+                    }
+                } catch (IllegalStateException e) {
+                    log.warn("promote: folder rename skipped — collision (titleId={}, code={}): {}",
+                            titleId, draftCheck.getCode(), e.getMessage());
+                } catch (Exception e) {
+                    log.warn("promote: folder rename failed post-commit (titleId={}, code={}): {}",
+                            titleId, draftCheck.getCode(), e.getMessage(), e);
+                }
+            }
+        };
+
+        boolean folderRenamed;
+        if (postCommitExecutor != null) {
+            postCommitExecutor.submit("promote:" + draftCheck.getCode(), folderOps);
+            folderRenamed = false; // dispatched async — outcome cannot be reported synchronously
+        } else {
+            folderOps.run();
+            folderRenamed = renamedHolder[0];
         }
 
         // Post-commit: delete scratch cover — best-effort; GC sweep catches leaks.
-        // Moved AFTER the NAS write + folder rename so the scratch bytes remain readable
-        // for the NAS write above.
+        // Safe even when folderOps was just dispatched async — coverBytesForNas was already
+        // captured above, so the async NAS write can't race this delete.
         try {
             coverStore.delete(draftTitleId);
         } catch (IOException e) {

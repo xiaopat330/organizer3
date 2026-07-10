@@ -450,6 +450,87 @@ class UnsortedEditorServiceTest {
 
     // ── helpers ──────────────────────────────────────────────────────────
 
+    // ── PostCommitSmbExecutor dispatch tests ─────────────────────────────
+
+    @Test
+    void replaceActresses_withExecutor_dispatchesRenameInsteadOfRunningInline() {
+        long titleId = seedTitle("ONED-040", "Old Name (ONED-040)");
+        Actress actress = saveActress("New Primary");
+
+        PostCommitSmbExecutor mockExecutor = org.mockito.Mockito.mock(PostCommitSmbExecutor.class);
+        TitleFolderRenamer mockRenamer = org.mockito.Mockito.mock(TitleFolderRenamer.class);
+        UnsortedEditorService asyncService = new UnsortedEditorService(
+                new JdbiUnsortedEditorRepository(jdbi),
+                actressRepo,
+                coverPath,
+                org.mockito.Mockito.mock(SmbConnectionFactory.class),
+                java.util.Set.of(VOL),
+                java.util.Map.of(VOL, "//host.local/unsorted"),
+                mockRenamer,
+                jdbi,
+                mockExecutor);
+
+        var entries = List.of(new UnsortedEditorService.ActressEntry(actress.getId(), null));
+        var primary = entries.get(0);
+
+        var result = asyncService.replaceActresses(titleId, entries, primary);
+
+        org.mockito.Mockito.verify(mockExecutor, org.mockito.Mockito.times(1))
+                .submit(org.mockito.ArgumentMatchers.eq("unsorted:ONED-040"),
+                        org.mockito.ArgumentMatchers.any());
+        org.mockito.Mockito.verifyNoInteractions(mockRenamer);
+        assertFalse(result.folderRenamed(), "async dispatch path must report renamed=false");
+        assertEquals("/root/Old Name (ONED-040)", result.folderPath(),
+                "async dispatch path must report the pre-rename folder path");
+    }
+
+    @Test
+    void replaceActresses_withRealSynchronousExecutor_runsRenameAndReturnsOutcome() throws Exception {
+        long titleId = seedTitle("ONED-041", "Old Name2 (ONED-041)");
+        Actress actress = saveActress("New Primary2");
+
+        SmbConnectionFactory smbFactory = org.mockito.Mockito.mock(SmbConnectionFactory.class);
+        SmbConnectionFactory.SmbShareHandle handle = org.mockito.Mockito.mock(SmbConnectionFactory.SmbShareHandle.class);
+        com.organizer3.filesystem.VolumeFileSystem fs =
+                org.mockito.Mockito.mock(com.organizer3.filesystem.VolumeFileSystem.class);
+        org.mockito.Mockito.when(smbFactory.open(VOL)).thenReturn(handle);
+        org.mockito.Mockito.when(handle.fileSystem()).thenReturn(fs);
+        org.mockito.Mockito.when(fs.exists(org.mockito.ArgumentMatchers.any())).thenReturn(false);
+        TitleFolderRenamer renamer2 = new TitleFolderRenamer(smbFactory, jdbi, VOL);
+
+        // A "synchronous" PostCommitSmbExecutor (Runnable::run) proves the dispatched task still
+        // performs the rename and the reconciler-facing behavior is unaffected — only the return
+        // value's pre-rename semantics differ from the inline (null-executor) path.
+        PostCommitSmbExecutor syncExecutor = new PostCommitSmbExecutor(Runnable::run);
+        UnsortedEditorService asyncService = new UnsortedEditorService(
+                new JdbiUnsortedEditorRepository(jdbi),
+                actressRepo,
+                coverPath,
+                smbFactory,
+                java.util.Set.of(VOL),
+                java.util.Map.of(VOL, "//host.local/unsorted"),
+                renamer2,
+                jdbi,
+                syncExecutor);
+
+        var entries = List.of(new UnsortedEditorService.ActressEntry(actress.getId(), null));
+        var primary = entries.get(0);
+
+        var result = asyncService.replaceActresses(titleId, entries, primary);
+
+        // Even though the executor ran the rename synchronously, the service's returned
+        // SaveResult still reflects the pre-rename (renamed=false) contract for the dispatch
+        // branch — it does not wait on/inspect the task's outcome.
+        assertFalse(result.folderRenamed());
+        assertEquals("/root/Old Name2 (ONED-041)", result.folderPath());
+        // But the folder rename did actually happen on disk/DB (proving the Runnable ran).
+        String newPath = jdbi.withHandle(h -> h.createQuery(
+                        "SELECT path FROM title_locations WHERE title_id = :id AND stale_since IS NULL")
+                        .bind("id", titleId).mapTo(String.class).one());
+        assertNotEquals("/root/Old Name2 (ONED-041)", newPath,
+                "the dispatched rename task should have actually renamed the folder in the DB");
+    }
+
     private long seedTitle(String code, String folderName) {
         Title t = titleRepo.save(Title.builder().code(code).baseCode(code).label(code.split("-")[0]).build());
         String folderPath = "/root/" + folderName;

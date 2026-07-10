@@ -15,6 +15,7 @@ import com.organizer3.repository.jdbi.JdbiTitleLocationRepository;
 import com.organizer3.repository.jdbi.JdbiTitleRepository;
 import com.organizer3.translation.repository.jdbi.JdbiStageNameSuggestionRepository;
 import com.organizer3.web.CoverWriteService;
+import com.organizer3.web.PostCommitSmbExecutor;
 import com.organizer3.web.TitleFolderRenamer;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
@@ -1646,5 +1647,75 @@ class DraftPromotionServiceTest {
                         + " WHERE title_id = 1 AND volume_id = 'unsorted'")
                         .mapTo(String.class).findFirst().orElse(null));
         assertNull(curatedAt, "curated_at must be null when COMMIT is rolled back");
+    }
+
+    // ── Async post-commit SMB dispatch (spec/PROPOSAL_ASYNC_PROMOTE_SMB.md Part 2) ──────
+
+    /**
+     * With a non-null {@link PostCommitSmbExecutor}, promote() must dispatch the folder-ops
+     * Runnable to the executor instead of running it inline, and must report
+     * {@code folderRenamed=false} (the outcome is unknowable synchronously once dispatched).
+     * DB state (curated_at stamp, draft-row deletion) must still commit normally — the async
+     * dispatch only affects the post-commit SMB steps, not the transaction.
+     */
+    @Test
+    void promote_dispatchesFolderOpsToExecutor() throws Exception {
+        seedStagingLocation(1L);
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+
+        PostCommitSmbExecutor mockExecutor = Mockito.mock(PostCommitSmbExecutor.class);
+
+        DraftPromotionService asyncService = new DraftPromotionService(
+                jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
+                draftEnrichRepo, coverStore, coverPath, new CastValidator(),
+                titleRepo, new EnrichmentHistoryRepository(jdbi, JSON),
+                new TitleEffectiveTagsService(jdbi), JSON, suggestionRepo,
+                javdbStagingRepo, actressRepo,
+                java.util.Set.of("unsorted"), renamer,
+                coverWriteService,
+                null, null,
+                null,
+                mockExecutor);
+
+        var result = asyncService.promote(draftId, "2024-06-01T00:00:00Z");
+
+        assertEquals(1L, result.titleId());
+        assertFalse(result.folderRenamed(),
+                "folderRenamed must be false when folder ops are dispatched async");
+
+        verify(mockExecutor, times(1)).submit(eq("promote:TST-1"), any(Runnable.class));
+        // The mock executor is a no-op (it never runs the submitted Runnable), so the folder
+        // rename must NOT have been invoked synchronously on the request thread.
+        verify(renamer, never()).renamePreservingDescriptor(anyLong(), anyList(), any());
+
+        // DB state committed regardless of async dispatch: curated_at stamped, draft rows gone.
+        String curatedAt = jdbi.withHandle(h ->
+                h.createQuery("SELECT curated_at FROM title_locations"
+                        + " WHERE title_id = 1 AND volume_id = 'unsorted' AND stale_since IS NULL")
+                        .mapTo(String.class).one());
+        assertNotNull(curatedAt, "curated_at must be stamped even though folder ops were dispatched async");
+        assertTrue(draftTitleRepo.findById(draftId).isEmpty(),
+                "draft rows must be deleted regardless of async dispatch");
+        assertTrue(draftCastRepo.findByDraftTitleId(draftId).isEmpty(),
+                "draft cast rows must be deleted regardless of async dispatch");
+    }
+
+    /**
+     * With a null executor (the default {@code service} from setUp), the folder rename runs
+     * inline on the request thread exactly as before Part 2 — the real rename outcome is
+     * reported synchronously via {@code folderRenamed}.
+     */
+    @Test
+    void promote_inlineWhenExecutorNull() throws Exception {
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+
+        when(renamer.renamePreservingDescriptor(eq(1L), eq(java.util.List.of("Mana Sakura")), eq("TST-1")))
+                .thenReturn(new TitleFolderRenamer.RenameOutcome("/path/Mana Sakura (TST-1)", true));
+
+        var result = service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        // Folder rename ran synchronously (inline) on the calling thread.
+        verify(renamer).renamePreservingDescriptor(1L, java.util.List.of("Mana Sakura"), "TST-1");
+        assertTrue(result.folderRenamed(), "inline path must report the real rename outcome");
     }
 }

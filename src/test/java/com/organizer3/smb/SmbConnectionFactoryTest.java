@@ -43,7 +43,7 @@ class SmbConnectionFactoryTest {
     void dialTimeout_derivedFromDialTimeoutSeconds_customValue() {
         OrganizerConfig config = mock(OrganizerConfig.class);
         // Custom: dialTimeoutSeconds=5; transactTimeoutMinutes=5 (300_000 ms) must NOT be used.
-        when(config.smbOrDefaults()).thenReturn(new SmbSettings(null, null, 5, null, null, 5));
+        when(config.smbOrDefaults()).thenReturn(new SmbSettings(null, null, 5, null, null, 5, null, null));
         SmbConnectionFactory factory = new SmbConnectionFactory(config, mock(SMBClient.class));
         assertEquals(5_000L, factory.dialTimeoutMillisForTesting(),
                 "dialTimeoutSeconds=5 should produce dialTimeoutMillis=5000, not transact-minutes value");

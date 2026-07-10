@@ -44,13 +44,32 @@ public class UnsortedEditorService {
     private final Map<String, String> volumeSmbPaths;
     private final TitleFolderRenamer renamer;
     private final Jdbi jdbi;
+    private final PostCommitSmbExecutor postCommitExecutor;
 
-    /** Primary (multi-volume) constructor. */
+    /** Primary (multi-volume) constructor.
+     *
+     *  <p>Delegates to the async-capable constructor with a null {@link PostCommitSmbExecutor}
+     *  so existing call sites (incl. {@code Application.java}) keep compiling and get the
+     *  inline post-commit rename path unchanged. */
     public UnsortedEditorService(UnsortedEditorRepository repo, ActressRepository actressRepo,
                                  CoverPath coverPath, SmbConnectionFactory smbFactory,
                                  Set<String> serviceableVolumeIds,
                                  Map<String, String> volumeSmbPaths,
                                  TitleFolderRenamer renamer, Jdbi jdbi) {
+        this(repo, actressRepo, coverPath, smbFactory, serviceableVolumeIds, volumeSmbPaths,
+                renamer, jdbi, null);
+    }
+
+    /** Async-capable primary constructor — identical to the constructor above, plus a
+     *  trailing {@link PostCommitSmbExecutor}. When non-null, {@link #renameFolderIfNeeded}
+     *  dispatches the folder rename to the executor instead of running it inline on the
+     *  request thread. */
+    public UnsortedEditorService(UnsortedEditorRepository repo, ActressRepository actressRepo,
+                                 CoverPath coverPath, SmbConnectionFactory smbFactory,
+                                 Set<String> serviceableVolumeIds,
+                                 Map<String, String> volumeSmbPaths,
+                                 TitleFolderRenamer renamer, Jdbi jdbi,
+                                 PostCommitSmbExecutor postCommitExecutor) {
         this.repo = repo;
         this.actressRepo = actressRepo;
         this.coverPath = coverPath;
@@ -59,6 +78,7 @@ public class UnsortedEditorService {
         this.volumeSmbPaths = volumeSmbPaths;
         this.renamer = renamer;
         this.jdbi = jdbi;
+        this.postCommitExecutor = postCommitExecutor;
     }
 
     // ── Back-compat single-volume constructors ───────────────────────────────
@@ -439,6 +459,13 @@ public class UnsortedEditorService {
      * <p>Delegates to {@link TitleFolderRenamer#renameIfNeeded} which is the single source of
      * truth for folder-name construction, sanitization, collision detection, and the load-bearing
      * dual {@code title_locations.path} + {@code videos.path} rewrite.
+     *
+     * <p>The actual SMB rename (the {@code renamer.renameIfNeeded} call) is wrapped in a
+     * {@link Runnable} so it can be dispatched to {@link #postCommitExecutor} instead of running
+     * on the request thread. The cheap DB reads needed to build that Runnable's inputs (ordered
+     * cast names / primary name, descriptor, code) run here, in the request thread, so the
+     * dispatched task is self-contained. When {@link #postCommitExecutor} is null, the Runnable
+     * runs inline and the real outcome is returned — current behavior, unchanged.
      */
     private SaveResult renameFolderIfNeeded(long titleId, SaveResult committed, String descriptor) {
         String vol = resolveVolume(titleId).orElse(null);
@@ -446,25 +473,38 @@ public class UnsortedEditorService {
         var detail = repo.findEligibleById(titleId, vol).orElse(null);
         if (detail == null) return committed;  // race — can't rename
 
-        TitleFolderRenamer.RenameOutcome outcome;
-        if (jdbi != null) {
-            // Multi-name: derive the ordered cast list from canonical DB state (post-commit)
-            // so the folder name includes ALL credited cast and agrees byte-for-byte with the
-            // reconciler.
-            java.util.List<String> names = StagingCastHelper.orderedNamesForTitle(jdbi, titleId);
-            if (names.isEmpty()) {
-                // NULL filing actress — fall back to single-name (legacy path)
-                String primaryName = repo.findActressCanonicalName(committed.primaryActressId()).orElse(null);
-                outcome = renamer.renameIfNeeded(titleId, primaryName, descriptor, detail.code());
-            } else {
-                outcome = renamer.renameIfNeeded(titleId, names, descriptor, detail.code());
-            }
-        } else {
-            // Legacy path (jdbi not wired — e.g. old callers / tests that use the short ctor).
-            String primaryName = repo.findActressCanonicalName(committed.primaryActressId()).orElse(null);
-            outcome = renamer.renameIfNeeded(titleId, primaryName, descriptor, detail.code());
+        // Multi-name: derive the ordered cast list from canonical DB state (post-commit) so the
+        // folder name includes ALL credited cast and agrees byte-for-byte with the reconciler.
+        // NULL filing actress (empty names) falls back to single-name (legacy path), as does a
+        // service instance without jdbi wired (old callers / tests using the short ctor).
+        final boolean jdbiAvailable = jdbi != null;
+        final java.util.List<String> names = jdbiAvailable
+                ? StagingCastHelper.orderedNamesForTitle(jdbi, titleId)
+                : java.util.List.of();
+        final boolean useMultiName = jdbiAvailable && !names.isEmpty();
+        final String primaryName = useMultiName ? null
+                : repo.findActressCanonicalName(committed.primaryActressId()).orElse(null);
+        final String code = detail.code();
+
+        TitleFolderRenamer.RenameOutcome[] holder = {null};
+        Runnable renameOp = () -> {
+            TitleFolderRenamer.RenameOutcome outcome = useMultiName
+                    ? renamer.renameIfNeeded(titleId, names, descriptor, code)
+                    : renamer.renameIfNeeded(titleId, primaryName, descriptor, code);
+            holder[0] = outcome;
+        };
+
+        if (postCommitExecutor != null) {
+            postCommitExecutor.submit("unsorted:" + code, renameOp);
+            // Pre-rename path — renamed=false since the outcome cannot be known synchronously.
+            // The reconciler + async task converge the folder name; the UI reloads the queue
+            // fresh, so this is fine.
+            return new SaveResult(committed.actressIds(), committed.primaryActressId(),
+                    detail.folderPath(), false);
         }
 
+        renameOp.run();
+        TitleFolderRenamer.RenameOutcome outcome = holder[0];
         String effectivePath = outcome.newPath() != null ? outcome.newPath()
                 : detail.folderPath();
         return new SaveResult(committed.actressIds(), committed.primaryActressId(),

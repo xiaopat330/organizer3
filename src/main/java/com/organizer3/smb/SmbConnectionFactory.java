@@ -491,9 +491,9 @@ public class SmbConnectionFactory {
      */
     static SmbConfig buildSmbConfig(SmbSettings settings) {
         return SmbConfig.builder()
-                .withReadTimeout(settings.readTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
+                .withReadTimeout(settings.readTimeoutSecondsOrDefault(), TimeUnit.SECONDS)
                 .withWriteTimeout(settings.writeTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
-                .withTransactTimeout(settings.transactTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
+                .withTransactTimeout(settings.transactTimeoutSecondsOrDefault(), TimeUnit.SECONDS)
                 .withSoTimeout(settings.readTimeoutMinutesOrDefault(), TimeUnit.MINUTES)
                 .build();
     }

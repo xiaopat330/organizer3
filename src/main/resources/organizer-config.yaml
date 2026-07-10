@@ -284,6 +284,8 @@ structures:
 #   perVolumeTimeoutMinutes: 120  # watchdog: max time per volume in coherent sync (default 120)
 #   unmountTimeoutSeconds: 30     # max time to wait for unmount before abandoning (default 30)
 #   dialTimeoutSeconds: 10        # TCP-connect + SMB auth timeout per dial attempt (default 10)
+#   readTimeoutSeconds: 45        # wait on a dead connection before failing (fast self-heal; default 45)
+#   transactTimeoutSeconds: 45    # overall wait per SMB request on a dead connection (default 45)
 
 # Sync reconciliation — see spec/PROPOSAL_SYNC_RECONCILIATION.md.
 # A title_locations row not observed during a sync is marked stale rather than

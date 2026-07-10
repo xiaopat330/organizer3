@@ -22,17 +22,18 @@ class SmbConfigWiringTest {
 
     @Test
     void buildSmbConfig_factory_appliesReadTimeout() {
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null);
+        // readTimeoutMinutes(3) is a decoy: readTimeout is now sourced from readTimeoutSeconds(7).
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
-        long expectedMs = TimeUnit.MINUTES.toMillis(3);
+        long expectedMs = TimeUnit.SECONDS.toMillis(7);
         assertEquals(expectedMs, config.getReadTimeout(),
-                "readTimeout should be set to " + expectedMs + " ms (3 minutes)");
+                "readTimeout should be set to " + expectedMs + " ms (7 seconds)");
     }
 
     @Test
     void buildSmbConfig_factory_appliesWriteTimeout() {
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null);
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
         long expectedMs = TimeUnit.MINUTES.toMillis(4);
@@ -42,28 +43,30 @@ class SmbConfigWiringTest {
 
     @Test
     void buildSmbConfig_factory_appliesTransactTimeout() {
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null);
+        // transactTimeoutMinutes(6) is a decoy: transactTimeout is now sourced from transactTimeoutSeconds(9).
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
-        long expectedMs = TimeUnit.MINUTES.toMillis(6);
+        long expectedMs = TimeUnit.SECONDS.toMillis(9);
         assertEquals(expectedMs, config.getTransactTimeout(),
-                "transactTimeout should be set to " + expectedMs + " ms (6 minutes)");
+                "transactTimeout should be set to " + expectedMs + " ms (9 seconds)");
     }
 
     @Test
     void buildSmbConfig_factory_appliesSoTimeout() {
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null);
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
-        // soTimeout mirrors readTimeout (backstop at TCP level)
+        // soTimeout mirrors readTimeoutMinutes (backstop at TCP level; deliberately left
+        // minute-based — see spec/PROPOSAL_ASYNC_PROMOTE_SMB.md Part 1 rationale).
         int expectedMs = (int) TimeUnit.MINUTES.toMillis(3);
         assertEquals(expectedMs, config.getSoTimeout(),
-                "soTimeout should mirror readTimeout: " + expectedMs + " ms");
+                "soTimeout should mirror readTimeoutMinutes: " + expectedMs + " ms");
     }
 
     @Test
     void buildSmbConfig_connector_matchesFactory() {
-        SmbSettings settings = new SmbSettings(5, 5, 5, 120, 30, null);
+        SmbSettings settings = new SmbSettings(5, 5, 5, 120, 30, null, 45, 45);
         SmbConfig factoryConfig   = SmbConnectionFactory.buildSmbConfig(settings);
         SmbConfig connectorConfig = SmbjConnector.buildSmbConfig(settings);
 

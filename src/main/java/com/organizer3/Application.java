@@ -1138,10 +1138,16 @@ public class Application {
                 new com.organizer3.repository.jdbi.JdbiUnsortedEditorRepository(jdbi);
         com.organizer3.web.TitleFolderRenamer titleFolderRenamer =
                 new com.organizer3.web.TitleFolderRenamer(smbConnectionFactory, jdbi, serviceableStagingVolumeIds);
+        // Post-commit SMB executor: runs best-effort folder renames + NAS cover writes OFF the
+        // request thread so an SMB stall never blocks a promote/save HTTP response. Dropped or
+        // failed tasks are healed by promotionRenameReconciler (the durability backstop). Shared
+        // by DraftPromotionService and UnsortedEditorService. See spec/PROPOSAL_ASYNC_PROMOTE_SMB.md.
+        com.organizer3.web.PostCommitSmbExecutor postCommitSmbExecutor =
+                new com.organizer3.web.PostCommitSmbExecutor();
         com.organizer3.web.UnsortedEditorService unsortedEditorService =
                 new com.organizer3.web.UnsortedEditorService(unsortedRepo, actressRepo, coverPath,
                         smbConnectionFactory, serviceableStagingVolumeIds,
-                        volumeSmbPaths, titleFolderRenamer, null);
+                        volumeSmbPaths, titleFolderRenamer, null, postCommitSmbExecutor);
         com.organizer3.web.CoverWriteService coverWriteService =
                 new com.organizer3.web.CoverWriteService(smbConnectionFactory, coverPath);
         webServer.registerUnsortedEditor(new com.organizer3.web.routes.UnsortedEditorRoutes(
@@ -1188,7 +1194,8 @@ public class Application {
                         coverWriteService,        // best-effort NAS cover write at promotion
                         castPresenceCheck,        // Item B: kanji-presence guard at promotion
                         enrichmentReviewQueueRepo, // Item B: enqueue guard_cast_mismatch
-                        ageAtReleaseRecomputer);  // Task 2b: recompute age_at_release post-promotion
+                        ageAtReleaseRecomputer,   // Task 2b: recompute age_at_release post-promotion
+                        postCommitSmbExecutor);   // async post-commit SMB ops (spec/PROPOSAL_ASYNC_PROMOTE_SMB.md)
         com.organizer3.javdb.draft.DraftPatchService draftPatchService =
                 new com.organizer3.javdb.draft.DraftPatchService(
                         jdbi, draftTitleRepo, draftActressRepo, draftCastRepo);
@@ -1400,6 +1407,7 @@ public class Application {
         revalidationCronScheduler.stop(10);
         draftGcScheduler.stop();
         promotionRenameReconcileScheduler.stop();
+        postCommitSmbExecutor.shutdown();
         backupScheduler.stop();
         probeJobRunner.shutdown();
         thumbnailService.shutdown();
