@@ -35,6 +35,8 @@ public class PromotionRenameReconcileScheduler {
     private static final int INITIAL_DELAY_SECONDS = 120;
 
     private final PromotionFolderRenameReconciler reconciler;
+    /** Nullable — when present, each tick also drives the cover reconciler (shared cadence). */
+    private final PromotionCoverReconciler coverReconciler;
     private final int intervalSeconds;
     private final int batchLimit;
 
@@ -45,10 +47,18 @@ public class PromotionRenameReconcileScheduler {
     });
 
     public PromotionRenameReconcileScheduler(PromotionFolderRenameReconciler reconciler,
+                                             PromotionCoverReconciler coverReconciler,
                                              int intervalSeconds, int batchLimit) {
         this.reconciler = reconciler;
+        this.coverReconciler = coverReconciler;
         this.intervalSeconds = intervalSeconds;
         this.batchLimit = batchLimit;
+    }
+
+    /** Back-compat ctor — no cover reconciler (existing tests / callers unaffected). */
+    public PromotionRenameReconcileScheduler(PromotionFolderRenameReconciler reconciler,
+                                             int intervalSeconds, int batchLimit) {
+        this(reconciler, null, intervalSeconds, batchLimit);
     }
 
     /** Schedule the recurring reconcile pass. */
@@ -72,12 +82,23 @@ public class PromotionRenameReconcileScheduler {
         }
     }
 
-    /** A single pass — a sweep must never throw out of the executor. */
-    private void runOnce() {
+    /**
+     * A single pass — a sweep must never throw out of the executor. Drives both the rename and
+     * (when present) the cover reconciler; each is guarded so one throwing never suppresses the
+     * other. Package-private for direct invocation in tests.
+     */
+    void runOnce() {
         try {
             reconciler.reconcile(batchLimit);
         } catch (Exception e) {
             log.error("Promotion rename reconcile pass failed", e);
+        }
+        if (coverReconciler != null) {
+            try {
+                coverReconciler.reconcile(batchLimit);
+            } catch (Exception e) {
+                log.error("Promotion cover reconcile pass failed", e);
+            }
         }
     }
 }

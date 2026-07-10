@@ -58,8 +58,11 @@ public class CoverWriteService {
      *
      * <p>{@code folderPath} and {@code volumeId} must originate from the same resolution act;
      * never resolve the volume independently of the path.
+     *
+     * @return {@code true} iff the {@code withRetry} write completed without throwing;
+     *         {@code false} on final (swallowed) failure. Never throws.
      */
-    public void saveToNasBestEffort(String folderPath, String baseCode, byte[] bytes, String volumeId) {
+    public boolean saveToNasBestEffort(String folderPath, String baseCode, byte[] bytes, String volumeId) {
         try {
             // Route through withRetry so a broken-pipe/transport drop mid-write is retried
             // once against a fresh connection. Still best-effort: final failure is swallowed.
@@ -70,9 +73,11 @@ public class CoverWriteService {
                 log.info("Saved cover to NAS (best-effort): {} on {} ({} bytes)", target, volumeId, bytes.length);
                 return null;
             });
+            return true;
         } catch (Exception e) {
             log.warn("Best-effort NAS cover write failed for {}/{}.jpg on {}: {}",
                     folderPath, baseCode, volumeId, e.getMessage());
+            return false;
         }
     }
 

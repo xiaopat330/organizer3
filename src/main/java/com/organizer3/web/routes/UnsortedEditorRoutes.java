@@ -168,6 +168,11 @@ public class UnsortedEditorRoutes {
                 return;
             }
 
+            // Belt-and-suspenders (spec/PROPOSAL_COVER_CONFIRMATION.md Part 6): a successful manual
+            // override supersedes the promote-time cache cover, so clear any pending flag on this
+            // location — the reconciler must not re-push the (now-superseded) cache bytes.
+            editor.clearCoverPending(id, detail.detail().volumeId(), detail.detail().folderPath());
+
             boolean hasCoverNow = coverPath.exists(title);
             ctx.json(Map.of(
                     "extension", extension,

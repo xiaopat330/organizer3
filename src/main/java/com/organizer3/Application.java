@@ -1172,9 +1172,15 @@ public class Application {
         com.organizer3.javdb.draft.PromotionFolderRenameReconciler promotionRenameReconciler =
                 new com.organizer3.javdb.draft.PromotionFolderRenameReconciler(
                         jdbi, titleFolderRenamer, serviceableStagingVolumeIds);
+        // Self-healing reconciler for promotion NAS cover writes that were dropped/crashed/failed
+        // post-commit (spec/PROPOSAL_COVER_CONFIRMATION.md). Shares the rename scheduler's tick.
+        com.organizer3.javdb.draft.PromotionCoverReconciler promotionCoverReconciler =
+                new com.organizer3.javdb.draft.PromotionCoverReconciler(
+                        jdbi, coverWriteService, coverPath, serviceableStagingVolumeIds);
         com.organizer3.javdb.draft.PromotionRenameReconcileScheduler promotionRenameReconcileScheduler =
                 new com.organizer3.javdb.draft.PromotionRenameReconcileScheduler(
                         promotionRenameReconciler,
+                        promotionCoverReconciler,
                         com.organizer3.javdb.draft.PromotionRenameReconcileScheduler.DEFAULT_INTERVAL_SECONDS,
                         com.organizer3.javdb.draft.PromotionRenameReconcileScheduler.DEFAULT_BATCH_LIMIT);
         com.organizer3.javdb.draft.CastValidator castValidator =

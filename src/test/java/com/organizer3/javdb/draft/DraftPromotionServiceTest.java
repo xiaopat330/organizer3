@@ -672,6 +672,95 @@ class DraftPromotionServiceTest {
         verify(coverWriteService, never()).saveToNasBestEffort(any(), any(), any(), any());
     }
 
+    // ── Cover-write confirmation flag (spec/PROPOSAL_COVER_CONFIRMATION.md Part 3) ─────
+
+    /** Reads cover_pending_since on the live 'unsorted' staging location for the given title. */
+    private String coverPendingSince(long titleId) {
+        return jdbi.withHandle(h ->
+                h.createQuery("SELECT cover_pending_since FROM title_locations"
+                        + " WHERE title_id = :tid AND volume_id = 'unsorted' AND stale_since IS NULL")
+                        .bind("tid", titleId)
+                        .mapTo(String.class).findOne().orElse(null));
+    }
+
+    /**
+     * Inline path (null executor), NAS write succeeds → the flag is set pessimistically before the
+     * write and cleared synchronously after it confirms.
+     */
+    @Test
+    void coverPending_clearedWhenNasWriteSucceeds_inline() throws Exception {
+        seedStagingLocation(1L);
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+        coverStore.write(draftId, new byte[]{42, 43, 44});
+        when(coverWriteService.saveToNasBestEffort(any(), any(), any(), any())).thenReturn(true);
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        assertNull(coverPendingSince(1L), "flag must be cleared once the NAS write confirms");
+    }
+
+    /**
+     * Inline path, NAS write fails (mock returns false) → the flag is left set for the reconciler.
+     */
+    @Test
+    void coverPending_leftSetWhenNasWriteFails_inline() throws Exception {
+        seedStagingLocation(1L);
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+        coverStore.write(draftId, new byte[]{42, 43, 44});
+        // coverWriteService mock returns false by default → write "failed".
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        assertNotNull(coverPendingSince(1L), "flag must be left pending when the NAS write fails");
+    }
+
+    /**
+     * A promote with no cover (no scratch) must never mark the location pending.
+     */
+    @Test
+    void coverPending_neverSetWhenNoCover() throws Exception {
+        seedStagingLocation(1L);
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+        // No scratch cover written.
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        assertNull(coverPendingSince(1L), "no cover to write → flag must stay NULL");
+        verify(coverWriteService, never()).saveToNasBestEffort(any(), any(), any(), any());
+    }
+
+    /**
+     * Async dispatch: the pessimistic set runs in the request thread BEFORE dispatch, so with a
+     * mock executor that never runs the submitted Runnable the flag remains set after promote —
+     * proving the flag is set before (not inside) the async task.
+     */
+    @Test
+    void coverPending_setBeforeDispatch_async() throws Exception {
+        seedStagingLocation(1L);
+        long draftId = seedDraft(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L);
+        coverStore.write(draftId, new byte[]{42, 43, 44});
+
+        PostCommitSmbExecutor mockExecutor = Mockito.mock(PostCommitSmbExecutor.class);
+        DraftPromotionService asyncService = new DraftPromotionService(
+                jdbi, draftTitleRepo, draftActressRepo, draftCastRepo,
+                draftEnrichRepo, coverStore, coverPath, new CastValidator(),
+                titleRepo, new EnrichmentHistoryRepository(jdbi, JSON),
+                new TitleEffectiveTagsService(jdbi), JSON, suggestionRepo,
+                javdbStagingRepo, actressRepo,
+                java.util.Set.of("unsorted"), renamer,
+                coverWriteService,
+                null, null,
+                null,
+                mockExecutor);
+
+        asyncService.promote(draftId, "2024-06-01T00:00:00Z");
+
+        // Mock executor never ran the Runnable, so the clear never fired.
+        verify(mockExecutor, times(1)).submit(eq("promote:TST-1"), any(Runnable.class));
+        assertNotNull(coverPendingSince(1L),
+                "flag must be set before async dispatch (and left set until the task confirms)");
+    }
+
     // ── Enrichment title_original / title_original_en (translation-sweeper feed) ──
 
     /**

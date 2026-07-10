@@ -112,6 +112,7 @@ public class SchemaInitializer {
                         added_date    TEXT,
                         stale_since   TEXT,
                         curated_at    TEXT,
+                        cover_pending_since TEXT,
                         UNIQUE(title_id, volume_id, path)
                     )""");
 
@@ -853,7 +854,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 71");
+                h.execute("PRAGMA user_version = 72");
             }
         });
         log.info("Schema initialization complete");

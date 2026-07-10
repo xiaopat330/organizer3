@@ -414,6 +414,46 @@ public class DraftPromotionService {
         }
         final byte[] coverBytesForNas = coverBytesTmp;
 
+        // Cover-write confirmation (spec/PROPOSAL_COVER_CONFIRMATION.md): resolve the destination
+        // location ONCE here in the request thread — same query the async task used to run — mark
+        // it pending pessimistically BEFORE the async dispatch, and capture the resolved values as
+        // finals so the task reuses them (no duplicate in-task query). The flag is cleared only
+        // when the NAS write completes without throwing; a dropped/crashed/failed write leaves the
+        // row pending for PromotionCoverReconciler to heal. Only mark when a cover actually exists
+        // to write and a serviceable location resolves.
+        Long   coverLocIdTmp   = null;
+        String coverDestVolTmp = null;
+        String coverDestPathTmp = null;
+        if (coverBytesForNas != null && coverWriteService != null
+                && serviceableVolumeIds != null && !serviceableVolumeIds.isEmpty()) {
+            // Resolve the staging volume AND path (plus row id) in one query so all originate from
+            // the same resolution act — the cover must be written to whichever serviceable volume
+            // the title actually lives on, never a differently-sourced volume.
+            Object[] loc = jdbi.withHandle(h -> h.createQuery(
+                    "SELECT id AS id, volume_id AS v, path AS p FROM title_locations " +
+                    "WHERE title_id = :tid AND volume_id IN (<vols>) AND stale_since IS NULL " +
+                    "ORDER BY added_date ASC, volume_id ASC LIMIT 1")
+                    .bind("tid", titleId)
+                    .bindList("vols", java.util.List.copyOf(serviceableVolumeIds))
+                    .map((rs, ctx) -> new Object[]{ rs.getLong("id"), rs.getString("v"), rs.getString("p") })
+                    .findFirst().orElse(null));
+            if (loc != null && loc[2] != null) {
+                coverLocIdTmp    = (Long) loc[0];
+                coverDestVolTmp  = (String) loc[1];
+                coverDestPathTmp = (String) loc[2];
+                final long locId = coverLocIdTmp;
+                final String pendingNow = java.time.Instant.now().toString();
+                jdbi.useHandle(h -> h.createUpdate(
+                        "UPDATE title_locations SET cover_pending_since = :now WHERE id = :id")
+                        .bind("now", pendingNow)
+                        .bind("id", locId)
+                        .execute());
+            }
+        }
+        final Long   coverLocId    = coverLocIdTmp;
+        final String coverDestVol  = coverDestVolTmp;
+        final String coverDestPath = coverDestPathTmp;
+
         // Post-commit Step 10 (Phase 2) + NAS cover write: a single Runnable performing, in
         // order, (a) the best-effort NAS cover write — so the cover rides the folder rename and
         // survives cross-volume redistribution — then (b) the best-effort folder rename. The
@@ -425,24 +465,22 @@ public class DraftPromotionService {
         final boolean[] renamedHolder = {false};
         Runnable folderOps = () -> {
             // (a) NAS cover write. Pre-rename path is intentional — the folder rename below
-            // moves the cover along.
-            if (coverBytesForNas != null && coverWriteService != null
-                    && serviceableVolumeIds != null && !serviceableVolumeIds.isEmpty()) {
+            // moves the cover along. Reuse the location resolved in the request thread (coverLocId
+            // is non-null iff a serviceable location was found and marked pending above).
+            if (coverBytesForNas != null && coverWriteService != null && coverLocId != null) {
                 try {
-                    // Resolve the staging volume AND path in one query so both originate from the
-                    // same resolution act — the cover must be written to whichever serviceable
-                    // volume the title actually lives on, never a differently-sourced volume.
-                    String[] loc = jdbi.withHandle(h -> h.createQuery(
-                            "SELECT volume_id AS v, path AS p FROM title_locations " +
-                            "WHERE title_id = :tid AND volume_id IN (<vols>) AND stale_since IS NULL " +
-                            "ORDER BY added_date ASC, volume_id ASC LIMIT 1")
-                            .bind("tid", titleId)
-                            .bindList("vols", java.util.List.copyOf(serviceableVolumeIds))
-                            .map((rs, ctx) -> new String[]{ rs.getString("v"), rs.getString("p") })
-                            .findFirst().orElse(null));
                     Title t = titleRepo.findById(titleId).orElse(null);
-                    if (loc != null && loc[1] != null && t != null) {
-                        coverWriteService.saveToNasBestEffort(loc[1], t.getBaseCode(), coverBytesForNas, loc[0]);
+                    if (t != null) {
+                        boolean ok = coverWriteService.saveToNasBestEffort(
+                                coverDestPath, t.getBaseCode(), coverBytesForNas, coverDestVol);
+                        if (ok) {
+                            // Confirmed: the NAS write completed without throwing — clear the flag.
+                            jdbi.useHandle(h -> h.createUpdate(
+                                    "UPDATE title_locations SET cover_pending_since = NULL WHERE id = :id")
+                                    .bind("id", coverLocId)
+                                    .execute());
+                        }
+                        // on !ok: leave pending — PromotionCoverReconciler heals it.
                     }
                 } catch (Exception e) {
                     log.warn("promote: NAS cover write failed post-commit (titleId={}): {}", titleId, e.getMessage());
