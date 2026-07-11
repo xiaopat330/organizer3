@@ -59,6 +59,17 @@ a host that needed *fewer* new connections, not more.
 3. **Surface a health signal.** Expose (status endpoint and/or a periodic single-line log summary)
    per-volume `{pendingRenames, pendingCovers, dialsFailingSince}` so a degraded NAS is visible
    instead of inferred from a thread dump.
+4. **Widen reconciler scope to cover no-draft-curated titles.** The scheduled rename reconciler
+   runs `PromotionFolderRenameReconciler.reconcile()`, scoped to `grade_source='enrichment'`
+   (draft-promoted titles only). A **manually-curated (no-draft) title** — `curated_at` set,
+   `grade_source` NULL, real cast credit — whose save-time folder rename fails during an outage is
+   therefore **never self-healed** (observed 2026-07-11: `JIMMY-001` stayed at `/fresh/(JIMMY-001)`
+   after the whole enrichment backlog cleared, and had to be renamed by hand via `rename_title_folder`).
+   The class already has an all-scopes `backfill()` path (`findAllCandidates`, any `grade_source`,
+   `actress_id IS NOT NULL`) — it is just not run on the scheduler. Fix: have the scheduler also run
+   a bounded `backfill()` pass (or drop the `grade_source='enrichment'` predicate from the scheduled
+   scope), so no-draft-curated strandings self-heal too. Guard against the documented dup-fresh-copy
+   case (`grade_source IS NULL` + no real cast) via the existing empty-cast skip.
 
 **Acceptance.** With new dials failing but a live connection present, the reconciler makes progress
 (or, if genuinely impossible, backs off and emits a health signal) rather than silently burning the
