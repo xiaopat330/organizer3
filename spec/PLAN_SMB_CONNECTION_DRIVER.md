@@ -118,6 +118,14 @@ re-opens. Failures spread beyond the window don't trip it.
 **Gate:** build+test green · Opus diff review · **advisor-vet** (breaker semantics are subtle) · live
 smoke: force a dead host (e.g. wrong host briefly) and confirm fast-fail + recovery.
 
+**Known limitation (accepted for Wave 2):** the breaker keys on **host**, but `dial()` fails the same
+way whether the failure is host-level (`client.connect`/`authenticate` — the VPN-switch case we
+optimize for) or volume-level (`connectShare` — a bad/permission-denied share name). So a single
+persistently-misconfigured volume can open its host's breaker and briefly fast-fail *healthy sibling
+volumes* on that host for a cooldown cycle. This is a deliberate tradeoff (a VPN switch genuinely
+downs the whole host) and it self-recovers via the half-open probe. Optional future refinement: count
+only `connect`/`authenticate` failures (host-level) toward the breaker, not `connectShare`.
+
 ---
 
 ## Wave 3 — Network-change teardown  *(the proposal's Stage 2)*

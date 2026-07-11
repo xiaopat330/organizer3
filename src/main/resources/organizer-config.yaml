@@ -287,6 +287,9 @@ structures:
 #   readTimeoutSeconds: 45        # wait on a dead connection before failing (fast self-heal; default 45)
 #   transactTimeoutSeconds: 45    # overall wait per SMB request on a dead connection (default 45)
 #   closeTimeoutSeconds: 5        # max wait to tear down a pooled connection before abandoning (default 5)
+#   dialBackoffThreshold: 3       # dial failures per host within the window before the breaker opens (default 3)
+#   dialBackoffWindowSeconds: 60  # sliding window for counting per-host dial failures (default 60)
+#   dialBackoffCooldownSeconds: 30 # per-host fast-fail cooldown before one half-open probe dial (default 30)
 
 # Sync reconciliation — see spec/PROPOSAL_SYNC_RECONCILIATION.md.
 # A title_locations row not observed during a sync is marked stale rather than

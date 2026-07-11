@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -43,7 +44,7 @@ class SmbConnectionFactoryTest {
     void dialTimeout_derivedFromDialTimeoutSeconds_customValue() {
         OrganizerConfig config = mock(OrganizerConfig.class);
         // Custom: dialTimeoutSeconds=5; transactTimeoutMinutes=5 (300_000 ms) must NOT be used.
-        when(config.smbOrDefaults()).thenReturn(new SmbSettings(null, null, 5, null, null, 5, null, null, null));
+        when(config.smbOrDefaults()).thenReturn(new SmbSettings(null, null, 5, null, null, 5, null, null, null, null, null, null));
         SmbConnectionFactory factory = new SmbConnectionFactory(config, mock(SMBClient.class));
         assertEquals(5_000L, factory.dialTimeoutMillisForTesting(),
                 "dialTimeoutSeconds=5 should produce dialTimeoutMillis=5000, not transact-minutes value");
@@ -156,6 +157,10 @@ class SmbConnectionFactoryTest {
         // but still big enough for non-hanging tests to finish. SmbSettings is minutes-only, so
         // the timeout-test uses its own override path (we'll bound via thread-interrupt instead).
         when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
+        // The Wave-2 breaker resolves the host via findById(volumeId) before dialing; the dial()
+        // override bypasses real smbj, so resolve every id to a synthetic single host.
+        when(config.findById(anyString())).thenAnswer(inv -> Optional.of(
+                new VolumeConfig(inv.getArgument(0), "//testhost/share", "conventional", "testhost", null)));
         return config;
     }
 
@@ -263,6 +268,8 @@ class SmbConnectionFactoryTest {
     void dialTimesOutWhenAuthenticateHangs() throws Exception {
         OrganizerConfig config = mock(OrganizerConfig.class);
         when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
+        when(config.findById(anyString())).thenAnswer(inv -> Optional.of(
+                new VolumeConfig(inv.getArgument(0), "//testhost/share", "conventional", "testhost", null)));
         CountDownLatch neverReleased = new CountDownLatch(1);
         TestableFactory factory = new TestableFactory(config) {
             @Override
@@ -412,6 +419,99 @@ class SmbConnectionFactoryTest {
             assertTrue(elapsedMs < 3000, "shutdown must stay bounded even when closes hang; took " + elapsedMs + "ms");
         } finally {
             releaseClose.countDown();
+        }
+    }
+
+    // ---------- Per-host dial breaker (Wave 2) ----------
+
+    /** Config with volume "a" -> host "pandora" so hostFor() resolves without dialing. */
+    private static OrganizerConfig configWithVolumeA() {
+        OrganizerConfig config = mock(OrganizerConfig.class);
+        when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
+        VolumeConfig volume = new VolumeConfig("a", "//pandora/jav_A", "conventional", "pandora", null);
+        when(config.findById("a")).thenReturn(Optional.of(volume));
+        return config;
+    }
+
+    /**
+     * PROOF OF VALUE: after {@code threshold} dial failures the breaker opens and the next
+     * {@code open()} FAST-FAILS WITHOUT calling {@code dial()} — the dial counter does not advance.
+     * This is the entire point of Wave 2 (kills the N-items x dial-timeout reconciler thrash).
+     */
+    @Test
+    void afterThresholdFailures_nextAcquireFastFailsWithoutDialing() throws Exception {
+        TestableFactory factory = new TestableFactory(configWithVolumeA());
+        AtomicLong clock = new AtomicLong(10_000L);
+        factory.setNowMillisForTesting(clock::get);
+        factory.setDialBackoffForTesting(3, 60_000L, 30_000L);
+        factory.onDial("a", v -> { throw new IOException("simulated dead host"); });
+        try {
+            // 3 real dials, each failing → 3rd opens the breaker.
+            for (int i = 0; i < 3; i++) {
+                assertThrows(IOException.class, () -> factory.open("a"));
+            }
+            assertEquals(3, factory.dialCount(), "threshold dials should have actually run");
+            assertTrue(factory.dialBreakerForTesting().isOpen("pandora"), "breaker must be open");
+
+            // 4th acquire: breaker is open → fast-fail with the backoff message, NO new dial.
+            IOException ex = assertThrows(IOException.class, () -> factory.open("a"));
+            assertTrue(ex.getMessage().contains("dial-backoff"),
+                    "fast-fail must surface the backoff message, got: " + ex.getMessage());
+            assertEquals(3, factory.dialCount(),
+                    "open() while breaker is OPEN must NOT invoke dial() — dial count stays at threshold");
+        } finally {
+            factory.shutdown();
+        }
+    }
+
+    /**
+     * After the cooldown elapses, exactly one half-open probe is allowed: the next {@code open()}
+     * DOES invoke {@code dial()} once. A succeeding probe closes the breaker (recovery).
+     */
+    @Test
+    void afterCooldown_halfOpenProbeInvokesDialOnce_successCloses() throws Exception {
+        TestableFactory factory = new TestableFactory(configWithVolumeA());
+        AtomicLong clock = new AtomicLong(10_000L);
+        factory.setNowMillisForTesting(clock::get);
+        factory.setDialBackoffForTesting(3, 60_000L, 30_000L);
+        AtomicInteger failuresLeft = new AtomicInteger(3);
+        factory.onDial("a", v -> {
+            if (failuresLeft.getAndDecrement() > 0) throw new IOException("simulated dead host");
+            return new SmbConnectionFactory.PooledShare("");   // probe succeeds
+        });
+        try {
+            for (int i = 0; i < 3; i++) assertThrows(IOException.class, () -> factory.open("a"));
+            assertEquals(3, factory.dialCount());
+            assertTrue(factory.dialBreakerForTesting().isOpen("pandora"));
+
+            // Still within cooldown → fast-fail, no dial.
+            assertThrows(IOException.class, () -> factory.open("a"));
+            assertEquals(3, factory.dialCount(), "within cooldown must not dial");
+
+            // Advance past the 30s cooldown → one half-open probe dial is allowed and succeeds.
+            clock.addAndGet(30_000L);
+            factory.open("a");
+            assertEquals(4, factory.dialCount(), "half-open probe must invoke dial() exactly once");
+            assertFalse(factory.dialBreakerForTesting().isOpen("pandora"),
+                    "successful probe must close the breaker");
+        } finally {
+            factory.shutdown();
+        }
+    }
+
+    /** A config/resolve failure (unknown volume) must propagate WITHOUT touching the breaker. */
+    @Test
+    void unknownVolume_doesNotRecordDialFailure() throws Exception {
+        OrganizerConfig config = mock(OrganizerConfig.class);
+        when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
+        when(config.findById("ghost")).thenReturn(Optional.empty());
+        TestableFactory factory = new TestableFactory(config);
+        try {
+            IOException ex = assertThrows(IOException.class, () -> factory.open("ghost"));
+            assertTrue(ex.getMessage().contains("Unknown volume"));
+            assertEquals(0, factory.dialCount(), "config error must not invoke dial()");
+        } finally {
+            factory.shutdown();
         }
     }
 

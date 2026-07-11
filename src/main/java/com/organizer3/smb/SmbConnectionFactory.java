@@ -74,8 +74,14 @@ public class SmbConnectionFactory {
     private volatile long dialTimeoutMillis;
     private volatile long closeTimeoutMillis;
     // Injectable wall-clock source (foundational seam for later waves' TTL/idle/age logic).
-    // Not on any hot path in Wave 1; present so time-based tests can advance it instead of sleeping.
+    // Read on the hot path from Wave 2 on — the breaker times cooldowns/windows through it.
     private volatile LongSupplier nowMillis = System::currentTimeMillis;
+    // Per-host dial circuit-breaker (Wave 2). A VPN switch downs a whole host; the breaker
+    // fast-fails every volume on that host after a few dial failures and allows one half-open
+    // probe per cooldown, killing the reconciler's N-items x dial-timeout thrash. Reads the
+    // clock through the live nowMillis field so setNowMillisForTesting (set after construction)
+    // reaches it. Volatile so setDialBackoffForTesting can rebuild it.
+    private volatile HostDialBreaker breaker;
     // Visible for testing.
     void setDialTimeoutMillisForTesting(long millis) { this.dialTimeoutMillis = millis; }
     // Visible for testing — read back the effective dial timeout after construction.
@@ -86,6 +92,12 @@ public class SmbConnectionFactory {
     void setNowMillisForTesting(LongSupplier supplier) { this.nowMillis = supplier; }
     // Visible for testing — read the current wall-clock value through the injectable source.
     long nowMillisForTesting() { return this.nowMillis.getAsLong(); }
+    // Visible for testing — rebuild the breaker with explicit params (keeps the live clock supplier).
+    void setDialBackoffForTesting(int threshold, long windowMillis, long cooldownMillis) {
+        this.breaker = new HostDialBreaker(() -> nowMillis.getAsLong(), threshold, windowMillis, cooldownMillis);
+    }
+    // Visible for testing — the breaker instance (for direct state assertions).
+    HostDialBreaker dialBreakerForTesting() { return this.breaker; }
     private volatile boolean shutdown = false;
 
     public SmbConnectionFactory(OrganizerConfig config) {
@@ -119,6 +131,15 @@ public class SmbConnectionFactory {
         // before abandoning the teardown to the daemon close worker.
         this.closeTimeoutMillis = TimeUnit.SECONDS.toMillis(
                 config.smbOrDefaults().closeTimeoutSecondsOrDefault());
+        // Per-host dial breaker (Wave 2). Window/cooldown are seconds in config, millis here.
+        // The clock is supplied as a live deref of nowMillis so tests that swap nowMillis after
+        // construction (setNowMillisForTesting) still drive the breaker's timing.
+        SmbSettings smb = config.smbOrDefaults();
+        this.breaker = new HostDialBreaker(
+                () -> nowMillis.getAsLong(),
+                smb.dialBackoffThresholdOrDefault(),
+                TimeUnit.SECONDS.toMillis(smb.dialBackoffWindowSecondsOrDefault()),
+                TimeUnit.SECONDS.toMillis(smb.dialBackoffCooldownSecondsOrDefault()));
     }
 
     private static ExecutorService newDaemonExecutor(String namePrefix) {
@@ -301,7 +322,23 @@ public class SmbConnectionFactory {
                 closeBounded(existing);
             }
             if (shutdown) throw new IOException("SmbConnectionFactory is shut down");
-            PooledShare fresh = dialWithTimeout(volumeId);
+            // Resolve the host FIRST — a config/resolve failure is not a dial failure and must not
+            // touch the breaker (it propagates unchanged). Then consult the per-host breaker: when
+            // it is open, fast-fail here BEFORE submitting a dial that would just burn the timeout.
+            String host = hostFor(volumeId);
+            breaker.checkOpenOrThrow(host);
+            // A caller that passed checkOpenOrThrow may hold the single half-open probe, so it MUST
+            // report the outcome exactly once. Use finally (not a narrow catch) so an Error can't
+            // leak the probe flag and wedge the host in HALF_OPEN forever.
+            PooledShare fresh;
+            boolean dialOk = false;
+            try {
+                fresh = dialWithTimeout(volumeId);
+                dialOk = true;
+            } finally {
+                if (dialOk) breaker.recordSuccess(host);
+                else breaker.recordFailure(host);
+            }
             pool.put(volumeId, fresh);
             mine.complete(fresh);
             return fresh;
@@ -353,6 +390,18 @@ public class SmbConnectionFactory {
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted while dialling volume " + volumeId, e);
         }
+    }
+
+    /**
+     * Resolves the NAS host for a volume WITHOUT dialing, reusing the same {@code smbPath} parse
+     * that {@link #dial} uses. Lets the per-host breaker key on host before any network work.
+     * Throws if the volume is unknown or its {@code smbPath} is malformed (a config error — the
+     * caller lets it propagate without recording a dial failure).
+     */
+    private String hostFor(String volumeId) throws IOException {
+        VolumeConfig volume = config.findById(volumeId)
+                .orElseThrow(() -> new IOException("Unknown volume: " + volumeId));
+        return parseSmbPath(volume.smbPath()).host;
     }
 
     /** Visible for testing — override to simulate dial outcomes. */

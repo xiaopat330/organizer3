@@ -28,7 +28,10 @@ public record SmbSettings(
         @JsonProperty("dialTimeoutSeconds")      Integer dialTimeoutSeconds,
         @JsonProperty("readTimeoutSeconds")      Integer readTimeoutSeconds,
         @JsonProperty("transactTimeoutSeconds")  Integer transactTimeoutSeconds,
-        @JsonProperty("closeTimeoutSeconds")     Integer closeTimeoutSeconds
+        @JsonProperty("closeTimeoutSeconds")     Integer closeTimeoutSeconds,
+        @JsonProperty("dialBackoffThreshold")      Integer dialBackoffThreshold,
+        @JsonProperty("dialBackoffWindowSeconds")  Integer dialBackoffWindowSeconds,
+        @JsonProperty("dialBackoffCooldownSeconds") Integer dialBackoffCooldownSeconds
 ) {
     public static final int DEFAULT_READ_TIMEOUT_MINUTES      = 5;
     public static final int DEFAULT_WRITE_TIMEOUT_MINUTES     = 5;
@@ -39,9 +42,13 @@ public record SmbSettings(
     public static final int DEFAULT_READ_TIMEOUT_SECONDS      = 45;
     public static final int DEFAULT_TRANSACT_TIMEOUT_SECONDS  = 45;
     public static final int DEFAULT_CLOSE_TIMEOUT_SECONDS     = 5;
+    public static final int DEFAULT_DIAL_BACKOFF_THRESHOLD       = 3;
+    public static final int DEFAULT_DIAL_BACKOFF_WINDOW_SECONDS  = 60;
+    public static final int DEFAULT_DIAL_BACKOFF_COOLDOWN_SECONDS = 30;
 
     /** Singleton default instance — all fields use their defaults. */
-    public static final SmbSettings DEFAULTS = new SmbSettings(null, null, null, null, null, null, null, null, null);
+    public static final SmbSettings DEFAULTS =
+            new SmbSettings(null, null, null, null, null, null, null, null, null, null, null, null);
 
     public int readTimeoutMinutesOrDefault() {
         return readTimeoutMinutes != null ? readTimeoutMinutes : DEFAULT_READ_TIMEOUT_MINUTES;
@@ -77,5 +84,17 @@ public record SmbSettings(
 
     public int closeTimeoutSecondsOrDefault() {
         return closeTimeoutSeconds != null ? closeTimeoutSeconds : DEFAULT_CLOSE_TIMEOUT_SECONDS;
+    }
+
+    public int dialBackoffThresholdOrDefault() {
+        return dialBackoffThreshold != null ? dialBackoffThreshold : DEFAULT_DIAL_BACKOFF_THRESHOLD;
+    }
+
+    public int dialBackoffWindowSecondsOrDefault() {
+        return dialBackoffWindowSeconds != null ? dialBackoffWindowSeconds : DEFAULT_DIAL_BACKOFF_WINDOW_SECONDS;
+    }
+
+    public int dialBackoffCooldownSecondsOrDefault() {
+        return dialBackoffCooldownSeconds != null ? dialBackoffCooldownSeconds : DEFAULT_DIAL_BACKOFF_COOLDOWN_SECONDS;
     }
 }
