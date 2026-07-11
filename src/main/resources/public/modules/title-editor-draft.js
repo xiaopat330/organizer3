@@ -12,6 +12,21 @@ import { openAliasCaptureModal } from './alias-capture-modal.js';
 const draftPane         = document.getElementById('queue-draft-pane');
 const draftCodeEl       = document.getElementById('queue-draft-code');
 const draftFolderEl     = document.getElementById('queue-draft-folder');
+
+// ── Code copy ──────────────────────────────────────────────────────────────
+// Click the code chip to copy it to the clipboard (mirrors the v2 editor).
+// Class + listener attached once at init; the handler reads the current code
+// from textContent at click time so it stays correct across re-renders.
+draftCodeEl?.classList.add('queue-code-copyable');
+draftCodeEl?.setAttribute('title', 'Click to copy');
+draftCodeEl?.addEventListener('click', () => {
+  const code = (draftCodeEl.textContent || '').trim();
+  if (!code) return;
+  navigator.clipboard?.writeText(code).then(() => {
+    draftCodeEl.classList.add('queue-code-copied');
+    setTimeout(() => draftCodeEl.classList.remove('queue-code-copied'), 1100);
+  }).catch(() => {});
+});
 const upstreamBanner    = document.getElementById('queue-upstream-changed-banner');
 const upstreamDiscardBtn  = document.getElementById('queue-upstream-discard-btn');
 const upstreamContinueBtn = document.getElementById('queue-upstream-continue-btn');

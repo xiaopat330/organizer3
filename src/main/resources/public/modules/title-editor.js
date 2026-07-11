@@ -25,6 +25,21 @@ const pane          = document.getElementById('queue-editor-pane');
 const codeEl        = document.getElementById('queue-editor-code');
 const folderEl      = document.getElementById('queue-editor-folder');
 
+// ── Code copy ──────────────────────────────────────────────────────────────
+// Click the code chip to copy it to the clipboard (mirrors the v2 editor).
+// Class + listener attached once at init; the handler reads the current code
+// from textContent at click time so it stays correct across re-renders.
+codeEl?.classList.add('queue-code-copyable');
+codeEl?.setAttribute('title', 'Click to copy');
+codeEl?.addEventListener('click', () => {
+  const code = (codeEl.textContent || '').trim();
+  if (!code) return;
+  navigator.clipboard?.writeText(code).then(() => {
+    codeEl.classList.add('queue-code-copied');
+    setTimeout(() => codeEl.classList.remove('queue-code-copied'), 1100);
+  }).catch(() => {});
+});
+
 /**
  * Render the header folder field: a "Folder" label + the full canonical NAS
  * path (copy-clickable, OS-adjusted) when folderNasPath is present; otherwise
