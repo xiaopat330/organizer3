@@ -1,6 +1,7 @@
 package com.organizer3.translation.repository.jdbi;
 
 import com.organizer3.translation.StageNameSuggestionRow;
+import com.organizer3.translation.TranslationNormalization;
 import com.organizer3.translation.repository.StageNameSuggestionRepository;
 import lombok.RequiredArgsConstructor;
 import org.jdbi.v3.core.Jdbi;
@@ -149,19 +150,30 @@ public class JdbiStageNameSuggestionRepository implements StageNameSuggestionRep
 
     @Override
     public Optional<String> findLatestUsableSuggestion(String normalizedKanji) {
-        return jdbi.withHandle(h ->
+        // Fetch all usable candidates newest-first, then return the first that is
+        // actual Latin romaji. A few stored suggestions contain kanji (a failed
+        // translation that merely reordered the kanji), and those must never be
+        // served as ready romaji — even if they are the newest row. Skipping them
+        // lets an older valid-romaji suggestion for the same kanji still win.
+        List<String> candidates = jdbi.withHandle(h ->
                 h.createQuery("""
                         SELECT COALESCE(final_romaji, suggested_romaji)
                         FROM stage_name_suggestion
                         WHERE kanji_form = :kanji
                           AND (review_decision IS NULL OR review_decision = 'accepted')
                         ORDER BY id DESC
-                        LIMIT 1
                         """)
                         .bind("kanji", normalizedKanji)
                         .mapTo(String.class)
-                        .findFirst()
+                        .list()
         );
+        for (String candidate : candidates) {
+            if (candidate != null && !candidate.isBlank()
+                    && !TranslationNormalization.containsCjk(candidate)) {
+                return Optional.of(candidate);
+            }
+        }
+        return Optional.empty();
     }
 
     // FIX 3a: Persist the corrected (given-first) romaji into final_romaji of the most

@@ -139,6 +139,40 @@ class JdbiStageNameSuggestionRepositoryTest {
         assertEquals("Sora Aoi (old)", result.get());
     }
 
+    // ── CJK guard: kanji suggestions must never be served as romaji ───────────
+
+    @Test
+    void findLatestUsableSuggestion_returnsRomajiSuggestion() {
+        repo.recordSuggestion("桜野桃", "Momo Sakurano", now);
+
+        Optional<String> result = repo.findLatestUsableSuggestion("桜野桃");
+        assertTrue(result.isPresent());
+        assertEquals("Momo Sakurano", result.get());
+    }
+
+    @Test
+    void findLatestUsableSuggestion_emptyWhenOnlySuggestionIsCjk() {
+        // A failed translation that merely reordered the kanji must not be served.
+        repo.recordSuggestion("桜野桃", "桃 桜野", now);
+
+        assertTrue(repo.findLatestUsableSuggestion("桜野桃").isEmpty());
+    }
+
+    /**
+     * Discriminating case: an OLDER row has valid romaji and a NEWER (higher-id)
+     * row is CJK garbage. Must return the OLDER valid romaji — proving the guard
+     * is "first non-CJK", not "latest row then reject".
+     */
+    @Test
+    void findLatestUsableSuggestion_skipsNewerCjkAndReturnsOlderRomaji() {
+        repo.recordSuggestion("桜野桃", "Momo Sakurano", "2026-01-01T00:00:00.000Z"); // older, valid
+        repo.recordSuggestion("桜野桃", "桃 桜野", "2026-01-02T00:00:00.000Z");         // newer, CJK
+
+        Optional<String> result = repo.findLatestUsableSuggestion("桜野桃");
+        assertTrue(result.isPresent(), "older valid romaji must still be returned");
+        assertEquals("Momo Sakurano", result.get());
+    }
+
     // ── FIX 3a: recordFinalRomaji ─────────────────────────────────────────────
 
     /**
