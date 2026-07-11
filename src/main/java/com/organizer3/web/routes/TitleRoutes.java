@@ -415,9 +415,8 @@ public class TitleRoutes {
 
             String volumeId = title.getVolumeId();
             try {
-                Trash trash = buildTrash(volumeId, Clock.systemUTC());
-                TitleFolderService.TrashOutcome outcome =
-                        folderService.trashVideo(trash, video, "Admin tab — per-row trash");
+                TitleFolderService.TrashOutcome outcome = withTrash(volumeId, Clock.systemUTC(),
+                        trash -> folderService.trashVideo(trash, video, "Admin tab — per-row trash"));
                 if (outcome.success()) {
                     log.info("HTTP trash video — code={} filename={} trashedTo={}", code, filename, outcome.trashedTo());
                     ctx.json(Map.of("success", true, "trashedTo", outcome.trashedTo().toString()));
@@ -581,9 +580,8 @@ public class TitleRoutes {
                     return;
                 }
 
-                Trash trash = buildTrash(volumeId, Clock.systemUTC());
-                TitleFolderService.TrashOutcome outcome =
-                        folderService.trashCover(trash, folder, filename, "Admin tab — per-row trash");
+                TitleFolderService.TrashOutcome outcome = withTrash(volumeId, Clock.systemUTC(),
+                        trash -> folderService.trashCover(trash, folder, filename, "Admin tab — per-row trash"));
                 if (outcome.success()) {
                     log.info("HTTP trash cover — code={} filename={} trashedTo={}", code, filename, outcome.trashedTo());
                     ctx.json(Map.of("success", true, "trashedTo", outcome.trashedTo().toString()));
@@ -601,12 +599,19 @@ public class TitleRoutes {
     }
 
     /**
-     * Builds a {@link Trash} primitive for the given volume.
+     * Runs a trash operation against the given volume inside a {@code withRetry} bracket, so the op is
+     * covered by the pool's in-use refcount (the Wave-4 sweep never recycles an in-flight connection)
+     * and gets the broken-pipe retry — instead of holding a raw {@code fileSystem()} across the op.
+     *
+     * <p>Config validation happens BEFORE the bracket so a misconfiguration surfaces as an
+     * {@link IllegalArgumentException} to the caller (mapped to HTTP 400) without any SMB work.
      *
      * @throws IllegalArgumentException if the volume or server is not configured or has no trash folder
      * @throws IOException if the SMB share cannot be opened
      */
-    private Trash buildTrash(String volumeId, Clock clock) throws IOException {
+    private TitleFolderService.TrashOutcome withTrash(
+            String volumeId, Clock clock,
+            java.util.function.Function<Trash, TitleFolderService.TrashOutcome> op) throws IOException {
         VolumeConfig vol = organizerConfig.findById(volumeId).orElseThrow(
                 () -> new IllegalArgumentException("Volume not in config: " + volumeId));
         ServerConfig srv = organizerConfig.findServerById(vol.server()).orElseThrow(
@@ -615,8 +620,7 @@ public class TitleRoutes {
             throw new IllegalArgumentException(
                     "Server '" + srv.id() + "' has no 'trash:' folder configured.");
         }
-        var handle = smbFactory.open(volumeId);
-        var fs     = handle.fileSystem();
-        return new Trash(fs, volumeId, srv.trash(), clock);
+        return smbFactory.withRetry(volumeId, handle ->
+                op.apply(new Trash(handle.fileSystem(), volumeId, srv.trash(), clock)));
     }
 }

@@ -388,7 +388,7 @@ class CoherentMultiVolumeSyncTaskTest {
     void watchdog_scanBlocksForever_timeoutMarksPartialFailureAndContinues() throws Exception {
         // 0 minutes → Future.get(0, MINUTES) fires immediately on any blocking Future
         AppConfig.reset();
-        AppConfig.initializeForTest(configWithSmbSettings(new SmbSettings(5, 5, 5, 0, 30, null, null, null, null, null, null, null, null, null, null)));
+        AppConfig.initializeForTest(configWithSmbSettings(new SmbSettings(5, 5, 5, 0, 30, null, null, null, null, null, null, null, null, null, null, null, null)));
 
         // vol-a scan blocks (simulates hung SMB call)
         CountDownLatch blockingLatch = new CountDownLatch(1);
@@ -505,7 +505,7 @@ class CoherentMultiVolumeSyncTaskTest {
     @Test
     void watchdog_executorsShutDownAfterTaskEnd() throws Exception {
         AppConfig.reset();
-        AppConfig.initializeForTest(configWithSmbSettings(new SmbSettings(5, 5, 5, 0, 30, null, null, null, null, null, null, null, null, null, null)));
+        AppConfig.initializeForTest(configWithSmbSettings(new SmbSettings(5, 5, 5, 0, 30, null, null, null, null, null, null, null, null, null, null, null, null)));
 
         CountDownLatch blockingLatch = new CountDownLatch(1);
         doAnswer(inv -> {

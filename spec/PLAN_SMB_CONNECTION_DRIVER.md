@@ -167,14 +167,26 @@ live smoke.
 leaks. This — with Wave 2 backoff — is what actually relieves the session-table pressure.
 
 **Changes:**
-- `PooledShare` gains `createdAtMillis` + `volatile lastUsedAtMillis` (stamped on `acquire()` hit).
-- The Wave-3 sweep also evicts (bounded close) any connection idle > `maxIdleMinutes` or older than
-  `maxConnectionAgeMinutes`.
-- **Prerequisite — fix the two raw-`fileSystem()` escape sites** that hold a `VolumeFileSystem` across
-  operations without the handle (so recycling can't yank the share mid-use): `ExecuteDuplicateTrashTask.java:185`
-  and `TitleRoutes.java:618`. Either wrap them in `withRetry`/`open` scopes or re-open per op. (Guard:
-  the sweep must not recycle a connection with an op in flight — a simple in-use stamp/refcount, or
-  recycle-only-idle, suffices.)
+- `PooledShare` gains `createdAtMillis` + `volatile lastUsedAtMillis` (stamped on `acquire()`, both
+  fresh-dial and pooled-hit) + `AtomicInteger inUse`.
+- The Wave-3 sweep also recycles (bounded graceful close) any connection idle > `maxIdleMinutes`, or
+  older than `maxConnectionAgeMinutes` once it hits a natural idle gap (an internal ~30s
+  `ageIdleGrace`). A recycled *healthy* connection `continue`s BEFORE the probe so it never enters the
+  ≥2-host sensor's health map (recycle ≠ probe-dead).
+- **Two-mechanism in-use guard (load-bearing — never recycle a connection an op/stream is using):**
+  1. **`inUse` refcount realized as the `SmbShareHandle` lease** — `open()` does `inUse++`,
+     `SmbShareHandle.close()` does `inUse--` (idempotent; a caller that forgets to close fails SAFE =
+     just not recycled). `borrowAndRun` (used by `withRetry`/`withForceRetry`) is `try(open()){op}`, so
+     scoped ops are bracketed. **The video-stream handler holds ONE handle across the whole response
+     (setup + byte transfer)** — this is the critical fix: the transfer reads an smbj `File` bound to
+     the share, and without a held lease an *aged* connection (the steady state) would be recycled
+     mid-read at the 30s grace, a routine streaming regression. The sweep skips any `inUse > 0`.
+  2. **`lastUsedAtMillis` recency** covers the tiny `acquire()`→`inUse++` gap and the between-borrow
+     idle window (each op/range-request re-stamps).
+- **Prerequisite — fix the two raw-`fileSystem()` escape sites** that held a `VolumeFileSystem` across
+  operations without a bracketed handle: `ExecuteDuplicateTrashTask.java:185` and
+  `TitleRoutes.java:618` (`buildTrash`→`withTrash`) — both now run the trash op inside `withRetry` (so
+  `inUse` brackets them + they get the broken-pipe retry).
 
 **Tests (time-source):** connection past max-idle is recycled on next sweep; past max-age recycled;
 active connection (recent `lastUsedAtMillis`) is not; escape-site fix verified by existing task tests.

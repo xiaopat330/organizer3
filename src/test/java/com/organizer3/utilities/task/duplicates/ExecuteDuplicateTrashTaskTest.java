@@ -66,6 +66,12 @@ class ExecuteDuplicateTrashTaskTest {
         fs = new InMemoryFS();
         when(mockFactory.open(anyString())).thenReturn(mockHandle);
         when(mockHandle.fileSystem()).thenReturn(fs);
+        // The task now brackets the trash op through withRetry (Wave 4 in-use refcount); run the op
+        // against the mock handle so behaviour is identical to the previous open().fileSystem() path.
+        when(mockFactory.withRetry(anyString(), any())).thenAnswer(inv -> {
+            SmbConnectionFactory.SmbOperation<?> op = inv.getArgument(1);
+            return op.execute(mockHandle);
+        });
 
         VolumeConfig volA = new VolumeConfig("vol-a", "//nas/jav_A", "conventional", "srv1", "g1");
         VolumeConfig volB = new VolumeConfig("vol-b", "//nas/jav_B", "conventional", "srv1", "g1");

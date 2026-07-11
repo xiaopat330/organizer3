@@ -74,6 +74,12 @@ class TitleFolderRoutesTest {
         SmbShareHandle shareHandle = mock(SmbShareHandle.class);
         when(shareHandle.fileSystem()).thenReturn(fs);
         when(smbFactory.open("vol1")).thenReturn(shareHandle);
+        // Trash ops now run inside a withRetry bracket (Wave 4 in-use refcount); run the op against the
+        // stub handle so trashVideo/trashCover are invoked exactly as before.
+        when(smbFactory.withRetry(eq("vol1"), any())).thenAnswer(inv -> {
+            SmbConnectionFactory.SmbOperation<?> op = inv.getArgument(1);
+            return op.execute(shareHandle);
+        });
 
         // Default: cover file exists on FS for cover-trash tests.
         when(fs.exists(any())).thenReturn(true);

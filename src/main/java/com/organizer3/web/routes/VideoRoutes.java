@@ -4,6 +4,7 @@ import com.hierynomus.smbj.share.File;
 import com.organizer3.media.ThumbnailService;
 import com.organizer3.media.VideoProbe;
 import com.organizer3.model.Video;
+import com.organizer3.smb.SmbConnectionFactory.SmbShareHandle;
 import com.organizer3.web.VideoStreamService;
 import io.javalin.Javalin;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +19,6 @@ import java.nio.file.Files;
  */
 @Slf4j
 public class VideoRoutes {
-
-    private record StreamSetup(long fileSize, File smbFile) {}
 
     private final VideoStreamService videoStreamService;
     private final ThumbnailService thumbnailService;
@@ -53,22 +52,38 @@ public class VideoRoutes {
                 String smbPath = videoStreamService.smbRelativePath(video);
                 String contentType = videoStreamService.mimeType(video);
 
-                // Stream setup uses withRetry — auto-recovers from a stale pooled
-                // connection (e.g. SMB session expired but TCP socket still reports
-                // connected). Failures here happen before the response is committed.
-                StreamSetup setup;
+                // Hold ONE handle across setup AND transfer so its in-use lease (inUse > 0) protects the
+                // whole response from Wave-4 idle/age recycling: the byte-transfer loop below reads the
+                // smbj File with no re-borrow, so lastUsedAtMillis is frozen for the duration and only
+                // inUse keeps the connection off the recycler. (Previously setup used withRetry, which
+                // released the lease before the transfer even began.)
+                SmbShareHandle h;
                 try {
-                    setup = videoStreamService.withRetry(video, handle ->
-                            new StreamSetup(handle.fileSize(smbPath), handle.openFileHandle(smbPath)));
+                    h = videoStreamService.openStream(video);   // inUse++
                 } catch (IOException e) {
                     log.warn("Stream setup failed for video {}: {}", videoId, e.getMessage());
                     videoStreamService.evictPool(video);
                     ctx.status(502).result("Stream error: " + e.getMessage());
                     return;
                 }
+                try {
+                    long fileSize;
+                    File smbFile;
+                    try {
+                        fileSize = h.fileSize(smbPath);
+                        smbFile  = h.openFileHandle(smbPath);
+                    } catch (IOException stale) {
+                        // Preserve the setup auto-recovery that withRetry gave us: a stale pooled
+                        // connection (SMB session expired, TCP still "connected") → release, evict,
+                        // dial fresh, retry setup once. Still pre-commit, so a hard failure 502s below.
+                        h.close();                                   // release the stale lease
+                        videoStreamService.evictPool(video);
+                        h = videoStreamService.openStream(video);    // fresh, inUse++
+                        fileSize = h.fileSize(smbPath);
+                        smbFile  = h.openFileHandle(smbPath);
+                    }
 
-                long fileSize = setup.fileSize();
-                try (File smbFile = setup.smbFile()) {
+                    try (File f = smbFile) {
                     String rangeHeader = ctx.header("Range");
 
                     if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
@@ -93,7 +108,7 @@ public class VideoRoutes {
                         long offset = start;
                         while (remaining > 0) {
                             int toRead = (int) Math.min(buf.length, remaining);
-                            int read = smbFile.read(buf, offset, 0, toRead);
+                            int read = f.read(buf, offset, 0, toRead);
                             if (read <= 0) break;
                             out.write(buf, 0, read);
                             offset += read;
@@ -112,7 +127,7 @@ public class VideoRoutes {
                         long offset = 0;
                         while (remaining > 0) {
                             int toRead = (int) Math.min(buf.length, remaining);
-                            int read = smbFile.read(buf, offset, 0, toRead);
+                            int read = f.read(buf, offset, 0, toRead);
                             if (read <= 0) break;
                             out.write(buf, 0, read);
                             offset += read;
@@ -120,16 +135,22 @@ public class VideoRoutes {
                         }
                         out.flush();
                     }
+                    }
                 } catch (IOException e) {
-                    // Mid-stream failure: response may be partially written, so we
-                    // can't safely change status. Evict so the next request gets a
-                    // fresh connection — this is what saves the user from needing
-                    // to restart the app.
+                    // Mid-stream failure (or a setup-retry that still failed): response may be
+                    // partially written, so we can't safely change status. Evict so the next request
+                    // gets a fresh connection — this is what saves the user from needing to restart
+                    // the app.
                     log.warn("Stream failed mid-response for video {}: {}", videoId, e.getMessage());
                     videoStreamService.evictPool(video);
                     if (!ctx.res().isCommitted()) {
                         ctx.status(502).result("Stream error: " + e.getMessage());
                     }
+                } finally {
+                    // Release the in-use lease (idempotent) — the last-assigned handle, whether the
+                    // original or the fresh one from the stale-setup retry. `h` is a plain local (not
+                    // lambda-captured), so this closes exactly the current handle.
+                    h.close();
                 }
             });
         }

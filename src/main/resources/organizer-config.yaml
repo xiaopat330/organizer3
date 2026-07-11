@@ -293,6 +293,8 @@ structures:
 #   poolSweepIntervalSeconds: 30     # background pool-sweep cadence: probe + evict dead connections, all-hosts-down sensor (default 30)
 #   livenessProbeTimeoutSeconds: 3   # bounded share-stat liveness-probe timeout during the sweep (default 3)
 #   networkChangeTeardownEnabled: true # auto-teardown all connections when every pooled host fails one sweep at once (default true)
+#   maxIdleMinutes: 10               # recycle a pooled connection idle (unborrowed) this long, freeing NAS sessions before a VPN switch (default 10)
+#   maxConnectionAgeMinutes: 30      # recycle a pooled connection older than this at its next idle gap, capping slow session leaks (default 30)
 
 # Sync reconciliation — see spec/PROPOSAL_SYNC_RECONCILIATION.md.
 # A title_locations row not observed during a sync is marked stale rather than

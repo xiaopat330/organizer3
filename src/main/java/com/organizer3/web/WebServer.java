@@ -12,6 +12,7 @@ import com.organizer3.media.VideoProbe;
 import com.organizer3.repository.TitleRepository;
 import com.organizer3.repository.WatchHistoryRepository;
 import com.organizer3.smb.SmbConnectionFactory;
+import com.organizer3.smb.SmbConnectionFactory.SmbShareHandle;
 import io.javalin.Javalin;
 import io.javalin.http.staticfiles.Location;
 
@@ -33,8 +34,6 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class WebServer {
     public static final int DEFAULT_PORT = 8080;
-
-    private record AvStreamSetup(long fileSize, File smbFile) {}
 
     private static final Map<String, String> MIME_TYPES = Map.of(
             "jpg",  "image/jpeg",
@@ -610,13 +609,13 @@ public class WebServer {
                     "ts", "video/mp2t");
             String contentType = videoMimes.getOrDefault(ext, "application/octet-stream");
 
-            // Stream setup uses withRetry — auto-recovers from a stale pooled
-            // connection (e.g. SMB session expired but TCP socket still reports
-            // connected). Failures here happen before the response is committed.
-            AvStreamSetup setup;
+            // Hold ONE handle across setup AND transfer so its in-use lease (inUse > 0) keeps the
+            // Wave-4 sweep from recycling the connection mid-transfer: the byte loop below reads the
+            // smbj File with no re-borrow, so lastUsedAtMillis is frozen and only inUse protects it.
+            // (Previously setup used withForceRetry, which released the lease before the transfer began.)
+            SmbShareHandle h;
             try {
-                setup = smbFactory.withForceRetry(video.getVolumeId(), handle ->
-                        new AvStreamSetup(handle.fileSize(smbRelPath), handle.openFileHandle(smbRelPath)));
+                h = smbFactory.open(video.getVolumeId());   // inUse++
             } catch (Exception e) {
                 log.warn("AV stream setup failed for video {} path=\"{}\" volume={} exception={}: {}",
                         videoId, smbRelPath, video.getVolumeId(),
@@ -629,8 +628,23 @@ public class WebServer {
                 return;
             }
 
-            long fileSize = setup.fileSize();
-            try (File f = setup.smbFile()) {
+            try {
+                long fileSize;
+                File smbFile;
+                try {
+                    fileSize = h.fileSize(smbRelPath);
+                    smbFile  = h.openFileHandle(smbRelPath);
+                } catch (Exception stale) {
+                    // Preserve the withForceRetry auto-recovery: a stale pooled connection → release
+                    // the lease, evict, dial fresh, retry setup once (still pre-commit).
+                    h.close();
+                    smbFactory.evict(video.getVolumeId());
+                    h = smbFactory.open(video.getVolumeId());   // fresh, inUse++
+                    fileSize = h.fileSize(smbRelPath);
+                    smbFile  = h.openFileHandle(smbRelPath);
+                }
+
+                try (File f = smbFile) {
                 String rangeHeader = ctx.header("Range");
 
                 if (rangeHeader != null && rangeHeader.startsWith("bytes=")) {
@@ -681,6 +695,7 @@ public class WebServer {
                     }
                     out.flush();
                 }
+                }
             } catch (org.eclipse.jetty.io.EofException eof) {
                 // Expected when FFmpeg closes the HTTP connection after extracting the
                 // frame it wanted mid-response. Not an error — just debug-level breadcrumb.
@@ -689,10 +704,9 @@ public class WebServer {
                             videoId, smbRelPath);
                 }
             } catch (Exception e) {
-                // Mid-stream failure: response may be partially written, so we
-                // can't safely change status. Evict so the next request gets a
-                // fresh connection — this is what saves the user from needing
-                // to restart the app.
+                // Mid-stream failure (or a setup-retry that still failed): response may be partially
+                // written, so we can't safely change status. Evict so the next request gets a fresh
+                // connection — this is what saves the user from needing to restart the app.
                 log.warn("AV stream failed mid-response for video {} path=\"{}\" volume={} exception={}: {}",
                         videoId, smbRelPath, video.getVolumeId(),
                         e.getClass().getName(), e.getMessage(), e);
@@ -701,6 +715,10 @@ public class WebServer {
                     String msg = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
                     ctx.status(502).result("Stream error: " + msg);
                 }
+            } finally {
+                // Release the in-use lease (idempotent) — the last-assigned handle, whether the
+                // original or the fresh one from the stale-setup retry.
+                h.close();
             }
         });
 

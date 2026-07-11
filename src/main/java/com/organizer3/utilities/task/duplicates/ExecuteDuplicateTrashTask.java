@@ -3,7 +3,6 @@ package com.organizer3.utilities.task.duplicates;
 import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.ServerConfig;
 import com.organizer3.config.volume.VolumeConfig;
-import com.organizer3.filesystem.VolumeFileSystem;
 import com.organizer3.model.DuplicateDecision;
 import com.organizer3.model.TitleLocation;
 import com.organizer3.repository.DuplicateDecisionRepository;
@@ -182,10 +181,14 @@ public final class ExecuteDuplicateTrashTask implements Task {
             Path itemPath = Path.of(shareRelative);
 
             try {
-                VolumeFileSystem fs = smbFactory.open(volumeId).fileSystem();
-                Trash trash = new Trash(fs, volumeId, trashFolder, clock);
                 String reason = "Duplicate Triage — TRASH decision for " + titleCode;
-                Trash.Result result = trash.trashItem(itemPath, reason);
+                // Route through withRetry so the trash op is bracketed by the pool's in-use refcount
+                // (the Wave-4 sweep never recycles an in-flight connection) and gets the broken-pipe
+                // retry — instead of holding a raw fileSystem() across the operation.
+                Trash.Result result = smbFactory.withRetry(volumeId, handle -> {
+                    Trash trash = new Trash(handle.fileSystem(), volumeId, trashFolder, clock);
+                    return trash.trashItem(itemPath, reason);
+                });
 
                 String executedAt = DateTimeFormatter.ISO_INSTANT.format(clock.instant());
                 decisionRepo.markExecuted(titleCode, volumeId, nasPath, executedAt);

@@ -91,6 +91,18 @@ public class SmbConnectionFactory {
     private volatile long poolSweepIntervalMillis;
     private volatile long probeTimeoutMillis;
     private volatile boolean networkChangeTeardownEnabled;
+    // Wave 4 recycling tunables (minutes in config, millis here). The sweep recycles (bounded close)
+    // any pooled connection that has been idle (no acquire) for >= maxIdleMillis, or that has reached
+    // maxAgeMillis and hit a natural idle gap of >= ageIdleGraceMillis — but NEVER one that is actively
+    // borrowed (PooledShare.inUse > 0). Recycling fewer idle sessions before a VPN switch = fewer
+    // orphaned on the NAS (the real session-exhaustion mitigation).
+    private volatile long maxIdleMillis;
+    private volatile long maxAgeMillis;
+    // Small internal grace (no config setting): an *aged* connection is recycled only once it has been
+    // idle this long, so recycling lands in the gap between range requests rather than mid-transfer. A
+    // healthy actively-streaming connection re-acquires (re-stamps lastUsedAtMillis) every HTTP range
+    // request, so it never idles this long and is protected even after crossing maxAge.
+    private volatile long ageIdleGraceMillis = TimeUnit.SECONDS.toMillis(30);
     // Sensor debounce (Wave 3). Event-based, not time-windowed: armed → the all-hosts-down sensor may
     // fire invalidateAll(); firing disarms it (fire once per event); any later pass that sees ≥1 pooled
     // connection probe OK (recovery) re-arms it. An empty-pool pass neither fires nor re-arms.
@@ -129,6 +141,14 @@ public class SmbConnectionFactory {
     boolean sensorArmedForTesting() { return this.sensorArmed; }
     // Visible for testing — current number of pooled entries.
     int poolSizeForTesting() { return this.pool.size(); }
+    // Visible for testing — override the Wave-4 recycle thresholds (millis) so tests can drive the
+    // idle/age matrix without real elapsed time.
+    void setMaxIdleMillisForTesting(long millis) { this.maxIdleMillis = millis; }
+    void setMaxAgeMillisForTesting(long millis) { this.maxAgeMillis = millis; }
+    void setAgeIdleGraceMillisForTesting(long millis) { this.ageIdleGraceMillis = millis; }
+    // Visible for testing — reach the pooled share to set timestamps/inUse directly (drives recycle
+    // cases the clock alone can't produce, e.g. aged-but-just-used).
+    PooledShare pooledForTesting(String volumeId) { return this.pool.get(volumeId); }
     private volatile boolean shutdown = false;
 
     public SmbConnectionFactory(OrganizerConfig config) {
@@ -176,6 +196,9 @@ public class SmbConnectionFactory {
         this.poolSweepIntervalMillis = TimeUnit.SECONDS.toMillis(smb.poolSweepIntervalSecondsOrDefault());
         this.probeTimeoutMillis = TimeUnit.SECONDS.toMillis(smb.livenessProbeTimeoutSecondsOrDefault());
         this.networkChangeTeardownEnabled = smb.networkChangeTeardownEnabledOrDefault();
+        // Wave 4 recycling budgets — minutes in config, millis here.
+        this.maxIdleMillis = TimeUnit.MINUTES.toMillis(smb.maxIdleMinutesOrDefault());
+        this.maxAgeMillis = TimeUnit.MINUTES.toMillis(smb.maxConnectionAgeMinutesOrDefault());
     }
 
     private static ExecutorService newDaemonExecutor(String namePrefix) {
@@ -203,7 +226,27 @@ public class SmbConnectionFactory {
      */
     public SmbShareHandle open(String volumeId) throws IOException {
         PooledShare pooled = acquire(volumeId);
-        return new SmbShareHandle(pooled.share, pooled.subPath);
+        // The returned handle IS the in-use lease: increment now, decrement exactly once on
+        // handle.close(). The Wave-4 sweep never recycles a share with inUse > 0, so as long as the
+        // caller holds the handle open (try-with-resources, or an explicit close in a finally for the
+        // long-lived stream path) the connection cannot be torn down mid-use — even across a whole
+        // video byte-transfer where lastUsedAtMillis is frozen. A caller that forgets to close fails
+        // SAFE (the connection simply isn't recycled until process exit).
+        pooled.inUse.incrementAndGet();
+        return new SmbShareHandle(pooled);
+    }
+
+    /**
+     * Runs {@code op} against a freshly-opened handle inside try-with-resources, so the handle's
+     * in-use lease (incremented in {@link #open}, released in {@link SmbShareHandle#close}) brackets
+     * the whole op — including on the exception path. One call == one balanced lease on one share;
+     * {@link #withRetry}/{@link #withForceRetry} call it again for the fresh share on the retry path,
+     * so each acquired share's {@code inUse} is balanced independently.
+     */
+    private <T> T borrowAndRun(String volumeId, SmbOperation<T> op) throws IOException {
+        try (SmbShareHandle h = open(volumeId)) {
+            return op.execute(h);
+        }
     }
 
     /**
@@ -219,12 +262,12 @@ public class SmbConnectionFactory {
      */
     public <T> T withRetry(String volumeId, SmbOperation<T> op) throws IOException {
         try {
-            return op.execute(open(volumeId));
+            return borrowAndRun(volumeId, op);
         } catch (IOException | RuntimeException e) {
             if (isBrokenPipe(e)) {
                 log.info("SMB broken pipe on volume {}; evicting and retrying", volumeId);
                 evict(volumeId);
-                return op.execute(open(volumeId));
+                return borrowAndRun(volumeId, op);
             }
             if (e instanceof IOException ioe) throw ioe;
             throw (RuntimeException) e;
@@ -244,12 +287,12 @@ public class SmbConnectionFactory {
      */
     public <T> T withForceRetry(String volumeId, SmbOperation<T> op) throws IOException {
         try {
-            return op.execute(open(volumeId));
+            return borrowAndRun(volumeId, op);
         } catch (IOException | RuntimeException e) {
             log.info("SMB op failed on volume {} (exception={}); evicting and retrying once",
                     volumeId, e.getClass().getSimpleName());
             evict(volumeId);
-            return op.execute(open(volumeId));
+            return borrowAndRun(volumeId, op);
         }
     }
 
@@ -425,11 +468,32 @@ public class SmbConnectionFactory {
      * <p>Package-visible for testing.
      */
     void sweepOnce() {
+        long now = nowMillis.getAsLong();
         Map<String, Boolean> hostAnyOk = new HashMap<>();
         boolean poolNonEmpty = false;
         for (Map.Entry<String, PooledShare> e : pool.entrySet()) {
             poolNonEmpty = true;
             String volumeId = e.getKey();
+            PooledShare pooled = e.getValue();
+
+            // Wave 4 — recycle idle/aged connections BEFORE probing. A connection is idle-recycled once
+            // it hasn't been borrowed for maxIdleMillis; an *aged* one (>= maxAgeMillis) is recycled at
+            // its next natural idle gap (>= ageIdleGraceMillis) so recycling lands between range requests
+            // rather than mid-transfer. NEVER recycle a connection that is actively borrowed (inUse > 0)
+            // or recently used — those are the load-bearing invariants that keep a live stream/op safe.
+            // A recycled (healthy) connection must NOT look like a probe failure to the ≥2-host sensor,
+            // so we `continue` here: it never enters hostAnyOk and cannot push multiHostDown true.
+            long idle = now - pooled.lastUsedAtMillis;
+            long age  = now - pooled.createdAtMillis;
+            long idleThreshold = (age >= maxAgeMillis) ? ageIdleGraceMillis : maxIdleMillis;
+            boolean recycle = pooled.inUse.get() == 0 && idle >= idleThreshold;
+            if (recycle) {
+                log.info("recycling idle/aged SMB connection for volume {} (idleMs={}, ageMs={})",
+                        volumeId, idle, age);
+                evict(volumeId);   // bounded graceful close; removes entry; does NOT touch the breaker.
+                continue;          // recycled ≠ probed-dead: keep it out of the sensor's health map.
+            }
+
             String host;
             try {
                 host = hostFor(volumeId);
@@ -437,7 +501,7 @@ public class SmbConnectionFactory {
                 // Unknown/malformed host — can't group it into the sensor, but still probe+evict below.
                 host = null;
             }
-            boolean ok = probe(e.getValue());
+            boolean ok = probe(pooled);
             if (!ok) {
                 evict(volumeId);   // bounded close, removes entry; does NOT touch the breaker.
             }
@@ -491,7 +555,10 @@ public class SmbConnectionFactory {
 
     private PooledShare acquire(String volumeId) throws IOException {
         PooledShare existing = pool.get(volumeId);
-        if (existing != null && existing.isHealthy()) return existing;
+        if (existing != null && existing.isHealthy()) {
+            existing.lastUsedAtMillis = nowMillis.getAsLong();   // Wave 4: refresh idle-recycle recency on every hit.
+            return existing;
+        }
 
         // Coalesce concurrent dials for the same volume; different volumes never block each other.
         CompletableFuture<PooledShare> mine = new CompletableFuture<>();
@@ -503,6 +570,7 @@ public class SmbConnectionFactory {
             // Re-check under our own slot (avoid duplicate dial if a previous owner just finished).
             existing = pool.get(volumeId);
             if (existing != null && existing.isHealthy()) {
+                existing.lastUsedAtMillis = nowMillis.getAsLong();   // Wave 4: coalesced re-check hit is also a use.
                 mine.complete(existing);
                 return existing;
             }
@@ -529,6 +597,11 @@ public class SmbConnectionFactory {
                 if (dialOk) breaker.recordSuccess(host);
                 else breaker.recordFailure(host);
             }
+            // Wave 4: stamp both timestamps on this thread BEFORE publishing to the pool, so the sweep
+            // thread sees them established (happens-before via the ConcurrentHashMap.put below).
+            long stampedAt = nowMillis.getAsLong();
+            fresh.createdAtMillis = stampedAt;
+            fresh.lastUsedAtMillis = stampedAt;
             pool.put(volumeId, fresh);
             mine.complete(fresh);
             return fresh;
@@ -635,10 +708,26 @@ public class SmbConnectionFactory {
     public static class SmbShareHandle implements AutoCloseable {
         private final DiskShare share;
         private final String subPath;
+        // The pooled share this handle leases (null for detached/test handles built from a raw share).
+        // While a handle is open its owner's inUse refcount is > 0, which forbids the Wave-4 sweep from
+        // recycling the connection out from under an in-flight op or byte-transfer.
+        private final PooledShare owner;
+        private final java.util.concurrent.atomic.AtomicBoolean closed =
+                new java.util.concurrent.atomic.AtomicBoolean(false);
 
         SmbShareHandle(DiskShare share, String subPath) {
+            this(share, subPath, null);
+        }
+
+        /** Lease constructor — the handle owns an in-use reference on {@code owner} until closed. */
+        SmbShareHandle(PooledShare owner) {
+            this(owner.share, owner.subPath, owner);
+        }
+
+        private SmbShareHandle(DiskShare share, String subPath, PooledShare owner) {
             this.share = share;
             this.subPath = subPath;
+            this.owner = owner;
         }
 
         /** Lists immediate children of the given path (non-recursive). */
@@ -729,10 +818,17 @@ public class SmbConnectionFactory {
             return s.isEmpty() ? subPath : subPath + '\\' + s;
         }
 
-        /** No-op: the factory owns share/session/connection lifecycle. */
+        /**
+         * Releases this handle's in-use lease exactly once (idempotent — a double-close is a no-op).
+         * Does NOT tear down the share/session/connection (the factory owns those); it only decrements
+         * the owner's inUse refcount so the Wave-4 sweep may again consider the connection for
+         * idle/age recycling. A detached handle (no owner) closes to a no-op.
+         */
         @Override
         public void close() {
-            // Intentionally empty — pooled share stays open for the next caller.
+            if (owner != null && closed.compareAndSet(false, true)) {
+                owner.inUse.decrementAndGet();
+            }
         }
     }
 
@@ -741,6 +837,15 @@ public class SmbConnectionFactory {
         final Session session;
         final DiskShare share;
         final String subPath;
+        // Wave 4 recycling bookkeeping. The PooledShare ctors have no clock, so the FACTORY stamps both
+        // timestamps (via nowMillis) right after a fresh dial and re-stamps lastUsedAtMillis on every
+        // acquire() hit. createdAtMillis is written once before the entry is published to the pool
+        // (happens-before via ConcurrentHashMap.put); lastUsedAtMillis is volatile (updated on the hot
+        // path, read by the sweep thread). inUse is the borrow refcount the sweep must never recycle
+        // through: incremented/decremented around the whole of withRetry/withForceRetry.
+        long createdAtMillis;
+        volatile long lastUsedAtMillis;
+        final java.util.concurrent.atomic.AtomicInteger inUse = new java.util.concurrent.atomic.AtomicInteger();
 
         PooledShare(Connection connection, Session session, DiskShare share, String subPath) {
             this.connection = connection;

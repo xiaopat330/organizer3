@@ -1,6 +1,7 @@
 package com.organizer3.smb;
 
 import com.hierynomus.smbj.SMBClient;
+import com.hierynomus.smbj.connection.Connection;
 import com.organizer3.config.SmbSettings;
 import com.organizer3.config.volume.OrganizerConfig;
 import com.organizer3.config.volume.ServerConfig;
@@ -47,7 +48,7 @@ class SmbConnectionFactoryTest {
     void dialTimeout_derivedFromDialTimeoutSeconds_customValue() {
         OrganizerConfig config = mock(OrganizerConfig.class);
         // Custom: dialTimeoutSeconds=5; transactTimeoutMinutes=5 (300_000 ms) must NOT be used.
-        when(config.smbOrDefaults()).thenReturn(new SmbSettings(null, null, 5, null, null, 5, null, null, null, null, null, null, null, null, null));
+        when(config.smbOrDefaults()).thenReturn(new SmbSettings(null, null, 5, null, null, 5, null, null, null, null, null, null, null, null, null, null, null));
         SmbConnectionFactory factory = new SmbConnectionFactory(config, mock(SMBClient.class));
         assertEquals(5_000L, factory.dialTimeoutMillisForTesting(),
                 "dialTimeoutSeconds=5 should produce dialTimeoutMillis=5000, not transact-minutes value");
@@ -822,6 +823,307 @@ class SmbConnectionFactoryTest {
             f.sweepOnce();   // empty pool
             assertEquals(0, f.invalidateAllCount.get(), "empty pool never fires");
             assertFalse(f.sensorArmedForTesting(), "empty pool must not re-arm the sensor");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    // ---------- Wave 4: idle/age recycling + inUse bracket ----------
+
+    /** Idle beyond maxIdle with inUse==0 → recycled (evicted) on the next sweep. */
+    @Test
+    void sweepOnce_idleBeyondMaxIdle_recyclesConnection() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1")));
+        AtomicLong clock = new AtomicLong(100_000L);
+        f.setNowMillisForTesting(clock::get);
+        f.setMaxIdleMillisForTesting(10_000L);
+        f.setMaxAgeMillisForTesting(Long.MAX_VALUE);   // isolate the idle branch
+        try {
+            f.open("a").close();                       // pool the entry, release the lease (idle, inUse==0)
+            assertEquals(1, f.poolSizeForTesting());
+            clock.addAndGet(20_000L);                  // idle 20s >= maxIdle 10s
+            f.sweepOnce();
+            assertEquals(0, f.poolSizeForTesting(), "idle connection must be recycled");
+            assertEquals(0, f.invalidateAllCount.get(), "a recycle is not a probe failure → no teardown");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    /** Idle below maxIdle → retained (still healthy on probe). */
+    @Test
+    void sweepOnce_idleBelowMaxIdle_retainsConnection() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1")));
+        AtomicLong clock = new AtomicLong(100_000L);
+        f.setNowMillisForTesting(clock::get);
+        f.setMaxIdleMillisForTesting(60_000L);
+        f.setMaxAgeMillisForTesting(Long.MAX_VALUE);
+        try {
+            f.open("a").close();                       // pooled, lease released (idle, inUse==0)
+            clock.addAndGet(20_000L);                  // idle 20s < maxIdle 60s
+            f.sweepOnce();
+            assertEquals(1, f.poolSizeForTesting(), "recently-used connection must be retained");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    /** inUse>0 (actively borrowed) + idle>maxIdle → NEVER recycled — the load-bearing invariant. */
+    @Test
+    void sweepOnce_inUseConnection_notRecycledEvenWhenIdle() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1")));
+        AtomicLong clock = new AtomicLong(100_000L);
+        f.setNowMillisForTesting(clock::get);
+        f.setMaxIdleMillisForTesting(10_000L);
+        f.setMaxAgeMillisForTesting(Long.MAX_VALUE);
+        try {
+            f.open("a").close();                               // pooled, lease released
+            f.pooledForTesting("a").inUse.incrementAndGet();   // now simulate an in-flight borrow
+            clock.addAndGet(20_000L);
+            f.sweepOnce();
+            assertEquals(1, f.poolSizeForTesting(), "an in-use connection must never be recycled");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    /** Aged beyond maxAge + idle >= ageIdleGrace + inUse==0 → recycled at the natural idle gap. */
+    @Test
+    void sweepOnce_agedBeyondMaxAge_pastGrace_recycles() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1")));
+        AtomicLong clock = new AtomicLong(1_000_000L);
+        f.setNowMillisForTesting(clock::get);
+        f.setMaxIdleMillisForTesting(Long.MAX_VALUE);   // isolate the age branch
+        f.setMaxAgeMillisForTesting(30_000L);
+        f.setAgeIdleGraceMillisForTesting(5_000L);
+        try {
+            f.open("a").close();                        // pooled, lease released (inUse==0 baseline)
+            long now = clock.get();
+            var ps = f.pooledForTesting("a");
+            ps.createdAtMillis = now - 40_000L;         // age 40s >= maxAge 30s
+            ps.lastUsedAtMillis = now - 6_000L;         // idle 6s >= grace 5s
+            f.sweepOnce();
+            assertEquals(0, f.poolSizeForTesting(), "aged connection past its idle grace must be recycled");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    /** Aged beyond maxAge but idle < ageIdleGrace → NOT recycled (protects a just-used aged connection). */
+    @Test
+    void sweepOnce_agedBeyondMaxAge_withinGrace_notRecycled() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1")));
+        AtomicLong clock = new AtomicLong(1_000_000L);
+        f.setNowMillisForTesting(clock::get);
+        f.setMaxIdleMillisForTesting(Long.MAX_VALUE);
+        f.setMaxAgeMillisForTesting(30_000L);
+        f.setAgeIdleGraceMillisForTesting(5_000L);
+        try {
+            f.open("a").close();                        // pooled, lease released (inUse==0 baseline)
+            long now = clock.get();
+            var ps = f.pooledForTesting("a");
+            ps.createdAtMillis = now - 40_000L;         // aged
+            ps.lastUsedAtMillis = now - 1_000L;         // idle 1s < grace 5s → mid-transfer protection
+            f.sweepOnce();
+            assertEquals(1, f.poolSizeForTesting(),
+                    "an aged but just-used connection must not be recycled mid-transfer");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    /** Aged beyond maxAge but inUse>0 → NOT recycled. */
+    @Test
+    void sweepOnce_agedBeyondMaxAge_inUse_notRecycled() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1")));
+        AtomicLong clock = new AtomicLong(1_000_000L);
+        f.setNowMillisForTesting(clock::get);
+        f.setMaxIdleMillisForTesting(Long.MAX_VALUE);
+        f.setMaxAgeMillisForTesting(30_000L);
+        f.setAgeIdleGraceMillisForTesting(5_000L);
+        try {
+            f.open("a").close();                        // pooled, lease released (inUse==0 baseline)
+            long now = clock.get();
+            var ps = f.pooledForTesting("a");
+            ps.createdAtMillis = now - 40_000L;
+            ps.lastUsedAtMillis = now - 6_000L;         // past grace, but…
+            ps.inUse.incrementAndGet();                 // …actively borrowed
+            f.sweepOnce();
+            assertEquals(1, f.poolSizeForTesting(), "an in-use aged connection must never be recycled");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    /**
+     * REGRESSION GUARD: a recycled (healthy) connection must NOT look like a probe failure to the
+     * ≥2-host sensor. Two hosts, both idle-recycled in one pass → invalidateAll NOT fired.
+     */
+    @Test
+    void sweepOnce_recycledEntries_doNotFeedSensor_noTeardown() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1", "b", "h2")));
+        AtomicLong clock = new AtomicLong(100_000L);
+        f.setNowMillisForTesting(clock::get);
+        f.setMaxIdleMillisForTesting(10_000L);
+        f.setMaxAgeMillisForTesting(Long.MAX_VALUE);
+        try {
+            f.open("a").close();                       // pooled, leases released
+            f.open("b").close();
+            clock.addAndGet(20_000L);                  // both idle beyond maxIdle
+            f.sweepOnce();
+            assertEquals(0, f.poolSizeForTesting(), "both entries recycled");
+            assertEquals(0, f.invalidateAllCount.get(),
+                    "recycled (not probed-dead) entries must never trip the all-hosts-down sensor");
+            assertTrue(f.sensorArmedForTesting(), "sensor never fired → stays armed");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    /** A pooled-hit open() re-stamps lastUsedAtMillis (keeps an actively-used connection fresh). */
+    @Test
+    void open_pooledHit_refreshesLastUsedAtMillis() throws Exception {
+        OrganizerConfig config = configWithHosts(Map.of("a", "h1"));
+        Connection healthy = mock(Connection.class);
+        when(healthy.isConnected()).thenReturn(true);
+        SmbConnectionFactory f = new SmbConnectionFactory(config, mock(SMBClient.class), null) {
+            @Override
+            protected PooledShare dial(String volumeId) {
+                return new PooledShare(healthy, null, null, volumeId);
+            }
+        };
+        AtomicLong clock = new AtomicLong(100_000L);
+        f.setNowMillisForTesting(clock::get);
+        try {
+            f.open("a");
+            var ps1 = f.pooledForTesting("a");
+            assertEquals(100_000L, ps1.lastUsedAtMillis);
+            clock.addAndGet(5_000L);
+            f.open("a");                                // healthy → hit path re-stamps, no re-dial
+            var ps2 = f.pooledForTesting("a");
+            assertSame(ps1, ps2, "pooled-hit must reuse the same share (no re-dial)");
+            assertEquals(105_000L, ps2.lastUsedAtMillis, "pooled-hit open must refresh lastUsedAtMillis");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    /** withRetry brackets inUse: 1 mid-op, back to 0 after a successful op. */
+    @Test
+    void withRetry_bracketsInUse_balancedAfterSuccess() throws Exception {
+        TestableFactory f = new TestableFactory(configWithVolumeA());
+        f.onDial("a", v -> new SmbConnectionFactory.PooledShare(""));
+        try {
+            String r = f.withRetry("a", handle -> {
+                assertEquals(1, f.pooledForTesting("a").inUse.get(), "inUse must be 1 while the op runs");
+                return "ok";
+            });
+            assertEquals("ok", r);
+            assertEquals(0, f.pooledForTesting("a").inUse.get(), "inUse must return to 0 after success");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    /**
+     * withRetry brackets inUse across the broken-pipe retry: the first share is balanced to 0 before
+     * eviction, the fresh share is bracketed independently, and inUse ends at 0 on the surviving share.
+     */
+    @Test
+    void withRetry_bracketsInUse_balancedAfterBrokenPipeRetry() throws Exception {
+        TestableFactory f = new TestableFactory(configWithVolumeA());
+        f.onDial("a", v -> new SmbConnectionFactory.PooledShare(""));
+        AtomicInteger opCalls = new AtomicInteger();
+        try {
+            String r = f.withRetry("a", handle -> {
+                int n = opCalls.incrementAndGet();
+                assertEquals(1, f.pooledForTesting("a").inUse.get(), "borrowed share is in-use during the op");
+                if (n == 1) throw new IOException("drop", new java.net.SocketException("Broken pipe"));
+                return "ok";
+            });
+            assertEquals("ok", r);
+            assertEquals(2, opCalls.get(), "op must be retried exactly once on broken pipe");
+            assertEquals(0, f.pooledForTesting("a").inUse.get(),
+                    "inUse must be balanced to 0 on the fresh share after the retry");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    /** withForceRetry must not leak inUse even when the op throws on BOTH attempts. */
+    @Test
+    void withForceRetry_bracketsInUse_balancedAfterThrow() throws Exception {
+        TestableFactory f = new TestableFactory(configWithVolumeA());
+        f.onDial("a", v -> new SmbConnectionFactory.PooledShare(""));
+        try {
+            assertThrows(IOException.class, () -> f.withForceRetry("a", handle -> {
+                assertEquals(1, f.pooledForTesting("a").inUse.get());
+                throw new IOException("always fails");
+            }));
+            assertEquals(0, f.pooledForTesting("a").inUse.get(),
+                    "inUse must be balanced to 0 even when the op always throws (finally on every path)");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    // ---------- Wave 4 gate correction: handle-lease protects a mid-transfer stream ----------
+
+    /**
+     * THE STREAMING-REGRESSION GUARD. An AGED connection (the steady state on a long-running server)
+     * whose recycle threshold has collapsed to the 30s ageIdleGrace must still NOT be recycled while a
+     * stream handle holds it (inUse>0) — even though lastUsedAtMillis is frozen far in the past (the
+     * transfer loop never re-borrows). Once the handle is released (inUse==0), the next sweep recycles
+     * it. Before the fix, the aged+idle connection was recycled mid-read → the stream broke with a 502.
+     */
+    @Test
+    void sweepOnce_agedButInUse_notRecycled_untilReleased() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1")));
+        AtomicLong clock = new AtomicLong(1_000_000L);
+        f.setNowMillisForTesting(clock::get);
+        f.setMaxIdleMillisForTesting(Long.MAX_VALUE);   // isolate the age branch
+        f.setMaxAgeMillisForTesting(30_000L);
+        f.setAgeIdleGraceMillisForTesting(5_000L);
+        try {
+            f.open("a").close();                        // pool the entry
+            var ps = f.pooledForTesting("a");
+            long now = clock.get();
+            ps.createdAtMillis = now - 40_000L;         // aged past maxAge
+            ps.lastUsedAtMillis = now - 60_000L;        // idle far beyond grace (frozen mid-transfer)
+            ps.inUse.incrementAndGet();                 // a stream handle is holding it
+
+            f.sweepOnce();
+            assertEquals(1, f.poolSizeForTesting(),
+                    "an aged+idle connection held by an open stream handle must NOT be recycled");
+
+            ps.inUse.decrementAndGet();                 // stream finished → handle closed
+            f.sweepOnce();
+            assertEquals(0, f.poolSizeForTesting(),
+                    "once released, the aged+idle connection is recycled on the next sweep");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    /** open() takes an in-use lease; handle.close() releases it exactly once (idempotent double-close). */
+    @Test
+    void open_takesLease_close_releasesOnce_idempotent() throws Exception {
+        OrganizerConfig config = configWithHosts(Map.of("a", "h1"));
+        Connection healthy = mock(Connection.class);
+        when(healthy.isConnected()).thenReturn(true);
+        SmbConnectionFactory f = new SmbConnectionFactory(config, mock(SMBClient.class), null) {
+            @Override
+            protected PooledShare dial(String volumeId) {
+                return new PooledShare(healthy, null, null, volumeId);
+            }
+        };
+        try {
+            SmbConnectionFactory.SmbShareHandle handle = f.open("a");
+            assertEquals(1, f.pooledForTesting("a").inUse.get(), "open() must take an in-use lease");
+            handle.close();
+            assertEquals(0, f.pooledForTesting("a").inUse.get(), "close() releases the lease");
+            handle.close();   // idempotent — must not double-decrement
+            assertEquals(0, f.pooledForTesting("a").inUse.get(), "double-close must be a no-op");
         } finally {
             f.shutdown();
         }
