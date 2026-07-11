@@ -104,11 +104,16 @@ volume- and auth-bound, not fungible like DB connections — a generic pool is a
 - **Value:** stale connections are detected proactively and dropped+reestablished, instead of being
   discovered by a hanging operation. Directly answers the user's "drop stale + reestablish" question.
 
-### Stage 2 — React to the network-change event (addresses NAS session orphaning)
+### Stage 2 — React to the network-change event (stop thrashing + re-establish cleanly)
 Stage 0 confirmed the trigger is a **network reconfiguration** (VPN switch), which the app cannot
 hook directly but *can* observe.
-- **Add `invalidateAll()` to the driver:** bounded clean-close (SMB `LOGOFF` so the NAS reclaims the
-  session) + evict every pooled connection; next use re-dials lazily once the network has settled.
+- **Add `invalidateAll()` to the driver:** cancel in-flight dials + bounded-close & evict every pooled
+  connection; next use re-dials lazily once the network has settled. **Note:** teardown's value is
+  *stop thrashing + clean re-establish*, **not** reclaiming NAS sessions — a clean SMB `LOGOFF` only
+  works on a *live* connection, and in the sever-first case the socket is already dead when we react,
+  so the NAS reclaims orphaned sessions on its own idle timeout regardless. Session-exhaustion is
+  instead mitigated by **max-idle recycling** (Stage 4) + dial **backoff** (fewer sessions open to
+  orphan, and fewer created during the storm).
 - **Primary trigger — OS network-change signal:** watch macOS primary-interface / default-route
   changes (SCNetworkReachability / `SCDynamicStore`, or a lightweight default-route poll). On a
   change, debounce briefly (let routing settle) then `invalidateAll()`. This is general — it catches
