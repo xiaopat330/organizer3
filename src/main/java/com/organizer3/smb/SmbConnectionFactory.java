@@ -31,11 +31,13 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongSupplier;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -65,11 +67,25 @@ public class SmbConnectionFactory {
     private final Map<String, PooledShare> pool = new ConcurrentHashMap<>();
     private final Map<String, CompletableFuture<PooledShare>> inFlightDials = new ConcurrentHashMap<>();
     private final ExecutorService dialExecutor;
+    // Bounded-close worker: teardown of a pooled connection (share/session/connection close)
+    // runs here off the caller/sweeper thread so a wedged socket can never block the caller
+    // beyond closeTimeoutMillis. Mirrors dialExecutor: cached, unbounded, daemon threads.
+    private final ExecutorService closeExecutor;
     private volatile long dialTimeoutMillis;
+    private volatile long closeTimeoutMillis;
+    // Injectable wall-clock source (foundational seam for later waves' TTL/idle/age logic).
+    // Not on any hot path in Wave 1; present so time-based tests can advance it instead of sleeping.
+    private volatile LongSupplier nowMillis = System::currentTimeMillis;
     // Visible for testing.
     void setDialTimeoutMillisForTesting(long millis) { this.dialTimeoutMillis = millis; }
     // Visible for testing — read back the effective dial timeout after construction.
     long dialTimeoutMillisForTesting() { return this.dialTimeoutMillis; }
+    // Visible for testing.
+    void setCloseTimeoutMillisForTesting(long millis) { this.closeTimeoutMillis = millis; }
+    // Visible for testing — override the wall-clock source.
+    void setNowMillisForTesting(LongSupplier supplier) { this.nowMillis = supplier; }
+    // Visible for testing — read the current wall-clock value through the injectable source.
+    long nowMillisForTesting() { return this.nowMillis.getAsLong(); }
     private volatile boolean shutdown = false;
 
     public SmbConnectionFactory(OrganizerConfig config) {
@@ -89,7 +105,8 @@ public class SmbConnectionFactory {
         this.config = config;
         this.client = client;
         this.monitor = monitor;
-        this.dialExecutor = newDialExecutor();
+        this.dialExecutor = newDaemonExecutor("smb-dial-");
+        this.closeExecutor = newDaemonExecutor("smb-close-");
         // Outer dial budget — guards against TCP-connect + SMB session-setup hanging forever
         // when the NAS host is reachable by ping but its SMB service is wedged. This is kept
         // intentionally short (default 10 s) and distinct from the read/write/transact timeouts
@@ -97,16 +114,21 @@ public class SmbConnectionFactory {
         // when smbj's own transactTimeout fails to surface during authentication.
         this.dialTimeoutMillis = TimeUnit.SECONDS.toMillis(
                 config.smbOrDefaults().dialTimeoutSecondsOrDefault());
+        // Close budget — a share/session/connection teardown is itself a chain of SMB round-trips
+        // that can hang on a wedged socket; this bounds how long a caller (evict/shutdown) waits
+        // before abandoning the teardown to the daemon close worker.
+        this.closeTimeoutMillis = TimeUnit.SECONDS.toMillis(
+                config.smbOrDefaults().closeTimeoutSecondsOrDefault());
     }
 
-    private static ExecutorService newDialExecutor() {
+    private static ExecutorService newDaemonExecutor(String namePrefix) {
         AtomicLong seq = new AtomicLong();
         return new ThreadPoolExecutor(
                 0, Integer.MAX_VALUE,
                 60L, TimeUnit.SECONDS,
                 new SynchronousQueue<>(),
                 r -> {
-                    Thread t = new Thread(r, "smb-dial-" + seq.incrementAndGet());
+                    Thread t = new Thread(r, namePrefix + seq.incrementAndGet());
                     t.setDaemon(true);
                     return t;
                 });
@@ -192,7 +214,8 @@ public class SmbConnectionFactory {
     public void evict(String volumeId) {
         PooledShare stale = pool.remove(volumeId);
         if (stale != null) {
-            stale.closeQuietly();
+            // Entry is already gone from the pool; the teardown is bounded and never blocks us.
+            closeBounded(stale);
             log.info("Evicted SMB pool entry for volume {}", volumeId);
         }
     }
@@ -206,9 +229,53 @@ public class SmbConnectionFactory {
         }
         inFlightDials.clear();
         dialExecutor.shutdownNow();
-        for (PooledShare p : pool.values()) p.closeQuietly();
+        // Best-effort drain: bounded per entry, so a single wedged socket cannot stall shutdown.
+        for (PooledShare p : pool.values()) closeBounded(p);
         pool.clear();
+        closeExecutor.shutdownNow();
         try { client.close(); } catch (Exception e) { /* ignore */ }
+    }
+
+    /**
+     * Tears down a pooled connection on the {@link #closeExecutor}, waiting at most
+     * {@code closeTimeoutMillis} for the (share → session → connection) close chain — each step is
+     * an SMB round-trip that can hang on a wedged socket. On timeout the teardown is abandoned to
+     * the daemon worker and we return; the caller is never blocked past the bound.
+     */
+    private void closeBounded(PooledShare pooled) {
+        if (pooled == null) return;
+        Future<?> future;
+        try {
+            future = closeExecutor.submit(() -> rawClose(pooled));
+        } catch (RejectedExecutionException e) {
+            // closeExecutor already shut down (e.g. evict racing shutdown) — abandon quietly.
+            log.info("SMB close executor unavailable; abandoning connection teardown");
+            return;
+        }
+        try {
+            future.get(closeTimeoutMillis, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            log.warn("SMB connection teardown exceeded {} ms; abandoning close (socket may be wedged)",
+                    closeTimeoutMillis);
+        } catch (ExecutionException e) {
+            // rawClose swallows its own exceptions; this is a defensive backstop only.
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            log.info("SMB connection teardown failed: {}", cause.getMessage());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            future.cancel(true);
+        }
+    }
+
+    /**
+     * Performs the raw (unbounded) teardown of a pooled connection in the pool's documented order:
+     * share → session → connection. Runs on the {@link #closeExecutor} via {@link #closeBounded}.
+     *
+     * <p>Visible for testing — override to simulate a slow or hanging close.
+     */
+    protected void rawClose(PooledShare pooled) {
+        pooled.closeQuietly();
     }
 
     private PooledShare acquire(String volumeId) throws IOException {
@@ -230,8 +297,8 @@ public class SmbConnectionFactory {
             }
             if (existing != null) {
                 log.info("SMB connection to volume {} is stale; reconnecting", volumeId);
-                existing.closeQuietly();
                 pool.remove(volumeId, existing);
+                closeBounded(existing);
             }
             if (shutdown) throw new IOException("SmbConnectionFactory is shut down");
             PooledShare fresh = dialWithTimeout(volumeId);
@@ -455,6 +522,22 @@ public class SmbConnectionFactory {
             return connection != null && connection.isConnected();
         }
 
+        /**
+         * Raw teardown in order share → session → connection (matching
+         * {@link SmbVolumeConnection}'s documented order).
+         *
+         * <p>The connection is closed <strong>gracefully</strong> ({@code close()} == smbj's
+         * {@code close(false)}), never force-closed. {@code SMBClient.connect(host)} keys an internal
+         * connection table by {@code host:port} and leases a <em>shared</em> {@link Connection} per
+         * host (refcounted). With ~15 volumes spread across only a couple of NAS hosts, many
+         * {@code PooledShare}s share one underlying connection — so graceful close is required:
+         * {@code close(false)} decrements the lease and returns without disconnecting while siblings
+         * still hold it, running the session-LOGOFF loop + {@code transport.disconnect()} only for
+         * the last lease-holder. Force-close ({@code close(true)}) would skip that refcount check and
+         * yank the shared transport out from under every sibling volume on the host. The graceful
+         * LOGOFF loop can hang on a wedged socket, which is exactly why callers must run this under
+         * {@link #closeBounded} — the executor + {@code closeTimeoutMillis} is the hang safety net.
+         */
         void closeQuietly() {
             if (share != null)      try { share.close();      } catch (Exception ignored) { /* ignore */ }
             if (session != null)    try { session.close();    } catch (Exception ignored) { /* ignore */ }

@@ -286,6 +286,7 @@ structures:
 #   dialTimeoutSeconds: 10        # TCP-connect + SMB auth timeout per dial attempt (default 10)
 #   readTimeoutSeconds: 45        # wait on a dead connection before failing (fast self-heal; default 45)
 #   transactTimeoutSeconds: 45    # overall wait per SMB request on a dead connection (default 45)
+#   closeTimeoutSeconds: 5        # max wait to tear down a pooled connection before abandoning (default 5)
 
 # Sync reconciliation — see spec/PROPOSAL_SYNC_RECONCILIATION.md.
 # A title_locations row not observed during a sync is marked stale rather than

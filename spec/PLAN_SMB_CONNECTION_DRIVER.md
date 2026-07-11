@@ -54,9 +54,21 @@ smbj 0.13.0 exposes **no** `Connection.echo()`. Use a **bounded share-stat** as 
 `DiskShare.getShareInformation()` (no path) or `folderExists("")` on the share root — both are real
 SMB2 round-trips already used in the codebase. Run under the bounded-close/probe executor with a short
 timeout (`livenessProbeTimeoutSeconds`). (SMB2 ECHO via `connection.send(new SMB2Echo(...))` is
-possible but lower-level; only pursue if share-stat proves too heavy.) For **bounded close**, prefer
-`Connection.close(false)` (force-close, skips the graceful LOGOFF round-trip that can hang) — verify
-smbj's `close(boolean)` semantics during Wave 1.
+possible but lower-level; only pursue if share-stat proves too heavy.)
+
+**Bounded close must stay GRACEFUL, not force — critical finding (Wave 1 bytecode verification).**
+smbj's `SMBClient.connect(host)` keys a `connectionTable` by `host:port`: a live entry is `lease()`d
+(refcount++) and **shared**; a new `Connection` is built only when absent/disconnected. So with ~15
+volumes across 2 hosts, **many pooled shares share one `Connection` per host.** `Connection.close(true)`
+is the FORCE path — it skips `release()` and jumps straight to `transport.disconnect()`, so force-closing
+*one* evicted volume **yanks the shared transport out from under every sibling volume on that host**
+(their next `isHealthy()` fails → they all re-dial), amplifying the exact thrash Wave 2 exists to kill —
+and it gets worse in Wave 4 when idle/age recycling evicts *healthy* shared connections. `close()` /
+`close(false)` (GRACEFUL) is refcount-aware: `release()` decrements the lease and **returns without
+disconnecting while siblings still hold it**; only the last lease-holder runs the session LOGOFF loop +
+`disconnect()`. Therefore: **use graceful `close()`. The bounded executor + timeout — NOT force-close —
+is the hang safety net for the LOGOFF loop.** (Earlier drafts of this plan wrongly preferred force-close;
+corrected after decoding `SMBClient.connect`/`Connection.close(boolean)` bytecode.)
 
 ---
 

@@ -23,7 +23,7 @@ class SmbConfigWiringTest {
     @Test
     void buildSmbConfig_factory_appliesReadTimeout() {
         // readTimeoutMinutes(3) is a decoy: readTimeout is now sourced from readTimeoutSeconds(7).
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9);
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9, null);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
         long expectedMs = TimeUnit.SECONDS.toMillis(7);
@@ -33,7 +33,7 @@ class SmbConfigWiringTest {
 
     @Test
     void buildSmbConfig_factory_appliesWriteTimeout() {
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9);
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9, null);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
         long expectedMs = TimeUnit.MINUTES.toMillis(4);
@@ -44,7 +44,7 @@ class SmbConfigWiringTest {
     @Test
     void buildSmbConfig_factory_appliesTransactTimeout() {
         // transactTimeoutMinutes(6) is a decoy: transactTimeout is now sourced from transactTimeoutSeconds(9).
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9);
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9, null);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
         long expectedMs = TimeUnit.SECONDS.toMillis(9);
@@ -54,7 +54,7 @@ class SmbConfigWiringTest {
 
     @Test
     void buildSmbConfig_factory_appliesSoTimeout() {
-        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9);
+        SmbSettings settings = new SmbSettings(3, 4, 6, 120, 30, null, 7, 9, null);
         SmbConfig config = SmbConnectionFactory.buildSmbConfig(settings);
 
         // soTimeout mirrors readTimeoutMinutes (backstop at TCP level; deliberately left
@@ -66,7 +66,7 @@ class SmbConfigWiringTest {
 
     @Test
     void buildSmbConfig_connector_matchesFactory() {
-        SmbSettings settings = new SmbSettings(5, 5, 5, 120, 30, null, 45, 45);
+        SmbSettings settings = new SmbSettings(5, 5, 5, 120, 30, null, 45, 45, null);
         SmbConfig factoryConfig   = SmbConnectionFactory.buildSmbConfig(settings);
         SmbConfig connectorConfig = SmbjConnector.buildSmbConfig(settings);
 

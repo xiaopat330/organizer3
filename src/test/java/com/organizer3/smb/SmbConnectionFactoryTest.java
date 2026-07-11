@@ -43,7 +43,7 @@ class SmbConnectionFactoryTest {
     void dialTimeout_derivedFromDialTimeoutSeconds_customValue() {
         OrganizerConfig config = mock(OrganizerConfig.class);
         // Custom: dialTimeoutSeconds=5; transactTimeoutMinutes=5 (300_000 ms) must NOT be used.
-        when(config.smbOrDefaults()).thenReturn(new SmbSettings(null, null, 5, null, null, 5, null, null));
+        when(config.smbOrDefaults()).thenReturn(new SmbSettings(null, null, 5, null, null, 5, null, null, null));
         SmbConnectionFactory factory = new SmbConnectionFactory(config, mock(SMBClient.class));
         assertEquals(5_000L, factory.dialTimeoutMillisForTesting(),
                 "dialTimeoutSeconds=5 should produce dialTimeoutMillis=5000, not transact-minutes value");
@@ -321,6 +321,113 @@ class SmbConnectionFactoryTest {
             assertEquals("ok", result);
             assertEquals(2, opCalls.get(), "op must be retried exactly once");
             assertEquals(2, dialCalls.get(), "evict + re-acquire should cause a second dial");
+        } finally {
+            factory.shutdown();
+        }
+    }
+
+    // ---------- Bounded-close (Wave 1) ----------
+
+    /**
+     * A hanging connection teardown must not block the caller: {@code evict()} removes the pool
+     * entry synchronously and returns within {@code closeTimeoutMillis}, abandoning the close to
+     * the daemon worker. The evicted entry is gone, so the next {@code open} re-dials.
+     */
+    @Test
+    void evictWithHangingCloseReturnsWithinBoundAndRemovesEntry() throws Exception {
+        OrganizerConfig config = configWithShortTimeouts();
+        CountDownLatch closeEntered = new CountDownLatch(1);
+        CountDownLatch releaseClose = new CountDownLatch(1);
+        TestableFactory factory = new TestableFactory(config) {
+            @Override
+            protected void rawClose(SmbConnectionFactory.PooledShare pooled) {
+                closeEntered.countDown();
+                try { releaseClose.await(10, TimeUnit.SECONDS); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            }
+        };
+        factory.onDial("a", v -> new SmbConnectionFactory.PooledShare(""));
+        factory.setCloseTimeoutMillisForTesting(300L);
+        try {
+            factory.open("a");                       // pool one entry
+            int dialsBefore = factory.dialCount();
+            long t0 = System.nanoTime();
+            factory.evict("a");                      // hanging close — must not block past the bound
+            long elapsedMs = (System.nanoTime() - t0) / 1_000_000;
+            assertTrue(closeEntered.await(2, TimeUnit.SECONDS), "close should have been attempted");
+            assertTrue(elapsedMs < 3000, "evict must return within the close bound; took " + elapsedMs + "ms");
+            factory.open("a");                       // entry gone → must re-dial
+            assertEquals(dialsBefore + 1, factory.dialCount(), "evicted entry should be gone → re-dial");
+        } finally {
+            releaseClose.countDown();
+            factory.shutdown();
+        }
+    }
+
+    /** A normal (fast) close runs to completion and the entry is removed (next open re-dials). */
+    @Test
+    void evictWithFastCloseCompletesAndRemovesEntry() throws Exception {
+        OrganizerConfig config = configWithShortTimeouts();
+        CountDownLatch closed = new CountDownLatch(1);
+        TestableFactory factory = new TestableFactory(config) {
+            @Override
+            protected void rawClose(SmbConnectionFactory.PooledShare pooled) {
+                closed.countDown();
+            }
+        };
+        factory.onDial("a", v -> new SmbConnectionFactory.PooledShare(""));
+        try {
+            factory.open("a");
+            int dialsBefore = factory.dialCount();
+            factory.evict("a");
+            assertTrue(closed.await(2, TimeUnit.SECONDS), "fast close should run to completion");
+            factory.open("a");
+            assertEquals(dialsBefore + 1, factory.dialCount(), "entry should be removed → re-dial");
+        } finally {
+            factory.shutdown();
+        }
+    }
+
+    /** {@code shutdown()} drains best-effort and stays bounded even when every close hangs. */
+    @Test
+    void shutdownStaysBoundedWhenCloseHangs() throws Exception {
+        OrganizerConfig config = configWithShortTimeouts();
+        CountDownLatch releaseClose = new CountDownLatch(1);
+        TestableFactory factory = new TestableFactory(config) {
+            @Override
+            protected void rawClose(SmbConnectionFactory.PooledShare pooled) {
+                try { releaseClose.await(10, TimeUnit.SECONDS); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            }
+        };
+        factory.onDial("a", v -> new SmbConnectionFactory.PooledShare(""));
+        factory.onDial("b", v -> new SmbConnectionFactory.PooledShare(""));
+        factory.setCloseTimeoutMillisForTesting(300L);
+        try {
+            factory.open("a");
+            factory.open("b");
+            long t0 = System.nanoTime();
+            factory.shutdown();
+            long elapsedMs = (System.nanoTime() - t0) / 1_000_000;
+            assertTrue(elapsedMs < 3000, "shutdown must stay bounded even when closes hang; took " + elapsedMs + "ms");
+        } finally {
+            releaseClose.countDown();
+        }
+    }
+
+    /** The injectable wall-clock seam (foundational for later waves) is read through the supplier. */
+    @Test
+    void nowMillisSourceIsInjectable() {
+        OrganizerConfig config = mock(OrganizerConfig.class);
+        when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
+        SmbConnectionFactory factory = new SmbConnectionFactory(config, mock(SMBClient.class));
+        try {
+            java.util.concurrent.atomic.AtomicLong clock = new java.util.concurrent.atomic.AtomicLong(1000L);
+            factory.setNowMillisForTesting(clock::get);
+            assertEquals(1000L, factory.nowMillisForTesting());
+            clock.set(5000L);
+            assertEquals(5000L, factory.nowMillisForTesting(),
+                    "factory should read wall-clock through the injected source");
         } finally {
             factory.shutdown();
         }
