@@ -135,6 +135,22 @@ class HostDialBreakerTest {
                 "after a success the backoff must reset to the base cooldown");
     }
 
+    // ── resetAll (Wave 3) ────────────────────────────────────────────────────
+
+    @Test
+    void resetAll_clearsOpenBreaker() throws IOException {
+        HostDialBreaker b = newBreaker();
+        openBreaker(b);
+        assertTrue(b.isOpen(HOST), "breaker must be open before reset");
+        assertThrows(IOException.class, () -> b.checkOpenOrThrow(HOST), "open breaker fast-fails");
+
+        b.resetAll();
+
+        assertFalse(b.isOpen(HOST), "resetAll must clear the open breaker");
+        assertEquals(HostDialBreaker.Status.CLOSED, b.statusOf(HOST));
+        assertDoesNotThrow(() -> b.checkOpenOrThrow(HOST), "a reset host allows dials immediately");
+    }
+
     // ── Per-host isolation ───────────────────────────────────────────────────
 
     @Test

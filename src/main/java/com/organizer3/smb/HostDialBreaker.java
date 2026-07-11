@@ -107,6 +107,17 @@ final class HostDialBreaker {
         }
     }
 
+    /**
+     * Clears all per-host breaker state, returning every host to a fresh CLOSED breaker. Called by
+     * {@link SmbConnectionFactory#invalidateAll()} when the network has re-settled: a settled network
+     * must not stay stuck in a pre-switch backoff. Any dial already in flight that later records into
+     * its (now-orphaned) {@link State} simply has no effect — the next {@link #stateFor} lookup builds
+     * a fresh state.
+     */
+    void resetAll() {
+        states.clear();
+    }
+
     /** Records a successful dial: closes the breaker and clears all failure/backoff state. */
     void recordSuccess(String host) {
         State s = stateFor(host);

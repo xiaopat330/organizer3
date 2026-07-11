@@ -9,6 +9,7 @@ import com.organizer3.javdb.enrichment.JavdbActressStagingRow;
 import com.organizer3.javdb.enrichment.JavdbStagingRepository;
 import com.organizer3.model.Title;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.smb.SmbConnectionFactory;
 import org.jdbi.v3.core.Jdbi;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -38,7 +39,30 @@ class JavdbEnrichmentActionServiceTest {
         queue         = new EnrichmentQueue(jdbi, JavdbConfig.DEFAULTS);
         mockRunner    = Mockito.mock(EnrichmentRunner.class);
         mockTitleRepo = Mockito.mock(TitleRepository.class);
-        service       = new JavdbEnrichmentActionService(mockTitleRepo, queue, mockRunner, null, null, null);
+        service       = new JavdbEnrichmentActionService(mockTitleRepo, queue, mockRunner, null, null, null, null);
+    }
+
+    /**
+     * forceResume() is the "resume after switching VPN" seam — it must also tear down + re-establish
+     * the SMB pool (Wave 3), since a VPN switch severs SMB connections.
+     */
+    @Test
+    void forceResume_alsoInvalidatesSmbPool() {
+        SmbConnectionFactory smbFactory = Mockito.mock(SmbConnectionFactory.class);
+        JavdbEnrichmentActionService svc = new JavdbEnrichmentActionService(
+                mockTitleRepo, queue, mockRunner, null, null, null, smbFactory);
+
+        svc.forceResume();
+
+        Mockito.verify(mockRunner).forceResume();
+        Mockito.verify(smbFactory).invalidateAll();
+    }
+
+    /** With no SMB factory wired (null), forceResume() still resumes the runner and does not NPE. */
+    @Test
+    void forceResume_nullSmbFactory_stillResumesRunner() {
+        service.forceResume();
+        Mockito.verify(mockRunner).forceResume();
     }
 
     @AfterEach
@@ -288,7 +312,7 @@ class JavdbEnrichmentActionServiceTest {
                .thenReturn(java.util.Optional.of(new JavdbActressStagingRow(
                        actressId, "test-slug", null, "fetched", null, null, null, null, null, null, null, null)));
         JavdbEnrichmentActionService svc2 = new JavdbEnrichmentActionService(
-                mockTitleRepo, queue, mockRunner, mockStaging, null, null);
+                mockTitleRepo, queue, mockRunner, mockStaging, null, null, null);
 
         svc2.deriveSlugAndEnqueueProfile(actressId);
 

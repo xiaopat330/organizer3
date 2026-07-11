@@ -55,7 +55,7 @@ class SmbSettingsTest {
 
     @Test
     void readTimeoutSeconds_explicitValueOverridesDefault() {
-        SmbSettings settings = new SmbSettings(null, null, null, null, null, null, 90, null, null, null, null, null);
+        SmbSettings settings = new SmbSettings(null, null, null, null, null, null, 90, null, null, null, null, null, null, null, null);
         assertEquals(90, settings.readTimeoutSecondsOrDefault());
     }
 
@@ -66,7 +66,7 @@ class SmbSettingsTest {
 
     @Test
     void transactTimeoutSeconds_explicitValueOverridesDefault() {
-        SmbSettings settings = new SmbSettings(null, null, null, null, null, null, null, 60, null, null, null, null);
+        SmbSettings settings = new SmbSettings(null, null, null, null, null, null, null, 60, null, null, null, null, null, null, null);
         assertEquals(60, settings.transactTimeoutSecondsOrDefault());
     }
 
@@ -79,10 +79,26 @@ class SmbSettingsTest {
 
     @Test
     void dialBackoff_explicitValuesOverrideDefaults() {
-        SmbSettings settings = new SmbSettings(null, null, null, null, null, null, null, null, null, 5, 90, 15);
+        SmbSettings settings = new SmbSettings(null, null, null, null, null, null, null, null, null, 5, 90, 15, null, null, null);
         assertEquals(5,  settings.dialBackoffThresholdOrDefault());
         assertEquals(90, settings.dialBackoffWindowSecondsOrDefault());
         assertEquals(15, settings.dialBackoffCooldownSecondsOrDefault());
+    }
+
+    @Test
+    void wave3_defaults() {
+        assertEquals(30, SmbSettings.DEFAULTS.poolSweepIntervalSecondsOrDefault());
+        assertEquals(3,  SmbSettings.DEFAULTS.livenessProbeTimeoutSecondsOrDefault());
+        assertTrue(SmbSettings.DEFAULTS.networkChangeTeardownEnabledOrDefault());
+    }
+
+    @Test
+    void wave3_explicitValuesOverrideDefaults() {
+        SmbSettings settings = new SmbSettings(
+                null, null, null, null, null, null, null, null, null, null, null, null, 15, 2, false);
+        assertEquals(15, settings.poolSweepIntervalSecondsOrDefault());
+        assertEquals(2,  settings.livenessProbeTimeoutSecondsOrDefault());
+        assertFalse(settings.networkChangeTeardownEnabledOrDefault());
     }
 
     @Test
@@ -92,7 +108,7 @@ class SmbSettingsTest {
 
     @Test
     void dialTimeoutSeconds_explicitValueOverridesDefault() {
-        SmbSettings settings = new SmbSettings(null, null, null, null, null, 30, null, null, null, null, null, null);
+        SmbSettings settings = new SmbSettings(null, null, null, null, null, 30, null, null, null, null, null, null, null, null, null);
         assertEquals(30, settings.dialTimeoutSecondsOrDefault());
     }
 
@@ -100,7 +116,7 @@ class SmbSettingsTest {
 
     @Test
     void explicitValues_overrideDefaults() {
-        SmbSettings settings = new SmbSettings(10, 15, 20, 60, 45, null, null, null, null, null, null, null);
+        SmbSettings settings = new SmbSettings(10, 15, 20, 60, 45, null, null, null, null, null, null, null, null, null, null);
 
         assertEquals(10, settings.readTimeoutMinutesOrDefault());
         assertEquals(15, settings.writeTimeoutMinutesOrDefault());
@@ -112,7 +128,7 @@ class SmbSettingsTest {
     @Test
     void partialOverride_unsetFieldsUseDefaults() {
         // Only readTimeoutMinutes is set; all others should fall back to defaults.
-        SmbSettings settings = new SmbSettings(3, null, null, null, null, null, null, null, null, null, null, null);
+        SmbSettings settings = new SmbSettings(3, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
         assertEquals(3,   settings.readTimeoutMinutesOrDefault());
         assertEquals(SmbSettings.DEFAULT_WRITE_TIMEOUT_MINUTES,      settings.writeTimeoutMinutesOrDefault());
@@ -138,7 +154,7 @@ class SmbSettingsTest {
 
     @Test
     void smbOrDefaults_returnsConfiguredValues_whenSmbFieldPresent() {
-        SmbSettings custom = new SmbSettings(7, 8, 9, 45, 10, null, null, null, null, null, null, null);
+        SmbSettings custom = new SmbSettings(7, 8, 9, 45, 10, null, null, null, null, null, null, null, null, null, null);
         // Use the full canonical ctor with smb= custom
         OrganizerConfig config = new OrganizerConfig(
                 "test", "/tmp", null, null, null, null, null, null, null,

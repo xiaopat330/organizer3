@@ -717,6 +717,9 @@ public class Application {
 
         // Video streaming + metadata
         SmbConnectionFactory smbConnectionFactory = new SmbConnectionFactory(config, nasMonitor);
+        // Wave 3: start the background pool-sweep (dead-connection eviction + all-hosts-down teardown
+        // sensor). Started here rather than in the ctor to avoid a `this`-escape; stopped by shutdown().
+        smbConnectionFactory.startPoolSweep();
         VideoStreamService videoStreamService = new VideoStreamService(titleRepo, videoRepo, smbConnectionFactory);
         VideoProbe videoProbe = new VideoProbe(WebServer.DEFAULT_PORT);
         commands.add(new com.organizer3.command.ProbeVideosCommand(videoRepo, videoProbe::probe));
@@ -747,6 +750,10 @@ public class Application {
         // In-app log viewer (Tools → Logs). Path matches logback.xml's RollingFileAppender.
         webServer.registerLogRoutes(
                 new com.organizer3.web.routes.LogRoutes(java.nio.file.Paths.get("logs/organizer3.log")));
+
+        // SMB pool admin — POST /api/smb/reset tears down + re-establishes all pooled connections
+        // (Wave 3 backstop for a VPN/network switch). See spec/PLAN_SMB_CONNECTION_DRIVER.md.
+        webServer.registerSmb(new com.organizer3.web.routes.SmbRoutes(smbConnectionFactory));
 
         // Translation Tools page endpoints (Phase 4 + Phase 6a).
         webServer.registerTranslation(new com.organizer3.web.routes.TranslationRoutes(
@@ -1103,7 +1110,7 @@ public class Application {
         webServer.registerJavdbDiscovery(new com.organizer3.web.routes.JavdbDiscoveryRoutes(
                 new com.organizer3.web.JavdbDiscoveryService(jdbi, enrichmentRunner, coverPath),
                 new com.organizer3.web.JavdbEnrichmentActionService(titleRepo, enrichmentQueue, enrichmentRunner,
-                        javdbStagingRepo, avatarStore, coverPath)));
+                        javdbStagingRepo, avatarStore, coverPath, smbConnectionFactory)));
 
         webServer.registerTitleDiscovery(new com.organizer3.web.routes.TitleDiscoveryRoutes(
                 new com.organizer3.web.TitleDiscoveryService(jdbi, config, profileChainGate, enrichmentQueue)));

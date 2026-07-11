@@ -188,6 +188,11 @@ public class WebServer {
         routes.register(app);
     }
 
+    /** Mounts the SMB pool admin endpoint ({@code POST /api/smb/reset}). */
+    public void registerSmb(com.organizer3.web.routes.SmbRoutes routes) {
+        routes.register(app);
+    }
+
     /** Mounts the background-thumbnail chip endpoints ({@code /api/bg-thumbnails/*}). */
     public void registerBgThumbnails(com.organizer3.web.routes.BgThumbnailsRoutes routes) {
         routes.register(app);

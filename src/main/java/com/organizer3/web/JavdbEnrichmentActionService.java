@@ -10,6 +10,7 @@ import com.organizer3.javdb.enrichment.JavdbActressStagingRow;
 import com.organizer3.javdb.enrichment.JavdbStagingRepository;
 import com.organizer3.model.Title;
 import com.organizer3.repository.TitleRepository;
+import com.organizer3.smb.SmbConnectionFactory;
 import lombok.RequiredArgsConstructor;
 
 import java.util.List;
@@ -27,6 +28,13 @@ public class JavdbEnrichmentActionService {
     private final JavdbStagingRepository stagingRepo;
     private final ActressAvatarStore avatarStore;
     private final CoverPath coverPath;
+    /**
+     * Optional SMB pool. {@link #forceResume()} is the "resume after switching VPN" seam — a VPN
+     * switch is exactly the network-reconfiguration event that severs SMB connections, so a resume
+     * also tears down + lazily re-establishes the SMB pool. Nullable so unit tests that don't exercise
+     * the SMB path can pass {@code null}.
+     */
+    private final SmbConnectionFactory smbConnectionFactory;
 
     /**
      * Enqueues a fetch_title job for every title belonging to the actress.
@@ -60,9 +68,16 @@ public class JavdbEnrichmentActionService {
     /**
      * Immediately lifts any active rate-limit or burst pause and resets backoff counters.
      * Use after switching VPN — processing resumes on the runner's next loop tick.
+     *
+     * <p>A VPN switch also severs SMB connections, so we tear down + lazily re-establish the SMB pool
+     * here (Wave 3) — resuming enrichment right after a switch is exactly when a clean SMB reset is
+     * wanted.
      */
     public void forceResume() {
         runner.forceResume();
+        if (smbConnectionFactory != null) {
+            smbConnectionFactory.invalidateAll();
+        }
     }
 
     /** Returns whether the enrichment runner is currently paused. */

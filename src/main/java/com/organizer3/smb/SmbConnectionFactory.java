@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
@@ -30,8 +31,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -71,8 +74,27 @@ public class SmbConnectionFactory {
     // runs here off the caller/sweeper thread so a wedged socket can never block the caller
     // beyond closeTimeoutMillis. Mirrors dialExecutor: cached, unbounded, daemon threads.
     private final ExecutorService closeExecutor;
+    // Dedicated bounded-probe worker (Wave 3). A liveness share-stat is itself an SMB round-trip that
+    // can hang on a wedged socket; running it here (off the sweep thread) with probeTimeoutMillis keeps
+    // a hung probe from ever blocking the sweep. Kept separate from closeExecutor so a storm of probes
+    // never starves the teardown worker. Cached, unbounded, daemon threads (mirrors dialExecutor).
+    private final ExecutorService probeExecutor;
+    // Background pool-sweep scheduler (Wave 3), created lazily by startPoolSweep() from Application to
+    // avoid a `this`-escape from the constructor. Null until started; stopped by shutdown().
+    private volatile ScheduledExecutorService sweepScheduler;
     private volatile long dialTimeoutMillis;
     private volatile long closeTimeoutMillis;
+    // Wave 3 tunables (seconds in config, millis here). The sweep probes each pooled connection with a
+    // bounded share-stat every poolSweepIntervalMillis, evicts dead ones, and — when EVERY pooled host
+    // fails one pass at once (the Stage-0 multi-host network-change signature) — tears down all
+    // connections via invalidateAll(), debounced to once per event.
+    private volatile long poolSweepIntervalMillis;
+    private volatile long probeTimeoutMillis;
+    private volatile boolean networkChangeTeardownEnabled;
+    // Sensor debounce (Wave 3). Event-based, not time-windowed: armed → the all-hosts-down sensor may
+    // fire invalidateAll(); firing disarms it (fire once per event); any later pass that sees ≥1 pooled
+    // connection probe OK (recovery) re-arms it. An empty-pool pass neither fires nor re-arms.
+    private volatile boolean sensorArmed = true;
     // Injectable wall-clock source (foundational seam for later waves' TTL/idle/age logic).
     // Read on the hot path from Wave 2 on — the breaker times cooldowns/windows through it.
     private volatile LongSupplier nowMillis = System::currentTimeMillis;
@@ -98,6 +120,15 @@ public class SmbConnectionFactory {
     }
     // Visible for testing — the breaker instance (for direct state assertions).
     HostDialBreaker dialBreakerForTesting() { return this.breaker; }
+    // Visible for testing — override the liveness-probe timeout (millis).
+    void setProbeTimeoutMillisForTesting(long millis) { this.probeTimeoutMillis = millis; }
+    // Visible for testing — gate the auto-teardown fire independently of the dead-eviction sweep.
+    void setNetworkChangeTeardownEnabledForTesting(boolean enabled) { this.networkChangeTeardownEnabled = enabled; }
+    // Visible for testing — read/prime the sensor arm state.
+    void setSensorArmedForTesting(boolean armed) { this.sensorArmed = armed; }
+    boolean sensorArmedForTesting() { return this.sensorArmed; }
+    // Visible for testing — current number of pooled entries.
+    int poolSizeForTesting() { return this.pool.size(); }
     private volatile boolean shutdown = false;
 
     public SmbConnectionFactory(OrganizerConfig config) {
@@ -119,6 +150,7 @@ public class SmbConnectionFactory {
         this.monitor = monitor;
         this.dialExecutor = newDaemonExecutor("smb-dial-");
         this.closeExecutor = newDaemonExecutor("smb-close-");
+        this.probeExecutor = newDaemonExecutor("smb-probe-");
         // Outer dial budget — guards against TCP-connect + SMB session-setup hanging forever
         // when the NAS host is reachable by ping but its SMB service is wedged. This is kept
         // intentionally short (default 10 s) and distinct from the read/write/transact timeouts
@@ -140,6 +172,10 @@ public class SmbConnectionFactory {
                 smb.dialBackoffThresholdOrDefault(),
                 TimeUnit.SECONDS.toMillis(smb.dialBackoffWindowSecondsOrDefault()),
                 TimeUnit.SECONDS.toMillis(smb.dialBackoffCooldownSecondsOrDefault()));
+        // Wave 3 sweep/probe budgets and the network-change auto-teardown flag.
+        this.poolSweepIntervalMillis = TimeUnit.SECONDS.toMillis(smb.poolSweepIntervalSecondsOrDefault());
+        this.probeTimeoutMillis = TimeUnit.SECONDS.toMillis(smb.livenessProbeTimeoutSecondsOrDefault());
+        this.networkChangeTeardownEnabled = smb.networkChangeTeardownEnabledOrDefault();
     }
 
     private static ExecutorService newDaemonExecutor(String namePrefix) {
@@ -244,6 +280,9 @@ public class SmbConnectionFactory {
     /** Closes all pooled connections and the underlying SMBClient. */
     public void shutdown() {
         shutdown = true;
+        // Stop the background sweep first so it can't re-populate or fire during teardown.
+        ScheduledExecutorService s = sweepScheduler;
+        if (s != null) s.shutdownNow();
         // Cancel any in-flight dials so callers waiting on them unblock.
         for (CompletableFuture<PooledShare> f : inFlightDials.values()) {
             f.cancel(true);
@@ -254,7 +293,41 @@ public class SmbConnectionFactory {
         for (PooledShare p : pool.values()) closeBounded(p);
         pool.clear();
         closeExecutor.shutdownNow();
+        probeExecutor.shutdownNow();
         try { client.close(); } catch (Exception e) { /* ignore */ }
+    }
+
+    /**
+     * "Network has re-settled — start clean." Cancels every in-flight dial (so awaiting callers
+     * unblock), bounded-closes and removes <em>every</em> pooled entry, and resets the per-host
+     * breakers so a settled network is not stuck in a pre-switch backoff. The factory stays usable
+     * (unlike {@link #shutdown()}, the {@code shutdown} flag is NOT set) — the next {@link #open}
+     * re-dials lazily. Safe to call concurrently with normal ops (the pool is a
+     * {@link ConcurrentHashMap}; per-entry removal uses the same {@code remove(k,v)} idiom as
+     * {@link #acquire}). Never blocks the caller past the bounded close.
+     *
+     * <p><b>Not</b> a session-reclaim: in the sever-first case the sockets are already dead when we
+     * react, so the NAS reclaims orphaned sessions on its own idle timeout regardless. The value here
+     * is stopping the re-dial thrash and re-establishing cleanly.
+     */
+    public void invalidateAll() {
+        // Cancel in-flight dials WITHOUT flipping the shutdown flag — the factory stays usable.
+        for (CompletableFuture<PooledShare> f : inFlightDials.values()) {
+            f.cancel(true);
+        }
+        inFlightDials.clear();
+        // Remove + bounded-close every entry present in this pass. Weakly-consistent iteration plus
+        // remove(k,v) leaves any entry a concurrent dial adds after we pass it untouched (it re-dialed
+        // against a fresh, live connection, so it is not stale).
+        int invalidated = 0;
+        for (Map.Entry<String, PooledShare> e : pool.entrySet()) {
+            if (pool.remove(e.getKey(), e.getValue())) {
+                closeBounded(e.getValue());
+                invalidated++;
+            }
+        }
+        breaker.resetAll();
+        log.info("invalidateAll: torn down {} pooled SMB connection(s) + reset dial breakers; next open re-dials", invalidated);
     }
 
     /**
@@ -297,6 +370,123 @@ public class SmbConnectionFactory {
      */
     protected void rawClose(PooledShare pooled) {
         pooled.closeQuietly();
+    }
+
+    /**
+     * Liveness probe for a pooled connection: a <em>bounded</em> SMB share-stat
+     * ({@link DiskShare#getShareInformation()}, a real SMB2 round-trip) submitted to the
+     * {@link #probeExecutor} with a {@link #probeTimeoutMillis} budget. Returns {@code true} iff it
+     * completes without throwing or timing out — a hung probe never blocks the sweep thread. A
+     * {@code null} share (test-only ctor) is treated as not-probeable ({@code false}).
+     *
+     * <p>Visible for testing — override to simulate probe outcomes without real smbj.
+     */
+    protected boolean probe(PooledShare pooled) {
+        if (pooled == null || pooled.share == null) return false;
+        Future<?> future;
+        try {
+            future = probeExecutor.submit(() -> { pooled.share.getShareInformation(); return null; });
+        } catch (RejectedExecutionException e) {
+            return false;   // probe worker shut down (racing shutdown) — treat as dead.
+        }
+        try {
+            future.get(probeTimeoutMillis, TimeUnit.MILLISECONDS);
+            return true;
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
+     * One pool-sweep pass (Wave 3): probe every pooled connection, evict the dead ones, and — when
+     * <strong>≥2 distinct pooled hosts</strong> had all their probes fail in a single pass (the Stage-0
+     * multi-host network-change signature that a per-NAS fault cannot produce) — fire
+     * {@link #invalidateAll()} once per event.
+     *
+     * <p>Probe failures feed <strong>only</strong> the sweep's eviction/sensor logic — never the
+     * per-host dial breaker (which keys on dial outcomes; probes are a separate signal).
+     *
+     * <p>Sensor semantics (event-based debounce):
+     * <ul>
+     *   <li>Empty pool → do nothing (neither fire nor re-arm).</li>
+     *   <li>≥2 distinct hosts all-fail + {@link #networkChangeTeardownEnabled} + armed → WARN +
+     *       invalidateAll, then disarm (fire once).</li>
+     *   <li>Any pass that saw ≥1 probe OK → re-arm (recovery), so a subsequent event can fire again.</li>
+     *   <li>A <em>single</em> pooled host all-failing does NOT auto-teardown — the ≥2-host gate is the
+     *       discriminator between a network/VPN event and a single-NAS blip. Its dead entries are still
+     *       evicted; the breaker + manual {@code POST /api/smb/reset} / {@code forceResume()} cover it.</li>
+     *   <li>A single-host all-fail while another host is OK likewise only evicts the bad host.</li>
+     * </ul>
+     * Dead-eviction always runs; the flag gates only the auto-teardown fire.
+     *
+     * <p>Package-visible for testing.
+     */
+    void sweepOnce() {
+        Map<String, Boolean> hostAnyOk = new HashMap<>();
+        boolean poolNonEmpty = false;
+        for (Map.Entry<String, PooledShare> e : pool.entrySet()) {
+            poolNonEmpty = true;
+            String volumeId = e.getKey();
+            String host;
+            try {
+                host = hostFor(volumeId);
+            } catch (Exception ex) {
+                // Unknown/malformed host — can't group it into the sensor, but still probe+evict below.
+                host = null;
+            }
+            boolean ok = probe(e.getValue());
+            if (!ok) {
+                evict(volumeId);   // bounded close, removes entry; does NOT touch the breaker.
+            }
+            if (host != null) {
+                hostAnyOk.merge(host, ok, (a, b) -> a || b);
+            }
+        }
+        if (!poolNonEmpty) return;   // empty pool → neither fire nor re-arm.
+
+        boolean anyOk = hostAnyOk.containsValue(Boolean.TRUE);
+        if (anyOk) {
+            sensorArmed = true;      // recovery signal → re-arm the sensor.
+        }
+        // Require ≥2 distinct pooled hosts all-failing: two independent NAS hosts down at once is the
+        // network/VPN signature a per-NAS fault cannot produce. A single pooled host all-failing is a
+        // per-NAS blip — already handled by the per-entry evict above + the breaker + the manual reset
+        // — and must NOT auto-teardown (that would wipe the Wave-2 backoff via resetAll()).
+        boolean multiHostDown = hostAnyOk.size() >= 2 && !anyOk;
+        if (multiHostDown && networkChangeTeardownEnabled && sensorArmed) {
+            log.warn("all SMB hosts failed liveness at once — suspected network change; tearing down all connections");
+            sensorArmed = false;     // debounce: fire once per event (disarm BEFORE firing).
+            invalidateAll();
+        }
+    }
+
+    /**
+     * Starts the background pool-sweep on a single daemon scheduler (thread {@code smb-sweep}),
+     * running {@link #sweepOnce()} every {@code poolSweepIntervalSeconds}. Each run is guarded so one
+     * bad pass can never kill the schedule. Idempotent — a second call is a no-op. Called from
+     * {@code Application} right after construction (avoids a {@code this}-escape from the ctor).
+     * {@link #shutdown()} stops the scheduler.
+     */
+    public void startPoolSweep() {
+        if (sweepScheduler != null || shutdown) return;
+        ScheduledExecutorService s = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "smb-sweep");
+            t.setDaemon(true);
+            return t;
+        });
+        s.scheduleWithFixedDelay(() -> {
+            try {
+                sweepOnce();
+            } catch (Throwable t) {
+                log.warn("SMB pool-sweep pass failed (schedule continues): {}", t.toString());
+            }
+        }, poolSweepIntervalMillis, poolSweepIntervalMillis, TimeUnit.MILLISECONDS);
+        this.sweepScheduler = s;
+        log.info("SMB pool-sweep started (interval {} ms, probeTimeout {} ms, auto-teardown {})",
+                poolSweepIntervalMillis, probeTimeoutMillis, networkChangeTeardownEnabled);
     }
 
     private PooledShare acquire(String volumeId) throws IOException {

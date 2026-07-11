@@ -290,6 +290,9 @@ structures:
 #   dialBackoffThreshold: 3       # dial failures per host within the window before the breaker opens (default 3)
 #   dialBackoffWindowSeconds: 60  # sliding window for counting per-host dial failures (default 60)
 #   dialBackoffCooldownSeconds: 30 # per-host fast-fail cooldown before one half-open probe dial (default 30)
+#   poolSweepIntervalSeconds: 30     # background pool-sweep cadence: probe + evict dead connections, all-hosts-down sensor (default 30)
+#   livenessProbeTimeoutSeconds: 3   # bounded share-stat liveness-probe timeout during the sweep (default 3)
+#   networkChangeTeardownEnabled: true # auto-teardown all connections when every pooled host fails one sweep at once (default true)
 
 # Sync reconciliation — see spec/PROPOSAL_SYNC_RECONCILIATION.md.
 # A title_locations row not observed during a sync is marked stale rather than

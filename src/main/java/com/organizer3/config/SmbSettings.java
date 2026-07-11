@@ -31,7 +31,10 @@ public record SmbSettings(
         @JsonProperty("closeTimeoutSeconds")     Integer closeTimeoutSeconds,
         @JsonProperty("dialBackoffThreshold")      Integer dialBackoffThreshold,
         @JsonProperty("dialBackoffWindowSeconds")  Integer dialBackoffWindowSeconds,
-        @JsonProperty("dialBackoffCooldownSeconds") Integer dialBackoffCooldownSeconds
+        @JsonProperty("dialBackoffCooldownSeconds") Integer dialBackoffCooldownSeconds,
+        @JsonProperty("poolSweepIntervalSeconds")     Integer poolSweepIntervalSeconds,
+        @JsonProperty("livenessProbeTimeoutSeconds")  Integer livenessProbeTimeoutSeconds,
+        @JsonProperty("networkChangeTeardownEnabled") Boolean networkChangeTeardownEnabled
 ) {
     public static final int DEFAULT_READ_TIMEOUT_MINUTES      = 5;
     public static final int DEFAULT_WRITE_TIMEOUT_MINUTES     = 5;
@@ -45,10 +48,13 @@ public record SmbSettings(
     public static final int DEFAULT_DIAL_BACKOFF_THRESHOLD       = 3;
     public static final int DEFAULT_DIAL_BACKOFF_WINDOW_SECONDS  = 60;
     public static final int DEFAULT_DIAL_BACKOFF_COOLDOWN_SECONDS = 30;
+    public static final int DEFAULT_POOL_SWEEP_INTERVAL_SECONDS    = 30;
+    public static final int DEFAULT_LIVENESS_PROBE_TIMEOUT_SECONDS = 3;
+    public static final boolean DEFAULT_NETWORK_CHANGE_TEARDOWN_ENABLED = true;
 
     /** Singleton default instance — all fields use their defaults. */
     public static final SmbSettings DEFAULTS =
-            new SmbSettings(null, null, null, null, null, null, null, null, null, null, null, null);
+            new SmbSettings(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
 
     public int readTimeoutMinutesOrDefault() {
         return readTimeoutMinutes != null ? readTimeoutMinutes : DEFAULT_READ_TIMEOUT_MINUTES;
@@ -96,5 +102,17 @@ public record SmbSettings(
 
     public int dialBackoffCooldownSecondsOrDefault() {
         return dialBackoffCooldownSeconds != null ? dialBackoffCooldownSeconds : DEFAULT_DIAL_BACKOFF_COOLDOWN_SECONDS;
+    }
+
+    public int poolSweepIntervalSecondsOrDefault() {
+        return poolSweepIntervalSeconds != null ? poolSweepIntervalSeconds : DEFAULT_POOL_SWEEP_INTERVAL_SECONDS;
+    }
+
+    public int livenessProbeTimeoutSecondsOrDefault() {
+        return livenessProbeTimeoutSeconds != null ? livenessProbeTimeoutSeconds : DEFAULT_LIVENESS_PROBE_TIMEOUT_SECONDS;
+    }
+
+    public boolean networkChangeTeardownEnabledOrDefault() {
+        return networkChangeTeardownEnabled != null ? networkChangeTeardownEnabled : DEFAULT_NETWORK_CHANGE_TEARDOWN_ENABLED;
     }
 }

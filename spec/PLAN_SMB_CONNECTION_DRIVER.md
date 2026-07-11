@@ -139,8 +139,12 @@ re-establish (NOT session reclaim — see correction).
   + reset breakers. Next `open()` re-dials lazily.
 - **Background pool-sweep** (daemon, `poolSweepIntervalSeconds`): probes each pooled connection with
   the bounded share-stat; evicts dead ones proactively. This sweep is also the **sensor**: when it
-  sees **all** currently-pooled hosts fail within one pass (the Stage-0 multi-host signature), it
-  fires `invalidateAll()` (debounced, once per event). A single-host failure just evicts that host.
+  sees **≥2 distinct pooled hosts all fail** within one pass (the Stage-0 multi-host signature — "a
+  per-NAS fault cannot down two independent NAS hosts at once"), it fires `invalidateAll()`
+  (debounced, once per event). A single-host all-fail (or a pool holding only one host) just evicts
+  the dead entries — the `≥2`-host gate is the whole discriminator between a network/VPN event and a
+  single-NAS blip, so it must NOT auto-teardown on one host. (This matters more after Wave 4's
+  idle-recycling narrows the pool to a single host as the common steady state.)
 - **Manual trigger:** an `invalidateAll()` entry point wired to the existing "resume after switching
   VPN" enrichment action (`EnrichmentRunner` ~228) and, optionally, a small `POST /api/smb/reset`
   endpoint / MCP tool as the deterministic backstop.

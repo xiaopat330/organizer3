@@ -9,8 +9,11 @@ import com.organizer3.smb.NasAvailabilityMonitor;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -44,7 +47,7 @@ class SmbConnectionFactoryTest {
     void dialTimeout_derivedFromDialTimeoutSeconds_customValue() {
         OrganizerConfig config = mock(OrganizerConfig.class);
         // Custom: dialTimeoutSeconds=5; transactTimeoutMinutes=5 (300_000 ms) must NOT be used.
-        when(config.smbOrDefaults()).thenReturn(new SmbSettings(null, null, 5, null, null, 5, null, null, null, null, null, null));
+        when(config.smbOrDefaults()).thenReturn(new SmbSettings(null, null, 5, null, null, 5, null, null, null, null, null, null, null, null, null));
         SmbConnectionFactory factory = new SmbConnectionFactory(config, mock(SMBClient.class));
         assertEquals(5_000L, factory.dialTimeoutMillisForTesting(),
                 "dialTimeoutSeconds=5 should produce dialTimeoutMillis=5000, not transact-minutes value");
@@ -530,6 +533,297 @@ class SmbConnectionFactoryTest {
                     "factory should read wall-clock through the injected source");
         } finally {
             factory.shutdown();
+        }
+    }
+
+    // ---------- Wave 3: invalidateAll / pool-sweep / all-hosts-down sensor ----------
+
+    /**
+     * Harness for the sweep/sensor tests. Bypasses real smbj: {@code dial()} pools a stub
+     * {@code PooledShare} whose {@code subPath} carries the volumeId (so {@code probe()} can key its
+     * simulated outcome per volume), and {@code invalidateAll()} is counted (delegating to the real
+     * teardown only when {@code realInvalidate} is set).
+     */
+    private static class SweepTestableFactory extends SmbConnectionFactory {
+        final Map<String, Boolean> probeResults = new ConcurrentHashMap<>();
+        final AtomicInteger invalidateAllCount = new AtomicInteger();
+        final AtomicInteger dialCount = new AtomicInteger();
+        volatile boolean realInvalidate = false;
+
+        SweepTestableFactory(OrganizerConfig config) {
+            super(config, mock(SMBClient.class), null);
+        }
+
+        @Override
+        protected PooledShare dial(String volumeId) {
+            dialCount.incrementAndGet();
+            return new SmbConnectionFactory.PooledShare(volumeId);   // volumeId encoded in subPath
+        }
+
+        @Override
+        protected boolean probe(PooledShare pooled) {
+            return probeResults.getOrDefault(pooled.subPath, Boolean.TRUE);
+        }
+
+        @Override
+        public void invalidateAll() {
+            invalidateAllCount.incrementAndGet();
+            if (realInvalidate) super.invalidateAll();
+        }
+    }
+
+    /** Config mapping volumeId → host via a synthetic {@code //host/share} smbPath. */
+    private static OrganizerConfig configWithHosts(Map<String, String> volToHost) {
+        OrganizerConfig config = mock(OrganizerConfig.class);
+        when(config.smbOrDefaults()).thenReturn(SmbSettings.DEFAULTS);
+        when(config.findById(anyString())).thenAnswer(inv -> {
+            String id = inv.getArgument(0);
+            String host = volToHost.get(id);
+            return host == null ? Optional.empty()
+                    : Optional.of(new VolumeConfig(id, "//" + host + "/share", "conventional", host, null));
+        });
+        return config;
+    }
+
+    @Test
+    void invalidateAll_closesAllEntries_resetsBreaker_nextOpenRedials() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithShortTimeouts());
+        f.realInvalidate = true;
+        AtomicLong clock = new AtomicLong(10_000L);
+        f.setNowMillisForTesting(clock::get);
+        try {
+            f.open("a");
+            f.open("b");
+            assertEquals(2, f.poolSizeForTesting());
+            // Open the shared host's breaker (threshold=3 default) so we can assert the reset.
+            HostDialBreaker br = f.dialBreakerForTesting();
+            br.recordFailure("testhost");
+            br.recordFailure("testhost");
+            br.recordFailure("testhost");
+            assertTrue(br.isOpen("testhost"), "breaker must be open before invalidateAll");
+            int dialsBefore = f.dialCount.get();
+
+            f.invalidateAll();
+
+            assertEquals(0, f.poolSizeForTesting(), "every pooled entry removed");
+            assertFalse(f.dialBreakerForTesting().isOpen("testhost"),
+                    "invalidateAll must reset the breakers");
+            f.open("a");
+            assertEquals(dialsBefore + 1, f.dialCount.get(), "next open re-dials lazily");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    @Test
+    void invalidateAll_cancelsInFlightDial_awaiterUnblocks_returnsPromptly() throws Exception {
+        TestableFactory f = new TestableFactory(configWithShortTimeouts());
+        CountDownLatch dialStarted = new CountDownLatch(1);
+        CountDownLatch releaseDial = new CountDownLatch(1);
+        f.onDial("a", v -> {
+            dialStarted.countDown();
+            try { releaseDial.await(10, TimeUnit.SECONDS); }
+            catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            return new SmbConnectionFactory.PooledShare("");
+        });
+        ExecutorService pool = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> owner = pool.submit(() -> f.open("a"));
+            assertTrue(dialStarted.await(5, TimeUnit.SECONDS), "owner dial should be parked");
+            // Second caller coalesces onto the owner's in-flight future.
+            Future<?> awaiter = pool.submit(() -> f.open("a"));
+            Thread.sleep(200);   // let the awaiter register on the in-flight dial
+
+            long t0 = System.nanoTime();
+            f.invalidateAll();   // cancels the in-flight future — must not block on the parked dial
+            long elapsedMs = (System.nanoTime() - t0) / 1_000_000;
+            assertTrue(elapsedMs < 1000, "invalidateAll must not block on a parked dial; took " + elapsedMs + "ms");
+
+            ExecutionException ee = assertThrows(ExecutionException.class, () -> awaiter.get(5, TimeUnit.SECONDS));
+            assertTrue(ee.getCause() instanceof IOException, "awaiter should surface a cancellation IOException");
+
+            releaseDial.countDown();
+            owner.get(5, TimeUnit.SECONDS);   // owner completes (re-populates) — mirrors shutdown() semantics
+        } finally {
+            pool.shutdownNow();
+            f.shutdown();
+        }
+    }
+
+    @Test
+    void invalidateAll_boundedWhenCloseHangs() throws Exception {
+        OrganizerConfig config = configWithShortTimeouts();
+        CountDownLatch releaseClose = new CountDownLatch(1);
+        TestableFactory f = new TestableFactory(config) {
+            @Override
+            protected void rawClose(SmbConnectionFactory.PooledShare pooled) {
+                try { releaseClose.await(10, TimeUnit.SECONDS); }
+                catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            }
+        };
+        f.onDial("a", v -> new SmbConnectionFactory.PooledShare(""));
+        f.onDial("b", v -> new SmbConnectionFactory.PooledShare(""));
+        f.setCloseTimeoutMillisForTesting(300L);
+        try {
+            f.open("a");
+            f.open("b");
+            long t0 = System.nanoTime();
+            f.invalidateAll();
+            long elapsedMs = (System.nanoTime() - t0) / 1_000_000;
+            assertTrue(elapsedMs < 3000, "invalidateAll must stay bounded when closes hang; took " + elapsedMs + "ms");
+            assertEquals(0, f.poolSizeForTesting(), "entries removed even though close hung");
+        } finally {
+            releaseClose.countDown();
+            f.shutdown();
+        }
+    }
+
+    @Test
+    void sweepOnce_evictsDeadEntry_retainsLiveEntry() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1", "b", "h1")));
+        try {
+            f.open("a");
+            f.open("b");
+            assertEquals(2, f.poolSizeForTesting());
+            f.probeResults.put("a", false);   // dead
+            f.probeResults.put("b", true);     // live
+
+            f.sweepOnce();
+
+            assertEquals(1, f.poolSizeForTesting(), "dead entry evicted, live one retained");
+            assertEquals(0, f.invalidateAllCount.get(), "a live host remained → no teardown");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    @Test
+    void sweepOnce_singleHostAllFail_otherHostOk_evictsOnly_noTeardown() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1", "b", "h2")));
+        try {
+            f.open("a");
+            f.open("b");
+            f.probeResults.put("a", false);   // host h1 down
+            f.probeResults.put("b", true);    // host h2 up
+
+            f.sweepOnce();
+
+            assertEquals(1, f.poolSizeForTesting(), "only the dead host's entry evicted");
+            assertEquals(0, f.invalidateAllCount.get(), "another host OK → invalidateAll NOT fired");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    @Test
+    void sweepOnce_allHostsAllFail_firesOnce_thenDebouncesWhileDisarmed() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1", "b", "h2")));
+        try {
+            f.open("a");
+            f.open("b");
+            f.probeResults.put("a", false);
+            f.probeResults.put("b", false);
+
+            f.sweepOnce();
+            assertEquals(1, f.invalidateAllCount.get(), "all hosts down at once → fire teardown");
+            assertFalse(f.sensorArmedForTesting(), "sensor disarmed after firing");
+
+            // Re-populate with still-failing entries; disarmed sensor must NOT re-fire (debounce).
+            f.open("a");
+            f.open("b");
+            f.sweepOnce();
+            assertEquals(1, f.invalidateAllCount.get(), "debounced: no re-fire while disarmed");
+            assertFalse(f.sensorArmedForTesting());
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    @Test
+    void sweepOnce_singleHostOnlyAllFail_evictsButDoesNotTeardown() throws Exception {
+        // Pool holds only ONE host. A single host all-failing is a per-NAS blip, NOT the multi-host
+        // network signature — the sensor must require ≥2 distinct pooled hosts. Only per-entry evict +
+        // the breaker handle single-host severance; the auto-teardown must NOT fire (it would wipe the
+        // Wave-2 backoff via resetAll()).
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1", "b", "h1")));
+        try {
+            f.open("a");
+            f.open("b");
+            f.probeResults.put("a", false);
+            f.probeResults.put("b", false);
+
+            f.sweepOnce();
+
+            assertEquals(0, f.invalidateAllCount.get(),
+                    "single pooled host all-failing must NOT auto-teardown (needs ≥2 distinct hosts)");
+            assertEquals(0, f.poolSizeForTesting(), "dead entries still evicted");
+            assertTrue(f.sensorArmedForTesting(), "sensor stays armed — it never fired");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    @Test
+    void sweepOnce_recoveryReArmsSensor_canFireAgain() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1", "b", "h2")));
+        try {
+            // Event 1: all down → fire + disarm.
+            f.open("a");
+            f.open("b");
+            f.probeResults.put("a", false);
+            f.probeResults.put("b", false);
+            f.sweepOnce();
+            assertEquals(1, f.invalidateAllCount.get());
+            assertFalse(f.sensorArmedForTesting());
+
+            // Recovery pass: healthy probes → re-arm, entries retained.
+            f.probeResults.put("a", true);
+            f.probeResults.put("b", true);
+            f.open("a");
+            f.open("b");
+            f.sweepOnce();
+            assertTrue(f.sensorArmedForTesting(), "a healthy probe re-arms the sensor");
+            assertEquals(2, f.poolSizeForTesting(), "healthy entries retained");
+
+            // Event 2: all down again → fires again.
+            f.probeResults.put("a", false);
+            f.probeResults.put("b", false);
+            f.sweepOnce();
+            assertEquals(2, f.invalidateAllCount.get(), "re-armed sensor fires on the next event");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    @Test
+    void sweepOnce_teardownDisabled_suppressesFire_stillEvictsDead() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1", "b", "h2")));
+        f.setNetworkChangeTeardownEnabledForTesting(false);
+        try {
+            f.open("a");
+            f.open("b");
+            f.probeResults.put("a", false);
+            f.probeResults.put("b", false);
+
+            f.sweepOnce();
+
+            assertEquals(0, f.invalidateAllCount.get(), "flag off → auto-teardown suppressed");
+            assertEquals(0, f.poolSizeForTesting(), "dead entries still evicted");
+        } finally {
+            f.shutdown();
+        }
+    }
+
+    @Test
+    void sweepOnce_emptyPool_doesNothing_doesNotReArm() throws Exception {
+        SweepTestableFactory f = new SweepTestableFactory(configWithHosts(Map.of("a", "h1")));
+        f.setSensorArmedForTesting(false);
+        try {
+            f.sweepOnce();   // empty pool
+            assertEquals(0, f.invalidateAllCount.get(), "empty pool never fires");
+            assertFalse(f.sensorArmedForTesting(), "empty pool must not re-arm the sensor");
+        } finally {
+            f.shutdown();
         }
     }
 }
