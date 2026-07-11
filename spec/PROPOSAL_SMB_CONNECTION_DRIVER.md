@@ -1,12 +1,15 @@
 # PROPOSAL: Centralized SMB connection driver (staleness self-healing)
 
-**Status:** DRAFT — design only, for review before any implementation.
+**Status:** DRAFT — design only. **Stage 0 CONFIRMED 2026-07-11** (see Stage 0 findings below): the
+staleness is a client-side network-reconfiguration event (VPN switching), verified by log analysis +
+user ground-truth. Ready for an implementation planning pass on Stages 1–4.
 **Motivation:** SMB connections go stale and the app hangs onto them too long: an operation
 blocks until a timeout fires before the dead connection is evicted. The 2026-07-11 bulk-promote
 audit (see `spec/PROPOSAL_RESILIENCY_HARDENING.md`) traced a `pandora.local` **SMB session-table
 exhaustion** — the host answered TCP :445 instantly while new `SESSION_SETUP` hung, and the app's
-liveness checks reported the host/connection "healthy" throughout. A likely generator is **VPN
-switching** (used to bypass javdb rate limiting), which black-holes existing SMB sockets and leaves
+liveness checks reported the host/connection "healthy" throughout. Stage 0 confirmed the generator is
+**VPN switching** (used to bypass javdb rate limiting): each switch reconfigures the routing table and
+**severs existing SMB TCP connections mid-flight** (even direct-LAN ones under split-tunnel), leaving
 sessions orphaned on the NAS. This proposal centralizes SMB connection ownership behind a single
 driver that detects staleness with a **real SMB liveness probe** (not a TCP/`isConnected()` check),
 self-heals by clean-teardown + re-dial, and reacts to the known VPN-switch event.
@@ -37,23 +40,39 @@ is already a **manual "resume after switching VPN"** affordance (`EnrichmentRunn
 teardown hook cannot be a direct callback from the switch itself — it must piggyback a user-initiated
 signal and/or a detection trigger.
 
-### Hypothesized failure chain (VPN → NAS exhaustion)
-LAN NAS (`pandora.local` = `192.168.86.58`). A **full-tunnel** VPN switch renegotiates the default
-route → existing SMB TCP sockets are black-holed (no RST → half-open). smbj never learns they're
-dead, so next use hangs until a timeout. Worse: a black-holed socket is **never cleanly closed** (no
-SMB `LOGOFF`/FIN reaches the NAS), so the **NAS holds the session** until its own idle timeout.
-Repeated switches during a long scrape-and-process run → **orphaned sessions accumulate → session
-table exhausts → new logins hang** — exactly the audited failure. (Split-tunnel preserving the LAN
-route would avoid the black-hole; confirm which is in use — see Stage 0.)
+### Confirmed failure chain (VPN switch → transition-time TCP severance → NAS session orphaning)
+**Refined from the Stage 0 measurement.** The setup is **split-tunnel**, not full-tunnel: the NAS
+(`pandora.local` = `192.168.86.58`) routes **direct via `en7`** (LAN) while internet routes through
+the VPN (`utun11`). So the mechanism is *not* a routing black-hole. Instead, a VPN connect/switch
+**reconfigures the whole routing table**, and even direct-LAN SMB sockets are **severed during the
+transition** — observed as a `broken pipe` on the live connection, then a failed/timed-out re-dial.
+Because the severed socket is never cleanly closed (no SMB `LOGOFF`/FIN reaches the NAS), the **NAS
+holds the session** until its own idle timeout; repeated switches during a long scrape-and-process run
+→ **orphaned sessions accumulate → session table exhausts → new logins hang** — the audited failure.
 
-## Stage 0 — Confirm before building (measurement, no code)
+## Stage 0 — Confirm before building (measurement, no code) — **DONE 2026-07-11**
 
-1. **Correlate VPN switches with connection failures.** Line up eviction / dial-timeout /
-   broken-pipe log spikes against known VPN-switch times. If they align, the VPN teardown (Stage 2)
-   is priority; if not, the liveness work (Stage 1) still stands on its own. *Currently a strong
-   hypothesis, not proof.*
-2. **Determine VPN tunnel mode** (full vs split) and whether any external signal is available on
-   switch (a script hook, a network-change/default-route event). Decides how automatic Stage 2 can be.
+**Method:** parsed ~385 K log lines across 4 rotated files (07-10 04:31 → 07-11 01:19), extracting
+SMB connection-failure events (evict / dial-timeout / broken-pipe, with host+volume) and rate-limit
+`429`/`403` events (the only in-log VPN-switch proxy).
+
+**Findings:**
+- **9 314 SMB failure events in 12 clusters; 8 clusters are MULTI-HOST** — both independent NAS hosts
+  (`pandora.local` *and* `qnap2.local`) failing simultaneously across ~all 15 volumes. A per-NAS
+  fault cannot do this → the cause is **client/network-level**.
+- **Every multi-host cluster onset = `broken pipe → evict → re-dial times out`** — live TCP
+  connections *severed*, not a NAS refusing fresh dials from cold.
+- **Not sleep/wake** — logging is continuous up to each onset (no suspend gap).
+- **Recurring ~every 1–4 h** over the 20 h run.
+- The in-log rate-limit proxy was too sparse to prove causation on its own (2 bursts vs 8 clusters,
+  loose timing), **but user ground-truth confirmed the multi-host cluster times mostly match manual
+  VPN switches.** → **VPN switching is the confirmed primary trigger.**
+- **Tunnel mode = split** (LAN direct via `en7`; internet via `utun11`).
+
+**Design consequence:** the trigger is a *network-reconfiguration* event. The app cannot hook the
+external VPN switch directly, but it **can** observe the reconfiguration it causes — so Stage 2 leads
+with an **OS network-change signal** (more general than a VPN-specific hook; also catches WiFi flap /
+wake / DHCP renew).
 
 ## Design principle
 
@@ -85,18 +104,24 @@ volume- and auth-bound, not fungible like DB connections — a generic pool is a
 - **Value:** stale connections are detected proactively and dropped+reestablished, instead of being
   discovered by a hanging operation. Directly answers the user's "drop stale + reestablish" question.
 
-### Stage 2 — React to the VPN-switch event (addresses NAS session orphaning)
+### Stage 2 — React to the network-change event (addresses NAS session orphaning)
+Stage 0 confirmed the trigger is a **network reconfiguration** (VPN switch), which the app cannot
+hook directly but *can* observe.
 - **Add `invalidateAll()` to the driver:** bounded clean-close (SMB `LOGOFF` so the NAS reclaims the
   session) + evict every pooled connection; next use re-dials lazily once the network has settled.
-- **Trigger it from a user-initiated signal first** (deterministic, no detection needed): extend the
-  existing "resume after switching VPN" action so it ALSO calls `invalidateAll()`. Optionally a
-  dedicated "I switched VPN / reset connections" button/endpoint.
-- **Later, optional auto-trigger:** a network-change / default-route watch, or an inference from a
-  liveness-probe-failure spike across *all* hosts at once (signature of a route change vs a single
-  NAS blip).
-- **Value:** turns the black-hole-and-orphan chain into a clean teardown at the moment we know the
-  network changed — reacting to the known event instead of detecting its aftermath. This is the piece
-  most likely to prevent recurrence of the audited exhaustion.
+- **Primary trigger — OS network-change signal:** watch macOS primary-interface / default-route
+  changes (SCNetworkReachability / `SCDynamicStore`, or a lightweight default-route poll). On a
+  change, debounce briefly (let routing settle) then `invalidateAll()`. This is general — it catches
+  the confirmed VPN switches *and* WiFi flap / wake / DHCP renew — and needs no VPN integration.
+- **Backstop trigger — user-initiated:** extend the existing "resume after switching VPN" action (and
+  optionally a dedicated "reset connections" button/endpoint) to also call `invalidateAll()`, for
+  when detection misses or the user wants to force it.
+- **Corroborating auto-detector:** a liveness-probe-failure spike across *all* hosts at once is the
+  Stage-0 multi-host signature — usable to confirm a route change vs a single-NAS blip and avoid
+  invalidating everything for one flaky volume.
+- **Value:** turns the sever-and-orphan chain into a clean teardown at the moment the network changes
+  — reacting to the event instead of hanging on its aftermath. Most likely to prevent recurrence of
+  the audited session exhaustion.
 
 ### Stage 3 — Unify the two clients (structural coherence)
 - Make the driver the **single** `SMBClient` owner. `SmbjConnector` / `SmbVolumeConnection` (mount)
