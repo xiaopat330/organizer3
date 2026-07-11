@@ -389,6 +389,14 @@ export function mountCastPane(containerEl, state, {
         }
       }
     });
+
+    // ── Add another actress (non-empty list) ───────────────────────────
+    // Reuses the proven manual-append path (onAddManual → manual:N slot).
+    // No sentinels here — placeholders are empty-state only.
+    const addAnother = _buildAddCastBlock((resolution, extra) => {
+      onAddManual?.(resolution, extra);
+    }, { includeSentinels: false, label: 'Add another actress' });
+    containerEl.appendChild(addAnother);
   }
 
   function _buildSlotContent(slot, idx) {
@@ -654,18 +662,21 @@ export function mountCastPane(containerEl, state, {
   }
 
   /**
-   * Build the Add-cast block shown when cast list is empty.
-   * Contains: search-existing, create-new, and placeholder (sentinel) buttons.
+   * Build the Add-cast block. Contains: search-existing, create-new, and
+   * (empty-state only) placeholder (sentinel) buttons.
    * @param {Function} submit — (resolution, extra) → void
+   * @param {{includeSentinels?: boolean, label?: string}} [opts] — sentinels are
+   *        empty-state only (mutual-exclusivity rule); the non-empty "Add another
+   *        actress" block passes includeSentinels:false.
    * @returns {HTMLElement}
    */
-  function _buildAddCastBlock(submit) {
+  function _buildAddCastBlock(submit, { includeSentinels = true, label: labelText = 'Add cast' } = {}) {
     const block = document.createElement('div');
     block.className = 'un-cast-add-block';
 
     const label = document.createElement('div');
     label.className = 'un-cast-add-label';
-    label.textContent = 'Add cast';
+    label.textContent = labelText;
     block.appendChild(label);
 
     const actionsRow = document.createElement('div');
@@ -683,26 +694,30 @@ export function mountCastPane(containerEl, state, {
     block.appendChild(actionsRow);
     block.appendChild(createForm);
 
-    // ── Sentinel placeholder buttons ───────────────────────────────────
-    const sentinelRow = document.createElement('div');
-    sentinelRow.className = 'un-cast-sentinel-row';
-    const sentinelLabel = document.createElement('span');
-    sentinelLabel.className = 'un-cast-sentinel-label';
-    sentinelLabel.textContent = 'Placeholders:';
-    sentinelRow.appendChild(sentinelLabel);
+    // ── Sentinel placeholder buttons (empty-state only) ─────────────────
+    // Mutual-exclusivity rule: sentinels (Amateur/Various/Unknown) are offered
+    // only when the cast is empty, never on the "Add another actress" append.
+    if (includeSentinels) {
+      const sentinelRow = document.createElement('div');
+      sentinelRow.className = 'un-cast-sentinel-row';
+      const sentinelLabel = document.createElement('span');
+      sentinelLabel.className = 'un-cast-sentinel-label';
+      sentinelLabel.textContent = 'Placeholders:';
+      sentinelRow.appendChild(sentinelLabel);
 
-    fetchSentinels(state).then(sentinels => {
-      sentinels.forEach(s => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'btn btn-secondary btn-sm';
-        btn.textContent = s.canonicalName;
-        btn.addEventListener('click', () => submit('sentinel:' + s.id, {}));
-        sentinelRow.appendChild(btn);
+      fetchSentinels(state).then(sentinels => {
+        sentinels.forEach(s => {
+          const btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'btn btn-secondary btn-sm';
+          btn.textContent = s.canonicalName;
+          btn.addEventListener('click', () => submit('sentinel:' + s.id, {}));
+          sentinelRow.appendChild(btn);
+        });
       });
-    });
 
-    block.appendChild(sentinelRow);
+      block.appendChild(sentinelRow);
+    }
     return block;
   }
 

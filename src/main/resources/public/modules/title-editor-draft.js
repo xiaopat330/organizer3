@@ -433,6 +433,14 @@ function renderCastSlots() {
       if (headerEl) _fillCreateNew(headerEl, pickerEl, slot, slot.englishFirstName, slot.englishLastName);
     }
   }
+
+  // ── Add another actress (non-empty list) ───────────────────────────────
+  // Reuses the proven manual-append path (addManualCast → manual:N slot).
+  // No sentinels here — placeholders are empty-state only.
+  const addLi = document.createElement('li');
+  addLi.className = 'queue-cast-slot';
+  addLi.appendChild(buildAddCastBlock({ includeSentinels: false, label: 'Add another actress' }));
+  castList.appendChild(addLi);
 }
 
 function buildSlotContent(slot, idx) {
@@ -818,11 +826,14 @@ async function checkAndOpenAliasModal(actressId, stageName, capturedFirst, captu
 // ── Add-cast block (empty-state) ─────────────────────────────────────────
 
 /**
- * Build the Add-cast block shown when the cast list is empty.
- * Contains: search-existing, create-new, and placeholder (sentinel) buttons.
+ * Build the Add-cast block. Contains: search-existing, create-new, and
+ * (empty-state only) placeholder (sentinel) buttons.
+ * @param {{includeSentinels?: boolean, label?: string}} [opts] — sentinels are
+ *        empty-state only (mutual-exclusivity rule); the non-empty "Add another
+ *        actress" block passes includeSentinels:false.
  * @returns {HTMLElement}
  */
-function buildAddCastBlock() {
+function buildAddCastBlock({ includeSentinels = true, label: labelText = 'Add cast' } = {}) {
   const block = document.createElement('div');
   block.className = 'queue-cast-add-block';
 
@@ -831,7 +842,7 @@ function buildAddCastBlock() {
   label.style.marginBottom = '6px';
   label.style.color = '#64748b';
   label.style.fontSize = '0.85rem';
-  label.textContent = 'Add cast';
+  label.textContent = labelText;
   block.appendChild(label);
 
   const actionsRow = document.createElement('div');
@@ -951,29 +962,33 @@ function buildAddCastBlock() {
     addManualCast('create_new', { englishLastName: lastName, englishFirstName: firstName || null });
   });
 
-  // ── Sentinel placeholder buttons ───────────────────────────────────────
-  const sentinelRow = document.createElement('div');
-  sentinelRow.className = 'queue-cast-sentinel-row';
-  sentinelRow.style.marginTop = '6px';
-  const sentinelLabel = document.createElement('span');
-  sentinelLabel.style.fontSize = '0.8rem';
-  sentinelLabel.style.color = '#64748b';
-  sentinelLabel.style.marginRight = '6px';
-  sentinelLabel.textContent = 'Placeholders:';
-  sentinelRow.appendChild(sentinelLabel);
+  // ── Sentinel placeholder buttons (empty-state only) ─────────────────────
+  // Mutual-exclusivity rule: sentinels (Amateur/Various/Unknown) are offered
+  // only when the cast is empty, never on the "Add another actress" append.
+  if (includeSentinels) {
+    const sentinelRow = document.createElement('div');
+    sentinelRow.className = 'queue-cast-sentinel-row';
+    sentinelRow.style.marginTop = '6px';
+    const sentinelLabel = document.createElement('span');
+    sentinelLabel.style.fontSize = '0.8rem';
+    sentinelLabel.style.color = '#64748b';
+    sentinelLabel.style.marginRight = '6px';
+    sentinelLabel.textContent = 'Placeholders:';
+    sentinelRow.appendChild(sentinelLabel);
 
-  fetchSentinels().then(sentinels => {
-    sentinels.forEach(s => {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'queue-btn queue-btn-sm queue-btn-secondary';
-      btn.textContent = s.canonicalName;
-      btn.addEventListener('click', () => addManualCast('sentinel:' + s.id, {}));
-      sentinelRow.appendChild(btn);
+    fetchSentinels().then(sentinels => {
+      sentinels.forEach(s => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'queue-btn queue-btn-sm queue-btn-secondary';
+        btn.textContent = s.canonicalName;
+        btn.addEventListener('click', () => addManualCast('sentinel:' + s.id, {}));
+        sentinelRow.appendChild(btn);
+      });
     });
-  });
 
-  block.appendChild(sentinelRow);
+    block.appendChild(sentinelRow);
+  }
   return block;
 }
 
