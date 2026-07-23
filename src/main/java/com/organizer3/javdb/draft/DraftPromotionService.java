@@ -659,8 +659,12 @@ public class DraftPromotionService {
         // ── Step 5: INSERT OR REPLACE title_javdb_enrichment ─────────────────────
         // Pass the draft's Japanese/English titles so the enrichment row carries title_original
         // (the column the translation sweeper reads). See writeCanonicalEnrichment for why.
+        // release_date is read from draft.getReleaseDate() (draft_titles.release_date) rather
+        // than duplicated onto DraftEnrichment — it was already being written there at draft
+        // creation (see DraftPopulator.writeDraft) and step 3 above already copied it onto
+        // titles.release_date, so this is the same value, not a second source of truth.
         writeCanonicalEnrichment(h, canonicalTitleId, enrichment, nowIso,
-                draft.getTitleOriginal(), draft.getTitleEnglish());
+                draft.getTitleOriginal(), draft.getTitleEnglish(), draft.getReleaseDate());
 
         // ── Step 6: Resolve and write title_enrichment_tags ─────────────────────
         h.createUpdate("DELETE FROM title_enrichment_tags WHERE title_id = :id")
@@ -1198,7 +1202,7 @@ public class DraftPromotionService {
 
     /** Writes the canonical title_javdb_enrichment row from draft data. */
     private void writeCanonicalEnrichment(Handle h, long titleId, DraftEnrichment e, String nowIso,
-                                          String titleOriginal, String titleEnglish) {
+                                          String titleOriginal, String titleEnglish, String releaseDate) {
         // The background translation sweeper (JavdbEnrichmentRepository.findTitlesAwaitingTranslation)
         // reads title_javdb_enrichment.title_original — NOT titles.title_original — to decide what to
         // enqueue. If we omit it here, a draft-promoted title's Japanese title only lands in
@@ -1216,44 +1220,36 @@ public class DraftPromotionService {
         h.createUpdate("""
                 INSERT INTO title_javdb_enrichment (
                     title_id, javdb_slug, fetched_at, release_date,
-                    rating_avg, rating_count, maker, series,
-                    cast_json, cover_url, resolver_source,
+                    rating_avg, rating_count, maker, publisher, series,
+                    duration_minutes, cast_json, cover_url, resolver_source,
                     title_original, title_original_en,
                     confidence, cast_validated
                 ) VALUES (
                     :titleId, :javdbSlug, :fetchedAt, :releaseDate,
-                    :ratingAvg, :ratingCount, :maker, :series,
-                    :castJson, :coverUrl, :resolverSource,
+                    :ratingAvg, :ratingCount, :maker, :publisher, :series,
+                    :durationMinutes, :castJson, :coverUrl, :resolverSource,
                     :titleOriginal, :titleOriginalEn,
                     'HIGH', 1
                 )
                 """)
-                .bind("titleId",        titleId)
-                .bind("javdbSlug",      e.getJavdbSlug())
-                .bind("fetchedAt",      nowIso)
-                // release_date lives on draft_titles, not draft enrichment;
-                // step 3 already wrote it to titles. Pass null here — consumers
-                // read it from titles.release_date or from the draft_titles snapshot.
-                .bind("releaseDate",    (String) null)
-                .bind("ratingAvg",      e.getRatingAvg())
-                .bind("ratingCount",    e.getRatingCount())
-                .bind("maker",          e.getMaker())
-                .bind("series",         e.getSeries())
-                .bind("castJson",       e.getCastJson())  // forensic preservation (§5.4)
-                .bind("coverUrl",       e.getCoverUrl())
-                .bind("resolverSource", e.getResolverSource() != null ? e.getResolverSource() : "auto_enriched")
+                .bind("titleId",         titleId)
+                .bind("javdbSlug",       e.getJavdbSlug())
+                .bind("fetchedAt",       nowIso)
+                .bind("releaseDate",     releaseDate)
+                .bind("ratingAvg",       e.getRatingAvg())
+                .bind("ratingCount",     e.getRatingCount())
+                .bind("maker",           e.getMaker())
+                .bind("publisher",       e.getPublisher())
+                .bind("series",          e.getSeries())
+                .bind("durationMinutes", e.getDurationMinutes())
+                .bind("castJson",        e.getCastJson())  // forensic preservation (§5.4)
+                .bind("coverUrl",        e.getCoverUrl())
+                .bind("resolverSource",  e.getResolverSource() != null ? e.getResolverSource() : "auto_enriched")
                 // Bind title_original as-is (may be null/blank in odd cases — the sweeper's own
                 // IS NOT NULL / != '' predicate handles empties).
                 .bind("titleOriginal",   titleOriginal)
                 .bind("titleOriginalEn", titleEnglishOrNull)
                 .execute();
-    }
-
-    private String extractReleaseDateFromEnrichment(DraftEnrichment e) {
-        // Draft enrichment doesn't have a separate release_date field;
-        // it was stored on draft_titles.release_date. We fall back to null here;
-        // the draft_titles.releaseDate is written to titles in step 3.
-        return null;
     }
 
     /**

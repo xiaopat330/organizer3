@@ -195,7 +195,7 @@ class SchemaInitializerTest {
 
         int version = jdbi.withHandle(h ->
                 h.createQuery("PRAGMA user_version").mapTo(Integer.class).one());
-        assertEquals(72, version);
+        assertEquals(73, version);
     }
 
     @Test

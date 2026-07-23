@@ -282,6 +282,8 @@ public class DraftPopulator {
                 .maker(extract.maker())
                 .series(extract.series())
                 .coverUrl(extract.coverUrl())
+                .durationMinutes(extract.durationMinutes())
+                .publisher(extract.publisher())
                 .tagsJson(toJson(extract.tags()))
                 .ratingAvg(extract.ratingAvg())
                 .ratingCount(extract.ratingCount())
@@ -442,8 +444,23 @@ public class DraftPopulator {
         }
     }
 
-    private static String resolverSourceLabel(JavdbSlugResolver.Success success) {
-        return success.source().name().toLowerCase().replace("_", "-");
+    /**
+     * Maps a slug-resolution source to its canonical DB label.
+     *
+     * <p>Must stay in lockstep with {@link com.organizer3.javdb.enrichment.EnrichmentRunner}'s
+     * own {@code resolverSourceLabel} — both write into the same {@code resolver_source}
+     * column family (draft and canonical), and every other layer (repositories, review-queue
+     * writers) documents only the underscore form. An explicit switch — not a
+     * {@code String.replace} transform — keeps the two mappings from drifting apart again.
+     * Package-visible for {@link DraftPopulatorTest}'s cross-agreement check.
+     */
+    static String resolverSourceLabel(JavdbSlugResolver.Success success) {
+        JavdbSlugResolver.Source source = success.source();
+        if (source == null) return "unknown";
+        return switch (source) {
+            case ACTRESS_FILMOGRAPHY  -> "actress_filmography";
+            case CODE_SEARCH_FALLBACK -> "code_search_fallback";
+        };
     }
 
     private String toJson(Object value) {

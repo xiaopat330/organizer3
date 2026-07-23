@@ -54,7 +54,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         boolean present = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
@@ -68,7 +68,7 @@ class SchemaUpgraderTest {
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('actresses') WHERE name='needs_profiling'")
                         .mapTo(Integer.class).one() > 0);
         assertTrue(present, "fresh install should include needs_profiling");
-        assertEquals(72, currentVersion(), "fresh install should stamp current version (72)");
+        assertEquals(73, currentVersion(), "fresh install should stamp current version (73)");
     }
 
     @Test
@@ -84,7 +84,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         boolean sizeBytesPresent = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM pragma_table_info('videos') WHERE name='size_bytes'")
                         .mapTo(Integer.class).one() > 0);
@@ -106,7 +106,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("titles",    "favorite_cleared_at"));
         assertTrue(columnExists("actresses", "favorite_cleared_at"));
 
@@ -132,7 +132,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         boolean tableExists = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='merge_candidates'")
                         .mapTo(Integer.class).one() > 0);
@@ -217,7 +217,7 @@ class SchemaUpgraderTest {
 
         // Run the migration.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
 
         // Enrichment rows: 5 fixture titles + the malformed-tags title (it still has slug + status='fetched');
         // not_found row should be excluded.
@@ -283,7 +283,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("titles", "grade_source"), "grade_source column should exist");
 
         // Backfill: grade != null → grade_source = 'ai'; grade is null → grade_source stays null.
@@ -324,7 +324,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
 
         // actress_id is now nullable and source column exists.
         assertTrue(columnExists("javdb_enrichment_queue", "source"));
@@ -361,7 +361,7 @@ class SchemaUpgraderTest {
 
         // Idempotent: running again must not change state.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
     }
 
     @Test
@@ -387,7 +387,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
 
         // All three sentinels are now flagged.
         for (long id : new long[] {10L, 11L, 12L}) {
@@ -403,7 +403,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
     }
 
     @Test
@@ -422,7 +422,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("javdb_actress_filmography_entry", "stale"),
                 "stale column must exist after v34 migration");
         assertTrue(columnExists("javdb_actress_filmography", "last_drift_count"),
@@ -432,7 +432,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
     }
 
     @Test
@@ -450,7 +450,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("title_javdb_enrichment", "last_revalidated_at"),
                 "last_revalidated_at column must exist after v38 migration");
 
@@ -461,7 +461,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
     }
 
     @Test
@@ -486,7 +486,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("enrichment_review_queue", "last_seen_at"),
                 "last_seen_at column must exist after v39 migration");
         assertTrue(columnExists("enrichment_review_queue", "detail"),
@@ -506,7 +506,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
     }
 
     @Test
@@ -528,7 +528,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("javdb_enrichment_queue", "priority"),
                 "priority column must exist after v40 migration");
 
@@ -551,7 +551,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
     }
 
     @Test
@@ -559,7 +559,7 @@ class SchemaUpgraderTest {
         new SchemaInitializer(jdbi).initialize();
         assertTrue(columnExists("javdb_enrichment_queue", "priority"),
                 "fresh install must include the priority column");
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
     }
 
     // ── v41 migration tests ────────────────────────────────────────────────────
@@ -585,7 +585,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         var row = jdbi.withHandle(h ->
                 h.createQuery("SELECT status, last_error FROM javdb_enrichment_queue WHERE target_id = 1")
                         .mapToMap().one());
@@ -595,7 +595,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
     }
 
     @Test
@@ -662,7 +662,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         boolean tableExists = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='title_path_history'")
                         .mapTo(Integer.class).one() > 0);
@@ -678,7 +678,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
     }
 
     @Test
@@ -688,7 +688,7 @@ class SchemaUpgraderTest {
                 h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='title_path_history'")
                         .mapTo(Integer.class).one() > 0);
         assertTrue(tableExists, "fresh install must include title_path_history table");
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
     }
 
     // ── v51 migration tests ────────────────────────────────────────────────────
@@ -710,7 +710,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
 
         String normalized = jdbi.withHandle(h ->
                 h.createQuery("SELECT stage_name FROM draft_actresses WHERE javdb_slug = 'slug-fw'")
@@ -725,7 +725,7 @@ class SchemaUpgraderTest {
 
         // Idempotent.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertEquals("テスト1号", jdbi.withHandle(h ->
                 h.createQuery("SELECT stage_name FROM draft_actresses WHERE javdb_slug = 'slug-fw'")
                         .mapTo(String.class).one()));
@@ -734,7 +734,7 @@ class SchemaUpgraderTest {
     @Test
     void freshInstallAtV51HasNormalizedDraftActressSchema() {
         new SchemaInitializer(jdbi).initialize();
-        assertEquals(72, currentVersion(), "fresh install should stamp version 72");
+        assertEquals(73, currentVersion(), "fresh install should stamp version 73");
     }
 
     // ── v56 migration tests ────────────────────────────────────────────────────
@@ -753,7 +753,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
 
         String normalized = jdbi.withHandle(h ->
                 h.createQuery("SELECT stage_name FROM actresses WHERE canonical_name = 'Shiina Sora'")
@@ -768,7 +768,7 @@ class SchemaUpgraderTest {
 
         // Idempotent: running upgrade twice leaves both rows correct.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertEquals("椎名そら", jdbi.withHandle(h ->
                 h.createQuery("SELECT stage_name FROM actresses WHERE canonical_name = 'Shiina Sora'")
                         .mapTo(String.class).one()));
@@ -796,7 +796,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("enrichment_tag_definitions", "category"),
                 "v58 must add category column on enrichment_tag_definitions");
 
@@ -822,7 +822,7 @@ class SchemaUpgraderTest {
 
         // Idempotent: re-running upgrade is a no-op.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertEquals("body", jdbi.withHandle(h -> h.createQuery(
                 "SELECT category FROM enrichment_tag_definitions WHERE name = 'Big Tits'")
                 .mapTo(String.class).one()));
@@ -833,7 +833,7 @@ class SchemaUpgraderTest {
         new SchemaInitializer(jdbi).initialize();
         assertTrue(columnExists("enrichment_tag_definitions", "category"),
                 "fresh install should include category column");
-        assertEquals(72, currentVersion(), "fresh install should stamp version 72");
+        assertEquals(73, currentVersion(), "fresh install should stamp version 73");
     }
 
     @Test
@@ -868,7 +868,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
 
         jdbi.useHandle(h -> {
             String code = h.createQuery("SELECT code FROM titles WHERE id = 1")
@@ -905,7 +905,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         boolean tableExists = jdbi.withHandle(h ->
                 h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notes'")
                         .mapTo(Integer.class).one() > 0);
@@ -923,7 +923,7 @@ class SchemaUpgraderTest {
                 h.createQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='notes'")
                         .mapTo(Integer.class).one() > 0);
         assertTrue(tableExists, "fresh install should include notes table");
-        assertEquals(72, currentVersion(), "fresh install should stamp current version (72)");
+        assertEquals(73, currentVersion(), "fresh install should stamp current version (73)");
     }
 
     // ---- v61: orphan-row cleanup ---------------------------------------------------
@@ -939,7 +939,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         // Orphans gone, valid rows retained — assert by table.
         assertOrphanCount("actress_companies", "actress_id NOT IN (SELECT id FROM actresses)", 0);
         assertOrphanCount("title_tags", "title_id NOT IN (SELECT id FROM titles)", 0);
@@ -972,7 +972,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         // All valid rows still present.
         assertEquals(1, countRows("actress_companies"));
         assertEquals(1, countRows("title_tags"));
@@ -984,7 +984,7 @@ class SchemaUpgraderTest {
 
         // Second pass over an already-clean DB at v61 — pure no-op via the guard.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertEquals(1, countRows("actress_companies"));
         assertEquals(1, countRows("title_tags"));
     }
@@ -1114,7 +1114,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("enrichment_review_queue", "ai_suggestion_slug"));
         assertTrue(columnExists("enrichment_review_queue", "ai_suggestion_confidence"));
         assertTrue(columnExists("enrichment_review_queue", "ai_suggestion_reason"));
@@ -1123,7 +1123,7 @@ class SchemaUpgraderTest {
 
         // Re-run: idempotent no-op via addColumnIfMissing + version guard.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("enrichment_review_queue", "ai_suggestion_slug"));
         assertTrue(columnExists("enrichment_review_queue", "ai_auto_applied"));
     }
@@ -1142,12 +1142,12 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("enrichment_review_queue", "ai_auto_apply_attempts"));
 
         // Re-run: idempotent no-op via addColumnIfMissing + version guard.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("enrichment_review_queue", "ai_auto_apply_attempts"));
     }
 
@@ -1165,13 +1165,13 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("title_locations", "curated_at"),
                 "curated_at column should exist after v65 migration");
 
         // Re-run: idempotent via addColumnIfMissing + version guard.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("title_locations", "curated_at"));
     }
 
@@ -1203,7 +1203,7 @@ class SchemaUpgraderTest {
         new SchemaInitializer(jdbi).initialize();
         assertTrue(columnExists("title_locations", "curated_at"),
                 "fresh install should include curated_at on title_locations");
-        assertEquals(72, currentVersion(), "fresh install should stamp version 72");
+        assertEquals(73, currentVersion(), "fresh install should stamp version 73");
     }
 
     // ---- v70: product_code_norm column + index on javdb_actress_filmography_entry ----
@@ -1225,7 +1225,7 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("javdb_actress_filmography_entry", "product_code_norm"));
         assertTrue(indexExists("idx_filmography_entry_code_norm"),
                 "v70 must create the product_code_norm index");
@@ -1239,7 +1239,7 @@ class SchemaUpgraderTest {
 
         // Idempotent: re-run is a no-op (version guard + IF NOT EXISTS + WHERE norm IS NULL).
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
     }
 
     @Test
@@ -1268,13 +1268,13 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("draft_title_actresses", "resolved_via"),
                 "resolved_via column must exist after v71 migration");
 
         // Idempotent: re-running upgrade is a no-op.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("draft_title_actresses", "resolved_via"));
     }
 
@@ -1302,13 +1302,13 @@ class SchemaUpgraderTest {
 
         new SchemaUpgrader(jdbi).upgrade();
 
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("title_locations", "cover_pending_since"),
                 "cover_pending_since column must exist after v72 migration");
 
         // Idempotent: re-running upgrade is a no-op.
         new SchemaUpgrader(jdbi).upgrade();
-        assertEquals(72, currentVersion());
+        assertEquals(73, currentVersion());
         assertTrue(columnExists("title_locations", "cover_pending_since"));
     }
 
@@ -1338,5 +1338,184 @@ class SchemaUpgraderTest {
         new SchemaInitializer(jdbi).initialize();
         assertTrue(columnExists("title_locations", "cover_pending_since"),
                 "fresh install should include cover_pending_since on title_locations");
+    }
+
+    // ── v73: draft-promotion enrichment fields + resolver_source normalization ──
+    // reference/audits/unsorted_enrichment_audit_20260722.md findings 1 and 2.
+
+    @Test
+    void upgradeFromV72AddsDurationAndPublisherToDraftEnrichment() {
+        new SchemaInitializer(jdbi).initialize();
+        jdbi.useHandle(h -> {
+            try { h.execute("ALTER TABLE draft_title_javdb_enrichment DROP COLUMN duration_minutes"); } catch (Exception ignore) {}
+            try { h.execute("ALTER TABLE draft_title_javdb_enrichment DROP COLUMN publisher"); } catch (Exception ignore) {}
+            h.execute("PRAGMA user_version = 72");
+        });
+
+        assertFalse(columnExists("draft_title_javdb_enrichment", "duration_minutes"));
+        assertFalse(columnExists("draft_title_javdb_enrichment", "publisher"));
+
+        new SchemaUpgrader(jdbi).upgrade();
+
+        assertEquals(73, currentVersion());
+        assertTrue(columnExists("draft_title_javdb_enrichment", "duration_minutes"),
+                "v73 must add duration_minutes to draft_title_javdb_enrichment");
+        assertTrue(columnExists("draft_title_javdb_enrichment", "publisher"),
+                "v73 must add publisher to draft_title_javdb_enrichment");
+
+        // Idempotent: re-running upgrade is a no-op, columns still present.
+        new SchemaUpgrader(jdbi).upgrade();
+        assertEquals(73, currentVersion());
+        assertTrue(columnExists("draft_title_javdb_enrichment", "duration_minutes"));
+        assertTrue(columnExists("draft_title_javdb_enrichment", "publisher"));
+    }
+
+    @Test
+    void freshInstallHasDurationAndPublisherOnDraftEnrichment() {
+        new SchemaInitializer(jdbi).initialize();
+        assertTrue(columnExists("draft_title_javdb_enrichment", "duration_minutes"),
+                "fresh install should include duration_minutes on draft_title_javdb_enrichment");
+        assertTrue(columnExists("draft_title_javdb_enrichment", "publisher"),
+                "fresh install should include publisher on draft_title_javdb_enrichment");
+    }
+
+    @Test
+    void upgradeFromV72BackfillsReleaseDateFromTitles() {
+        new SchemaInitializer(jdbi).initialize();
+        jdbi.useHandle(h -> {
+            // Title 1: canonical release_date present, enrichment row's own copy NULL — recoverable.
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num, release_date) "
+                    + "VALUES (1,'TST-1','TST-1','TST',1,'2024-06-01')");
+            h.execute("""
+                    INSERT INTO title_javdb_enrichment
+                        (title_id, javdb_slug, fetched_at, release_date, duration_minutes, publisher, resolver_source)
+                    VALUES (1, 'slug-1', '2024-06-01T00:00:00Z', NULL, NULL, NULL, 'auto_enriched')
+                    """);
+            // Title 2: no canonical release_date either — must stay NULL, not error.
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (2,'TST-2','TST-2','TST',2)");
+            h.execute("""
+                    INSERT INTO title_javdb_enrichment
+                        (title_id, javdb_slug, fetched_at, release_date, resolver_source)
+                    VALUES (2, 'slug-2', '2024-06-01T00:00:00Z', NULL, 'auto_enriched')
+                    """);
+            // Title 3: enrichment already has its own release_date — must NOT be clobbered.
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num, release_date) "
+                    + "VALUES (3,'TST-3','TST-3','TST',3,'2099-01-01')");
+            h.execute("""
+                    INSERT INTO title_javdb_enrichment
+                        (title_id, javdb_slug, fetched_at, release_date, resolver_source)
+                    VALUES (3, 'slug-3', '2024-06-01T00:00:00Z', '2024-01-01', 'auto_enriched')
+                    """);
+            h.execute("PRAGMA user_version = 72");
+        });
+
+        new SchemaUpgrader(jdbi).upgrade();
+        assertEquals(73, currentVersion());
+
+        assertEquals("2024-06-01", jdbi.withHandle(h ->
+                h.createQuery("SELECT release_date FROM title_javdb_enrichment WHERE title_id=1")
+                        .mapTo(String.class).one()),
+                "release_date must be backfilled from titles.release_date when the enrichment copy was NULL");
+
+        assertNull(jdbi.withHandle(h ->
+                h.createQuery("SELECT release_date FROM title_javdb_enrichment WHERE title_id=2")
+                        .mapTo(String.class).findOne().orElse(null)),
+                "release_date must stay NULL when titles.release_date is also NULL (no recoverable source)");
+
+        assertEquals("2024-01-01", jdbi.withHandle(h ->
+                h.createQuery("SELECT release_date FROM title_javdb_enrichment WHERE title_id=3")
+                        .mapTo(String.class).one()),
+                "a pre-existing non-null release_date on the enrichment row must never be overwritten");
+
+        // duration_minutes / publisher are NOT backfilled — no recoverable source in the DB.
+        assertNull(jdbi.withHandle(h ->
+                h.createQuery("SELECT duration_minutes FROM title_javdb_enrichment WHERE title_id=1")
+                        .mapTo(Integer.class).findOne().orElse(null)),
+                "duration_minutes must be left NULL — not recoverable without a javdb re-fetch");
+        assertNull(jdbi.withHandle(h ->
+                h.createQuery("SELECT publisher FROM title_javdb_enrichment WHERE title_id=1")
+                        .mapTo(String.class).findOne().orElse(null)),
+                "publisher must be left NULL — not recoverable without a javdb re-fetch");
+
+        // Idempotent: re-running upgrade doesn't change anything (already backfilled / already NULL).
+        new SchemaUpgrader(jdbi).upgrade();
+        assertEquals("2024-06-01", jdbi.withHandle(h ->
+                h.createQuery("SELECT release_date FROM title_javdb_enrichment WHERE title_id=1")
+                        .mapTo(String.class).one()));
+    }
+
+    @Test
+    void upgradeFromV72NormalizesResolverSourceHyphenatedSpellings() {
+        new SchemaInitializer(jdbi).initialize();
+        jdbi.useHandle(h -> {
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (1,'TST-1','TST-1','TST',1)");
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (2,'TST-2','TST-2','TST',2)");
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (3,'TST-3','TST-3','TST',3)");
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (4,'TST-4','TST-4','TST',4)");
+            // The two buggy hyphenated forms — must be normalized.
+            h.execute("""
+                    INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, resolver_source)
+                    VALUES (1, 'slug-1', '2024-06-01T00:00:00Z', 'code-search-fallback')
+                    """);
+            h.execute("""
+                    INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, resolver_source)
+                    VALUES (2, 'slug-2', '2024-06-01T00:00:00Z', 'actress-filmography')
+                    """);
+            // Legitimate underscore/word forms — must be left untouched.
+            h.execute("""
+                    INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, resolver_source)
+                    VALUES (3, 'slug-3', '2024-06-01T00:00:00Z', 'manual_picker')
+                    """);
+            h.execute("""
+                    INSERT INTO title_javdb_enrichment (title_id, javdb_slug, fetched_at, resolver_source)
+                    VALUES (4, 'slug-4', '2024-06-01T00:00:00Z', 'auto_enriched')
+                    """);
+
+            // Same shape seeded on the draft enrichment table (DraftPopulator wrote the hyphen
+            // form there too). Needs a parent draft_titles row per FK.
+            h.execute("INSERT INTO titles(id, code, base_code, label, seq_num) VALUES (5,'TST-5','TST-5','TST',5)");
+            h.execute("INSERT INTO draft_titles(id, title_id, code, created_at, updated_at) "
+                    + "VALUES (1, 5, 'TST-5', '2024-06-01T00:00:00Z', '2024-06-01T00:00:00Z')");
+            h.execute("""
+                    INSERT INTO draft_title_javdb_enrichment (draft_title_id, javdb_slug, resolver_source, updated_at)
+                    VALUES (1, 'slug-5', 'code-search-fallback', '2024-06-01T00:00:00Z')
+                    """);
+
+            h.execute("PRAGMA user_version = 72");
+        });
+
+        new SchemaUpgrader(jdbi).upgrade();
+        assertEquals(73, currentVersion());
+
+        assertEquals("code_search_fallback", jdbi.withHandle(h ->
+                h.createQuery("SELECT resolver_source FROM title_javdb_enrichment WHERE title_id=1")
+                        .mapTo(String.class).one()),
+                "hyphenated 'code-search-fallback' must be normalized to underscore form");
+        assertEquals("actress_filmography", jdbi.withHandle(h ->
+                h.createQuery("SELECT resolver_source FROM title_javdb_enrichment WHERE title_id=2")
+                        .mapTo(String.class).one()),
+                "hyphenated 'actress-filmography' must be normalized to underscore form");
+        assertEquals("manual_picker", jdbi.withHandle(h ->
+                h.createQuery("SELECT resolver_source FROM title_javdb_enrichment WHERE title_id=3")
+                        .mapTo(String.class).one()),
+                "legitimate underscore form 'manual_picker' must not be touched");
+        assertEquals("auto_enriched", jdbi.withHandle(h ->
+                h.createQuery("SELECT resolver_source FROM title_javdb_enrichment WHERE title_id=4")
+                        .mapTo(String.class).one()),
+                "legitimate underscore form 'auto_enriched' must not be touched");
+        assertEquals("code_search_fallback", jdbi.withHandle(h ->
+                h.createQuery("SELECT resolver_source FROM draft_title_javdb_enrichment WHERE draft_title_id=1")
+                        .mapTo(String.class).one()),
+                "draft_title_javdb_enrichment must also be normalized");
+
+        // Idempotent: re-running upgrade leaves everything exactly as-is.
+        new SchemaUpgrader(jdbi).upgrade();
+        assertEquals(73, currentVersion());
+        assertEquals("code_search_fallback", jdbi.withHandle(h ->
+                h.createQuery("SELECT resolver_source FROM title_javdb_enrichment WHERE title_id=1")
+                        .mapTo(String.class).one()));
+        assertEquals("manual_picker", jdbi.withHandle(h ->
+                h.createQuery("SELECT resolver_source FROM title_javdb_enrichment WHERE title_id=3")
+                        .mapTo(String.class).one()));
     }
 }

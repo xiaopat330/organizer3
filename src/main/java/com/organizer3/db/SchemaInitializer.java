@@ -657,17 +657,19 @@ public class SchemaInitializer {
 
             h.execute("""
                     CREATE TABLE IF NOT EXISTS draft_title_javdb_enrichment (
-                        draft_title_id  INTEGER PRIMARY KEY REFERENCES draft_titles(id) ON DELETE CASCADE,
-                        javdb_slug      TEXT,
-                        cast_json       TEXT,
-                        maker           TEXT,
-                        series          TEXT,
-                        cover_url       TEXT,
-                        tags_json       TEXT,
-                        rating_avg      REAL,
-                        rating_count    INTEGER,
-                        resolver_source TEXT,
-                        updated_at      TEXT NOT NULL
+                        draft_title_id   INTEGER PRIMARY KEY REFERENCES draft_titles(id) ON DELETE CASCADE,
+                        javdb_slug       TEXT,
+                        cast_json        TEXT,
+                        maker            TEXT,
+                        series           TEXT,
+                        cover_url        TEXT,
+                        duration_minutes INTEGER,
+                        publisher        TEXT,
+                        tags_json        TEXT,
+                        rating_avg       REAL,
+                        rating_count     INTEGER,
+                        resolver_source  TEXT,
+                        updated_at       TEXT NOT NULL
                     )""");
 
             // title_path_history: forensic path log for sync matcher fallback (v46).
@@ -854,7 +856,7 @@ public class SchemaInitializer {
             // leave the version alone and let SchemaUpgrader apply any missing migrations.
             int currentVersion = h.createQuery("PRAGMA user_version").mapTo(Integer.class).one();
             if (currentVersion == 0) {
-                h.execute("PRAGMA user_version = 72");
+                h.execute("PRAGMA user_version = 73");
             }
         });
         log.info("Schema initialization complete");

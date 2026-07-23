@@ -25,7 +25,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 72;
+    private static final int CURRENT_VERSION = 73;
 
     private final Jdbi jdbi;
 
@@ -387,6 +387,11 @@ public class SchemaUpgrader {
         if (version < 72) {
             applyV72();
             setVersion(72);
+        }
+
+        if (version < 73) {
+            applyV73();
+            setVersion(73);
         }
 
         log.info("Schema upgrade complete");
@@ -2451,6 +2456,71 @@ public class SchemaUpgrader {
     private void applyV72() {
         log.info("Applying migration v72: cover_pending_since on title_locations (cover-write confirmation)");
         jdbi.useHandle(h -> addColumnIfMissing(h, "title_locations", "cover_pending_since", "TEXT"));
+    }
+
+    /**
+     * v73: fixes the draft-promotion enrichment path dropping release_date/duration_minutes/
+     * publisher, and normalizes the two-spelling {@code resolver_source} bug — both from
+     * reference/audits/unsorted_enrichment_audit_20260722.md findings 1 and 2.
+     *
+     * <ol>
+     *   <li>Adds {@code duration_minutes} / {@code publisher} columns to
+     *       {@code draft_title_javdb_enrichment} — the draft tables never had a home for these,
+     *       so {@code DraftPopulator}/{@code DraftPromotionService} could not carry them through.
+     *       (Idempotent via {@link #addColumnIfMissing}.)
+     *   <li>Backfills {@code title_javdb_enrichment.release_date} from {@code titles.release_date}
+     *       for rows where the enrichment copy is NULL — {@code titles.release_date} was always
+     *       populated correctly by the promotion transaction's step 3 UPDATE even when the
+     *       enrichment row's own copy was wrongly left NULL, so it is the recoverable source.
+     *       {@code duration_minutes} and {@code publisher} are NOT recoverable this way — the
+     *       draft tables never stored them at all prior to this version — so those columns are
+     *       left NULL for existing rows; only a javdb re-fetch can populate them.
+     *   <li>Normalizes the two hyphenated {@code resolver_source} spellings emitted by the old
+     *       (buggy) {@code DraftPopulator.resolverSourceLabel} to the canonical underscore form
+     *       used everywhere else, in both {@code title_javdb_enrichment} (promoted rows) and
+     *       {@code draft_title_javdb_enrichment} (any draft still in flight). Only the two
+     *       enum-derived values are touched — other resolver_source values (e.g.
+     *       {@code manual_picker}, {@code auto_enriched}) are legitimately underscore/word forms
+     *       and must not be touched by a blanket replace.
+     * </ol>
+     *
+     * <p>Every statement is a targeted, re-runnable UPDATE/ALTER — safe to apply twice.
+     */
+    private void applyV73() {
+        log.info("Applying migration v73: draft-promotion enrichment fields + resolver_source normalization");
+        jdbi.useHandle(h -> {
+            // (1) New columns on the draft enrichment table.
+            addColumnIfMissing(h, "draft_title_javdb_enrichment", "duration_minutes", "INTEGER");
+            addColumnIfMissing(h, "draft_title_javdb_enrichment", "publisher", "TEXT");
+
+            // (2) release_date backfill: recover from titles.release_date where present and the
+            // enrichment row's own copy is NULL. duration_minutes/publisher are intentionally left
+            // alone here — see class comment above, not recoverable from the DB.
+            h.execute("""
+                    UPDATE title_javdb_enrichment
+                    SET release_date = (
+                        SELECT t.release_date FROM titles t WHERE t.id = title_javdb_enrichment.title_id
+                    )
+                    WHERE release_date IS NULL
+                      AND EXISTS (
+                          SELECT 1 FROM titles t
+                          WHERE t.id = title_javdb_enrichment.title_id
+                            AND t.release_date IS NOT NULL
+                      )
+                    """);
+
+            // (3) resolver_source normalization — targeted per-value, both tables.
+            for (String table : List.of("title_javdb_enrichment", "draft_title_javdb_enrichment")) {
+                h.createUpdate(
+                        "UPDATE " + table + " SET resolver_source = 'code_search_fallback' "
+                                + "WHERE resolver_source = 'code-search-fallback'")
+                        .execute();
+                h.createUpdate(
+                        "UPDATE " + table + " SET resolver_source = 'actress_filmography' "
+                                + "WHERE resolver_source = 'actress-filmography'")
+                        .execute();
+            }
+        });
     }
 
     private record FilmographyEntryKey(String actressSlug, String productCode) {}

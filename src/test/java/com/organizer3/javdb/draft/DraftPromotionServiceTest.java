@@ -240,6 +240,37 @@ class DraftPromotionServiceTest {
         assertTrue(draftTitleRepo.findById(draftId).isEmpty());
     }
 
+    // ── Defect A: release_date / duration_minutes / publisher must survive promotion ──
+
+    /**
+     * Regression test for reference/audits/unsorted_enrichment_audit_20260722.md finding 1:
+     * the draft-promotion path used to bind release_date to a literal null and omit
+     * duration_minutes/publisher from the INSERT entirely, even though the draft/extract had
+     * them. Asserts all three land non-null on the canonical title_javdb_enrichment row.
+     */
+    @Test
+    void happyPath_promotedEnrichmentRow_carriesReleaseDateDurationAndPublisher() throws Exception {
+        long draftId = seedDraftFull(1L, castJson("Mana Sakura"), "pick", "slug-mana", 10L,
+                null, null, "[]", "2024-06-01T00:00:00Z");
+        // seedDraftFull's DraftTitle always carries releaseDate("2024-06-01"); add duration/publisher
+        // to the enrichment row directly (seedDraft/seedDraftFull don't set them by default).
+        draftEnrichRepo.upsert(draftId, draftEnrichRepo.findByDraftId(draftId).orElseThrow().toBuilder()
+                .durationMinutes(115)
+                .publisher("Test Publisher")
+                .build());
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        var row = jdbi.withHandle(h ->
+                h.createQuery("SELECT release_date, duration_minutes, publisher FROM title_javdb_enrichment WHERE title_id=1")
+                        .mapToMap().one());
+        assertEquals("2024-06-01", row.get("release_date"), "release_date must be populated from the draft, not null");
+        assertEquals(115, ((Number) row.get("duration_minutes")).intValue(),
+                "duration_minutes must be populated from the draft enrichment");
+        assertEquals("Test Publisher", row.get("publisher"),
+                "publisher must be populated from the draft enrichment");
+    }
+
     // ── bookmark-on-promote ─────────────────────────────────────────────────────
 
     @Test

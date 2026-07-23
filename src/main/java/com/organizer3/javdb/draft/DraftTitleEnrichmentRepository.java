@@ -32,6 +32,8 @@ public class DraftTitleEnrichmentRepository {
             Double ratingAvg     = rs.wasNull() ? null : ratingAvgRaw;
             int    ratingCountRaw = rs.getInt("rating_count");
             Integer ratingCount  = rs.wasNull() ? null : ratingCountRaw;
+            int durationMinutesRaw = rs.getInt("duration_minutes");
+            Integer durationMinutes = rs.wasNull() ? null : durationMinutesRaw;
             return DraftEnrichment.builder()
                     .draftTitleId(rs.getLong("draft_title_id"))
                     .javdbSlug(rs.getString("javdb_slug"))
@@ -39,6 +41,8 @@ public class DraftTitleEnrichmentRepository {
                     .maker(rs.getString("maker"))
                     .series(rs.getString("series"))
                     .coverUrl(rs.getString("cover_url"))
+                    .durationMinutes(durationMinutes)
+                    .publisher(rs.getString("publisher"))
                     .tagsJson(rs.getString("tags_json"))
                     .ratingAvg(ratingAvg)
                     .ratingCount(ratingCount)
@@ -58,24 +62,26 @@ public class DraftTitleEnrichmentRepository {
                 h.createUpdate("""
                         INSERT OR REPLACE INTO draft_title_javdb_enrichment
                             (draft_title_id, javdb_slug, cast_json, maker, series,
-                             cover_url, tags_json, rating_avg, rating_count,
-                             resolver_source, updated_at)
+                             cover_url, duration_minutes, publisher, tags_json,
+                             rating_avg, rating_count, resolver_source, updated_at)
                         VALUES
                             (:draftTitleId, :javdbSlug, :castJson, :maker, :series,
-                             :coverUrl, :tagsJson, :ratingAvg, :ratingCount,
-                             :resolverSource, :updatedAt)
+                             :coverUrl, :durationMinutes, :publisher, :tagsJson,
+                             :ratingAvg, :ratingCount, :resolverSource, :updatedAt)
                         """)
-                        .bind("draftTitleId",   draftTitleId)
-                        .bind("javdbSlug",      enrichment.getJavdbSlug())
-                        .bind("castJson",       enrichment.getCastJson())
-                        .bind("maker",          enrichment.getMaker())
-                        .bind("series",         enrichment.getSeries())
-                        .bind("coverUrl",       enrichment.getCoverUrl())
-                        .bind("tagsJson",       enrichment.getTagsJson())
-                        .bind("ratingAvg",      enrichment.getRatingAvg())
-                        .bind("ratingCount",    enrichment.getRatingCount())
-                        .bind("resolverSource", enrichment.getResolverSource())
-                        .bind("updatedAt",      enrichment.getUpdatedAt())
+                        .bind("draftTitleId",     draftTitleId)
+                        .bind("javdbSlug",        enrichment.getJavdbSlug())
+                        .bind("castJson",         enrichment.getCastJson())
+                        .bind("maker",            enrichment.getMaker())
+                        .bind("series",           enrichment.getSeries())
+                        .bind("coverUrl",         enrichment.getCoverUrl())
+                        .bind("durationMinutes",  enrichment.getDurationMinutes())
+                        .bind("publisher",        enrichment.getPublisher())
+                        .bind("tagsJson",         enrichment.getTagsJson())
+                        .bind("ratingAvg",        enrichment.getRatingAvg())
+                        .bind("ratingCount",      enrichment.getRatingCount())
+                        .bind("resolverSource",   enrichment.getResolverSource())
+                        .bind("updatedAt",        enrichment.getUpdatedAt())
                         .execute());
     }
 

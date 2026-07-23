@@ -217,6 +217,34 @@ class DraftPopulatorTest {
         assertTrue(coverStore.exists(draftId), "cover scratch file must be written");
     }
 
+    // ── Defect A: duration/publisher must survive populate → draft enrichment ──
+
+    @Test
+    void populate_happy_carriesDurationAndPublisherIntoDraftEnrichment() throws Exception {
+        when(titleRepo.findById(1L)).thenReturn(Optional.of(stubTitle(1L, "TST-1")));
+        stubSlugSuccess("TST-1", "tst-1");
+        when(javdbClient.fetchTitlePage("tst-1")).thenReturn("<html/>");
+        TitleExtract extract = new TitleExtract(
+                "TST-1", "tst-1", "テスト", "2024-06-01", 120,
+                "S1", "S1 Publisher", null,
+                4.5, 100,
+                List.of("Solowork"),
+                List.of(),
+                "https://example.com/cover.jpg",
+                null,
+                "2024-06-01T00:00:00Z",
+                false, false);
+        when(extractor.extractTitle("<html/>", "TST-1", "tst-1")).thenReturn(extract);
+        when(imageFetcher.fetch(anyString())).thenReturn(new ImageFetcher.Fetched(new byte[]{0}, "jpg"));
+
+        var result = populator.populate(1L);
+        assertEquals(DraftPopulator.Status.CREATED, result.status());
+
+        var enr = draftEnrichRepo.findByDraftId(result.draftTitleId()).orElseThrow();
+        assertEquals(120, enr.getDurationMinutes(), "duration_minutes must be carried from the extract");
+        assertEquals("S1 Publisher", enr.getPublisher(), "publisher must be carried from the extract");
+    }
+
     // ── cover fetch failure is non-fatal ──────────────────────────────────────
 
     @Test
@@ -860,5 +888,41 @@ class DraftPopulatorTest {
         assertEquals(1, slots.size());
         assertEquals("canonical", slots.get(0).getResolvedVia(),
                 "slot persisted by Pass 1 must carry resolved_via='canonical'");
+    }
+
+    // ── resolverSourceLabel: Defect B (two spellings for the same source) ───────
+
+    @Test
+    void resolverSourceLabel_codeSearchFallback_emitsUnderscoreForm() {
+        var success = new JavdbSlugResolver.Success("slug", JavdbSlugResolver.Source.CODE_SEARCH_FALLBACK);
+        assertEquals("code_search_fallback", DraftPopulator.resolverSourceLabel(success),
+                "must emit the canonical underscore form, not the old hyphenated 'code-search-fallback'");
+    }
+
+    @Test
+    void resolverSourceLabel_actressFilmography_emitsUnderscoreForm() {
+        var success = new JavdbSlugResolver.Success("slug", JavdbSlugResolver.Source.ACTRESS_FILMOGRAPHY);
+        assertEquals("actress_filmography", DraftPopulator.resolverSourceLabel(success),
+                "must emit the canonical underscore form, not the old hyphenated 'actress-filmography'");
+    }
+
+    /**
+     * Cross-agreement check: for every {@link JavdbSlugResolver.Source} value, this method's
+     * output must equal {@code EnrichmentRunner.resolverSourceLabel}'s output for the same
+     * value, so the two functions can never drift apart again (the original bug). Invoked via
+     * reflection since EnrichmentRunner's method is private in a different package.
+     */
+    @Test
+    void resolverSourceLabel_agreesWithEnrichmentRunner_forEveryEnumValue() throws Exception {
+        var enrichmentRunnerMethod = com.organizer3.javdb.enrichment.EnrichmentRunner.class
+                .getDeclaredMethod("resolverSourceLabel", JavdbSlugResolver.Source.class);
+        enrichmentRunnerMethod.setAccessible(true);
+
+        for (JavdbSlugResolver.Source source : JavdbSlugResolver.Source.values()) {
+            String expected = (String) enrichmentRunnerMethod.invoke(null, source);
+            String actual = DraftPopulator.resolverSourceLabel(new JavdbSlugResolver.Success("slug", source));
+            assertEquals(expected, actual,
+                    "DraftPopulator.resolverSourceLabel must agree with EnrichmentRunner's for source=" + source);
+        }
     }
 }

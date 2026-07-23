@@ -30,6 +30,12 @@ public class DraftEnrichment {
     String series;
     String coverUrl;
 
+    /** Runtime in minutes, straight from the javdb extract. */
+    Integer durationMinutes;
+
+    /** Publisher/label, straight from the javdb extract (distinct from {@code maker}). */
+    String publisher;
+
     /** Raw javdb tags JSON; resolved against alias map at promotion. */
     String tagsJson;
 

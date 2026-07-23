@@ -47,6 +47,8 @@ class DraftTitleEnrichmentRepositoryTest {
                 .maker("S1 NO.1 STYLE")
                 .series("Test Series")
                 .coverUrl("https://example.com/cover.jpg")
+                .durationMinutes(120)
+                .publisher("S1")
                 .tagsJson("[\"Big Tits\",\"Solowork\"]")
                 .ratingAvg(4.5)
                 .ratingCount(120)
@@ -70,6 +72,8 @@ class DraftTitleEnrichmentRepositoryTest {
         assertEquals("S1 NO.1 STYLE", e.getMaker());
         assertEquals("Test Series", e.getSeries());
         assertEquals("https://example.com/cover.jpg", e.getCoverUrl());
+        assertEquals(120, e.getDurationMinutes());
+        assertEquals("S1", e.getPublisher());
         assertEquals("[\"Big Tits\",\"Solowork\"]", e.getTagsJson());
         assertEquals(4.5, e.getRatingAvg());
         assertEquals(120, e.getRatingCount());
@@ -128,6 +132,8 @@ class DraftTitleEnrichmentRepositoryTest {
         assertNull(found.getMaker());
         assertNull(found.getSeries());
         assertNull(found.getCoverUrl());
+        assertNull(found.getDurationMinutes());
+        assertNull(found.getPublisher());
         assertNull(found.getTagsJson());
     }
 
