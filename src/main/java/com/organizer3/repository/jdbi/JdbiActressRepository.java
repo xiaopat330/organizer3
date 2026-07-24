@@ -863,7 +863,7 @@ public class JdbiActressRepository implements ActressRepository {
     @Override
     public void setStageName(long actressId, String stageName) {
         jdbi.useHandle(h ->
-                h.createUpdate("UPDATE actresses SET stage_name = :stageName WHERE id = :id")
+                h.createUpdate("UPDATE actresses SET stage_name = :stageName WHERE id = :id AND is_sentinel = 0")
                         .bind("stageName", StageNameNormalizer.normalize(stageName))
                         .bind("id", actressId)
                         .execute()

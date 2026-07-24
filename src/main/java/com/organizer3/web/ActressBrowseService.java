@@ -916,6 +916,9 @@ public class ActressBrowseService {
 
         Actress actress = actressRepo.findById(actressId).orElse(null);
         if (actress == null) return Optional.empty();
+        // Sentinel actresses (Amateur/Various/Unknown) are catch-all buckets, not real people —
+        // they must never carry a stage_name. Report not-found rather than a false success.
+        if (!actressRepo.findSentinelIds(List.of(actressId)).isEmpty()) return Optional.empty();
 
         actressRepo.setStageName(actressId, normalized);
         if (backupFile != null) {

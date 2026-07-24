@@ -45,6 +45,16 @@ class AutoPromoterTest {
                         .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
     }
 
+    /** Sentinel actresses (Amateur/Various/Unknown) must never receive a stage_name. */
+    private long insertSentinelActress(String canonicalName, String stageName) {
+        return jdbi.withHandle(h ->
+                h.createUpdate("INSERT INTO actresses (canonical_name, stage_name, tier, first_seen_at, is_sentinel) " +
+                               "VALUES (:cn, :sn, 'LIBRARY', '2024-01-01', 1)")
+                        .bind("cn", canonicalName)
+                        .bind("sn", stageName)
+                        .executeAndReturnGeneratedKeys("id").mapTo(Long.class).one());
+    }
+
     private long insertTitle(String code, String titleOriginal, String releaseDate) {
         return jdbi.withHandle(h ->
                 h.createUpdate("INSERT INTO titles (code, base_code, label, seq_num, title_original, release_date) " +
@@ -206,6 +216,23 @@ class AutoPromoterTest {
     }
 
     @Test
+    void promoteActressStageName_neverStampsASentinelActress() {
+        // Reproduces the LUXU-521/Amateur defect: a sentinel actress filed on an
+        // amateur-label title, with a cast_json slug match — must NOT get a stage_name.
+        long sentinel = insertSentinelActress("Amateur", null);
+        long t = insertTitle("LUXU-521", null, null);
+        linkActressTitle(sentinel, t);
+        insertActressStaging(sentinel, "8ORE");
+        insertTitleStagingWithCast(t, """
+                [{"slug":"8ORE","name":"大家ニナ","gender":"female"}]
+                """);
+
+        promoter.promoteActressStageName(sentinel);
+
+        assertNull(getStageName(sentinel), "sentinel actress must never receive a stage_name");
+    }
+
+    @Test
     void promoteFromTitle_promotesStageNameAlongWithTitleFields() {
         long a = insertActress("Yua Aida", null);
         long t = insertTitle("TST-009", null, null);
@@ -358,5 +385,17 @@ class AutoPromoterTest {
         promoter.promoteFromActressProfile(a);
 
         assertEquals("NoChange", getStageName(a));
+    }
+
+    @Test
+    void promoteFromActressProfile_neverStampsASentinelActress() {
+        // Rule 1 would normally fill a NULL stage_name from name_variants_json — must be
+        // suppressed for a sentinel actress.
+        long sentinel = insertSentinelActress("Amateur", null);
+        insertActressStagingWithVariants(sentinel, "[\"大家ニナ\"]");
+
+        promoter.promoteFromActressProfile(sentinel);
+
+        assertNull(getStageName(sentinel), "sentinel actress must never receive a stage_name");
     }
 }

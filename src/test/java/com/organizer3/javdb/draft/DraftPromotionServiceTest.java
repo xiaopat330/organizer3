@@ -1273,6 +1273,37 @@ class DraftPromotionServiceTest {
     }
 
     /**
+     * Sentinel guard: the stage_name backfill must never stamp a sentinel actress, even when
+     * a "pick" resolution files a cast entry directly onto the sentinel bucket (id=99, Amateur)
+     * and the linked draft_actress carries a kanji stage_name. Reproduces the LUXU-521 defect
+     * (a sentinel got stamped with a stage_name from an amateur-label title's cast_json).
+     */
+    @Test
+    void fix1_promotion_neverBackfillsStageNameOntoSentinelActress() throws Exception {
+        // Sentinel actress (id=99, "Amateur") has NO stage_name — guard must keep it that way.
+        jdbi.useHandle(h -> h.execute("UPDATE actresses SET stage_name=NULL WHERE id=99"));
+
+        long draftId = seedDraftFull(1L, castJson("Amateur"), "pick", "slug-sentinel-fix1", 99L,
+                null, null, "[]", "2024-06-01T00:00:00Z");
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE draft_actresses SET stage_name='大家ニナ' WHERE javdb_slug='slug-sentinel-fix1'"));
+
+        service.promote(draftId, "2024-06-01T00:00:00Z");
+
+        // Non-vacuity: the promotion must have actually gone through this path (title_actresses
+        // link created for the sentinel) — otherwise a NULL stage_name would prove nothing.
+        int linkCount = jdbi.withHandle(h ->
+                h.createQuery("SELECT COUNT(*) FROM title_actresses WHERE title_id=1 AND actress_id=99")
+                        .mapTo(Integer.class).one());
+        assertEquals(1, linkCount, "title_actresses link must exist — promotion must reach the backfill code path");
+
+        String stageName = jdbi.withHandle(h ->
+                h.createQuery("SELECT stage_name FROM actresses WHERE id=99")
+                        .mapTo(String.class).findOne().orElse(null));
+        assertNull(stageName, "sentinel actress must never receive a stage_name via backfill");
+    }
+
+    /**
      * FIX 1: If the actress already has a stage_name, the backfill must NOT overwrite it.
      */
     @Test

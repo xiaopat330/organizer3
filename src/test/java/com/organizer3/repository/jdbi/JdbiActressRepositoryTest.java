@@ -943,6 +943,27 @@ class JdbiActressRepositoryTest {
                 "setStageName must trim and strip internal spaces before persisting");
     }
 
+    @Test
+    void setStageNameIsNoOpOnASentinelActress() {
+        Actress saved = repo.save(actress("Amateur"));
+        connection_execute("UPDATE actresses SET is_sentinel = 1 WHERE id = " + saved.getId());
+
+        repo.setStageName(saved.getId(), "大家ニナ");
+
+        String stored = repo.findById(saved.getId()).orElseThrow().getStageName();
+        assertNull(stored, "setStageName must never write a stage_name onto a sentinel actress");
+    }
+
+    @Test
+    void setStageNameStillWorksOnANonSentinelActress() {
+        Actress saved = repo.save(actress("Yua Aida"));
+
+        repo.setStageName(saved.getId(), "相田ゆあ");
+
+        String stored = repo.findById(saved.getId()).orElseThrow().getStageName();
+        assertEquals("相田ゆあ", stored, "setStageName must still work on a non-sentinel actress");
+    }
+
     // --- findByStageName ---
 
     @Test

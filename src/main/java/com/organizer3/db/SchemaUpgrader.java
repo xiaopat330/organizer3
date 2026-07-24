@@ -25,7 +25,7 @@ import java.util.List;
 public class SchemaUpgrader {
 
     /** Must match the version stamped by {@link SchemaInitializer}. */
-    private static final int CURRENT_VERSION = 73;
+    private static final int CURRENT_VERSION = 74;
 
     private final Jdbi jdbi;
 
@@ -392,6 +392,11 @@ public class SchemaUpgrader {
         if (version < 73) {
             applyV73();
             setVersion(73);
+        }
+
+        if (version < 74) {
+            applyV74();
+            setVersion(74);
         }
 
         log.info("Schema upgrade complete");
@@ -2521,6 +2526,23 @@ public class SchemaUpgrader {
                         .execute();
             }
         });
+    }
+
+    /**
+     * v74: clears {@code stage_name} on sentinel actresses ({@code is_sentinel = 1}). Sentinel
+     * rows (Amateur/Various/Unknown) are catch-all buckets, not real people, and must never carry
+     * a {@code stage_name} — but the automatic promotion paths had no sentinel guard, so the
+     * {@code Amateur} sentinel got stamped with a stage_name from an amateur-label title's
+     * cast_json. The runtime write paths now guard {@code is_sentinel = 0} (see
+     * {@code AutoPromoter}, {@code DraftPromotionService}, {@code JdbiActressRepository}); this
+     * migration is the one-time cleanup of the bad data already written.
+     *
+     * <p>Idempotent — a second run matches zero rows once cleared.
+     */
+    private void applyV74() {
+        log.info("Applying migration v74: clear stage_name on sentinel actresses");
+        jdbi.useHandle(h -> h.execute(
+                "UPDATE actresses SET stage_name = NULL WHERE is_sentinel = 1 AND stage_name IS NOT NULL"));
     }
 
     private record FilmographyEntryKey(String actressSlug, String productCode) {}

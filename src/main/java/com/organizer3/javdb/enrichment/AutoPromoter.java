@@ -145,6 +145,7 @@ public class AutoPromoter {
                     SET stage_name = :variant
                     WHERE id = :actressId
                       AND :variant IS NOT NULL
+                      AND is_sentinel = 0
                     """)
                     .bind("actressId", actressId)
                     .bind("variant", variant0)
@@ -220,6 +221,7 @@ public class AutoPromoter {
                     LIMIT 1
                 )
                 WHERE id = :actressId AND stage_name IS NULL
+                  AND is_sentinel = 0
                   AND EXISTS (
                     SELECT 1
                     FROM title_actresses ta

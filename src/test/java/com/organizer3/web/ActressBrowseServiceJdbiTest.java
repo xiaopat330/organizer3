@@ -293,6 +293,19 @@ class ActressBrowseServiceJdbiTest {
     }
 
     @Test
+    void setStageNameManualReturnsEmptyForASentinelActress() {
+        long actressId = insertActress("Amateur");
+        jdbi.useHandle(h -> h.execute("UPDATE actresses SET is_sentinel = 1 WHERE id = " + actressId));
+
+        Optional<String> result = service.setStageNameManual(actressId, "大家ニナ");
+
+        assertTrue(result.isEmpty(), "manual stage-name set on a sentinel must report not-found, not success");
+        String written = jdbi.withHandle(h -> h.createQuery("SELECT stage_name FROM actresses WHERE id = :id")
+                .bind("id", actressId).mapTo(String.class).findOne().orElse(null));
+        assertNull(written, "sentinel actress must never receive a stage_name via the manual route");
+    }
+
+    @Test
     void setStageNameManualRejectsBlankInput() {
         long actressId = insertActress("Blank Test");
 

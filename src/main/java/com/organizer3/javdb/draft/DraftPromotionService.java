@@ -1132,6 +1132,7 @@ public class DraftPromotionService {
                                 SET stage_name = :stageName
                                 WHERE id = :id
                                   AND (stage_name IS NULL OR stage_name = '')
+                                  AND is_sentinel = 0
                                 """)
                                 .bind("stageName", kanjiStageName)
                                 .bind("id",        actressId)
